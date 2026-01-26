@@ -1,3 +1,5 @@
 export { default as DashboardLayout } from './DashboardLayout'
 export { default as DashboardSidebar } from './DashboardSidebar'
 export { default as DashboardHeader } from './DashboardHeader'
+export { default as OnboardingTour } from './OnboardingTour'
+export { default as ProductFormModal } from './ProductFormModal'

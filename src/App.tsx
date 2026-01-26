@@ -1,7 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Layout } from './components/Layout'
 import { AuthLayout } from './components/AuthLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { ProtectedRouteByRole } from './components/ProtectedRouteByRole'
 import { DashboardWelcomePopup } from './components/DashboardWelcomePopup'
 import { HomePage } from './pages/HomePage'
 import { ShopsPage } from './pages/ShopsPage'
@@ -10,9 +12,10 @@ import { ProductDetailPage } from './pages/ProductDetailPage'
 import { CartPage } from './pages/CartPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
-import { TodosPage } from './pages/TodosPage'
-import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { TestApiPage } from './pages/TestApiPage'
+import { CategoriesPage } from './pages/CategoriesPage'
+import { ProductsPage as PublicProductsPage } from './pages/ProductsPage'
+import { DealsPage } from './pages/DealsPage'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -22,7 +25,12 @@ import {
   VendorDashboardPage,
   ProductsPage,
   OrdersPage,
-  SettingsPage
+  SettingsPage,
+  StorePage,
+  AnalyticsPage,
+  EarningsPage,
+  ShippingPage,
+  HelpPage
 } from './pages/dashboard'
 
 // Import du Layout Dashboard Client
@@ -32,10 +40,44 @@ import { ClientDashboardLayout } from './components/dashboard/client'
 import {
   ClientDashboardPage,
   OrdersPage as ClientOrdersPage,
-  ProfilePage as ClientProfilePage
+  ProfilePage as ClientProfilePage,
+  FavoritesPage,
+  AddressesPage,
+  PaymentsPage,
+  MessagesPage,
+  NotificationsPage,
+  SettingsPage as ClientSettingsPage
 } from './pages/dashboard/client'
 
+// Import du Layout Dashboard Admin
+import { AdminDashboardLayout } from './components/dashboard/admin'
+
+// Import du Layout Dashboard SuperAdmin
+import { SuperAdminDashboardLayout } from './components/dashboard/superadmin'
+
+// Import des pages dashboard admin
+import {
+  AdminDashboardPage,
+  SuperAdminDashboardPage
+} from './pages/dashboard/admin'
+import SuperAdminUsersPage from './pages/dashboard/admin/SuperAdminUsersPage'
+import SuperAdminShopsPage from './pages/dashboard/admin/SuperAdminShopsPage'
+import SuperAdminCategoriesPage from './pages/dashboard/admin/SuperAdminCategoriesPage'
+import SuperAdminProductsPage from './pages/dashboard/admin/SuperAdminProductsPage'
+import SuperAdminOrdersPage from './pages/dashboard/admin/SuperAdminOrdersPage'
+import SuperAdminRestaurantsPage from './pages/dashboard/admin/SuperAdminRestaurantsPage'
+import SuperAdminPermissionsPage from './pages/dashboard/admin/SuperAdminPermissionsPage'
+import SuperAdminAnalyticsPage from './pages/dashboard/admin/SuperAdminAnalyticsPage'
+import SuperAdminPerformancePage from './pages/dashboard/admin/SuperAdminPerformancePage'
+import SuperAdminSettingsPage from './pages/dashboard/admin/SuperAdminSettingsPage'
+import { useAuthStore } from './stores/authStore'
+
 function App() {
+  const { loadUser } = useAuthStore()
+  useEffect(() => {
+    loadUser()
+  }, [loadUser])
+
   return (
     <div className="pb-20 md:pb-0"> {/* Padding-bottom pour la navbar mobile */}
     <Router>
@@ -52,26 +94,80 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="shops" element={<ShopsPage />} />
           <Route path="shops/:id" element={<ShopDetailPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="products" element={<PublicProductsPage />} />
           <Route path="products/:id" element={<ProductDetailPage />} />
+          <Route path="deals" element={<DealsPage />} />
           <Route path="cart" element={<CartPage />} />
           <Route path="test-api" element={<TestApiPage />} />
-          <Route path="admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-          <Route path="todos" element={<ProtectedRoute><TodosPage /></ProtectedRoute>} />
         </Route>
-        
+
         {/* Routes du dashboard vendeur */}
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+        <Route path="/dashboard" element={
+          <ProtectedRouteByRole allowedRoles={['vendor']}>
+            <DashboardLayout />
+          </ProtectedRouteByRole>
+        }>
           <Route index element={<VendorDashboardPage />} />
+          <Route path="store" element={<StorePage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="earnings" element={<EarningsPage />} />
+          <Route path="shipping" element={<ShippingPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="help" element={<HelpPage />} />
         </Route>
-        
+
         {/* Routes du dashboard client */}
-        <Route path="/client" element={<ProtectedRoute><ClientDashboardLayout /></ProtectedRoute>}>
+        <Route path="/client" element={
+          <ProtectedRouteByRole allowedRoles={['client']}>
+            <ClientDashboardLayout />
+          </ProtectedRouteByRole>
+        }>
           <Route index element={<ClientDashboardPage />} />
           <Route path="orders" element={<ClientOrdersPage />} />
+          <Route path="favorites" element={<FavoritesPage />} />
           <Route path="profile" element={<ClientProfilePage />} />
+          <Route path="addresses" element={<AddressesPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="messages" element={<MessagesPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="settings" element={<ClientSettingsPage />} />
+        </Route>
+
+        {/* Routes du dashboard admin */}
+        <Route path="/admin" element={
+          <ProtectedRouteByRole allowedRoles={['admin', 'super_admin']}>
+            <AdminDashboardLayout />
+          </ProtectedRouteByRole>
+        }>
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="users" element={<AdminDashboardPage />} />
+          <Route path="reports" element={<AdminDashboardPage />} />
+          <Route path="moderation" element={<AdminDashboardPage />} />
+          <Route path="analytics" element={<AdminDashboardPage />} />
+          <Route path="security" element={<AdminDashboardPage />} />
+          <Route path="settings" element={<AdminDashboardPage />} />
+        </Route>
+
+        {/* Routes du dashboard super admin */}
+        <Route path="/superadmin" element={
+          <ProtectedRouteByRole allowedRoles={['super_admin']}>
+            <SuperAdminDashboardLayout />
+          </ProtectedRouteByRole>
+        }>
+          <Route index element={<SuperAdminDashboardPage />} />
+          <Route path="users" element={<SuperAdminUsersPage />} />
+          <Route path="businesses" element={<SuperAdminShopsPage />} />
+          <Route path="restaurants" element={<SuperAdminRestaurantsPage />} />
+          <Route path="categories" element={<SuperAdminCategoriesPage />} />
+          <Route path="products" element={<SuperAdminProductsPage />} />
+          <Route path="orders" element={<SuperAdminOrdersPage />} />
+          <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
+          <Route path="performance" element={<SuperAdminPerformancePage />} />
+          <Route path="security" element={<SuperAdminPermissionsPage />} />
+          <Route path="settings" element={<SuperAdminSettingsPage />} />
         </Route>
       </Routes>
     </Router>

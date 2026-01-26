@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu, Bell, Search, ChevronDown, ShoppingCart } from 'lucide-react'
-import { useAuthStore } from '@buymore/api-client'
+import { useAuthStore } from '../../../stores/authStore'
 
 interface ClientDashboardHeaderProps {
   toggleSidebar: () => void
@@ -9,10 +9,25 @@ interface ClientDashboardHeaderProps {
 
 const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSidebar }) => {
   const navigate = useNavigate()
-  const { signOut, profile } = useAuthStore()
+  const { logout, user } = useAuthStore()
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const timeoutRef = useRef<number | null>(null)
+  
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    setIsDropdownOpen(true)
+  }
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = window.setTimeout(() => {
+      setIsDropdownOpen(false)
+    }, 200)
+  }
   
   const handleSignOut = async () => {
-    await signOut()
+    await logout()
     navigate('/')
   }
 
@@ -50,35 +65,41 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
           <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
         </button>
 
-        <div className="relative ml-2 group">
+        <div 
+          className="relative ml-2"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           <button className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900">
             <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-800 font-bold">
-              {profile?.full_name?.charAt(0) || 'U'}
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <span className="hidden md:block">{profile?.full_name}</span>
-            <ChevronDown size={16} />
+            <span className="hidden md:block">{user?.email?.split('@')[0]}</span>
+            <ChevronDown size={16} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          <div className="hidden group-hover:block absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-20">
-            <a
-              href="/client/profile"
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Mon profil
-            </a>
-            <a
-              href="/client/settings"
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Paramètres
-            </a>
-            <button
-              onClick={handleSignOut}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Se déconnecter
-            </button>
-          </div>
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-20">
+              <a
+                href="/client/profile"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Mon profil
+              </a>
+              <a
+                href="/client/settings"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Paramètres
+              </a>
+              <button
+                onClick={handleSignOut}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Se déconnecter
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

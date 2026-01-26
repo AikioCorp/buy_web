@@ -1,12 +1,29 @@
 import { useState, useEffect, useRef } from 'react'
 import { MapPin, ChevronDown } from 'lucide-react'
-import { supabase } from '@/utils/supabase'
 
 interface Neighborhood {
   id: string
   name: string
   commune: string
 }
+
+// Liste statique des quartiers de Bamako (à remplacer par un endpoint API)
+const BAMAKO_NEIGHBORHOODS: Neighborhood[] = [
+  { id: '1', name: 'ACI 2000', commune: 'Commune IV' },
+  { id: '2', name: 'Badalabougou', commune: 'Commune V' },
+  { id: '3', name: 'Hamdallaye', commune: 'Commune IV' },
+  { id: '4', name: 'Hippodrome', commune: 'Commune II' },
+  { id: '5', name: 'Kalaban Coura', commune: 'Commune V' },
+  { id: '6', name: 'Lafiabougou', commune: 'Commune IV' },
+  { id: '7', name: 'Magnambougou', commune: 'Commune VI' },
+  { id: '8', name: 'Missira', commune: 'Commune II' },
+  { id: '9', name: 'Niarela', commune: 'Commune II' },
+  { id: '10', name: 'Quinzambougou', commune: 'Commune II' },
+  { id: '11', name: 'Sabalibougou', commune: 'Commune V' },
+  { id: '12', name: 'Sebenikoro', commune: 'Commune IV' },
+  { id: '13', name: 'Sogoniko', commune: 'Commune VI' },
+  { id: '14', name: 'Torokorobougou', commune: 'Commune V' },
+]
 
 interface NeighborhoodAutocompleteProps {
   value: string
@@ -23,29 +40,11 @@ export function NeighborhoodAutocomplete({
   placeholder = "Sélectionnez un quartier",
   className = ""
 }: NeighborhoodAutocompleteProps) {
-  const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([])
-  const [filteredNeighborhoods, setFilteredNeighborhoods] = useState<Neighborhood[]>([])
+  const [neighborhoods] = useState<Neighborhood[]>(BAMAKO_NEIGHBORHOODS)
+  const [filteredNeighborhoods, setFilteredNeighborhoods] = useState<Neighborhood[]>(BAMAKO_NEIGHBORHOODS)
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const wrapperRef = useRef<HTMLDivElement>(null)
-
-  // Charger tous les quartiers au montage
-  useEffect(() => {
-    const loadNeighborhoods = async () => {
-      const { data, error } = await supabase
-        .from('neighborhoods')
-        .select('*')
-        .order('commune', { ascending: true })
-        .order('name', { ascending: true })
-
-      if (data && !error) {
-        setNeighborhoods(data)
-        setFilteredNeighborhoods(data)
-      }
-    }
-
-    loadNeighborhoods()
-  }, [])
 
   // Filtrer les quartiers selon la recherche
   useEffect(() => {

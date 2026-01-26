@@ -11,7 +11,7 @@ import {
   MessageSquare,
   Bell 
 } from 'lucide-react'
-import { useAuthStore } from '@buymore/api-client'
+import { useAuthStore } from '../../../stores/authStore'
 
 type SidebarLinkProps = {
   to: string
@@ -39,7 +39,7 @@ type ClientDashboardSidebarProps = {
 }
 
 const ClientDashboardSidebar: React.FC<ClientDashboardSidebarProps> = ({ isOpen }) => {
-  const { profile } = useAuthStore()
+  const { user, role } = useAuthStore()
   
   return (
     <aside 
@@ -76,11 +76,11 @@ const ClientDashboardSidebar: React.FC<ClientDashboardSidebarProps> = ({ isOpen 
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <div className="bg-green-50 rounded-lg p-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-800 font-bold">
-              {profile?.full_name?.charAt(0) || 'U'}
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div>
-              <div className="font-medium truncate w-36">{profile?.full_name}</div>
-              <div className="text-xs text-gray-500 capitalize">{profile?.role || 'utilisateur'}</div>
+              <div className="font-medium truncate w-36">{user?.email?.split('@')[0]}</div>
+              <div className="text-xs text-gray-500 capitalize">{role || 'client'}</div>
             </div>
           </div>
         </div>

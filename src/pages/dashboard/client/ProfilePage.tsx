@@ -1,10 +1,15 @@
 import React, { useState } from 'react'
 import { Save, UserCircle, Camera } from 'lucide-react'
-import { useAuthStore } from '@buymore/api-client'
+import { useAuthStore } from '@/store/authStore'
+import { useProfile } from '../../../hooks/useProfile'
+import { profileService } from '../../../lib/api'
 
 const ProfilePage: React.FC = () => {
-  const { profile } = useAuthStore()
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatar_url || null)
+  const { user } = useAuthStore()
+  const { profile, isLoading, refresh } = useProfile()
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -19,6 +24,46 @@ const ProfilePage: React.FC = () => {
       
       reader.readAsDataURL(file)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsSaving(true)
+    setMessage(null)
+
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      first_name: formData.get('first_name') as string,
+      last_name: formData.get('last_name') as string,
+      phone: formData.get('phone') as string,
+    }
+
+    try {
+      if (profile?.id) {
+        const response = await profileService.updateProfile(profile.id, data)
+        if (response.error) {
+          setMessage({ type: 'error', text: response.error })
+        } else {
+          setMessage({ type: 'success', text: 'Profil mis à jour avec succès' })
+          refresh()
+        }
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Erreur lors de la mise à jour du profil' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -57,33 +102,39 @@ const ProfilePage: React.FC = () => {
                     onChange={handleAvatarChange}
                   />
                 </div>
-                <h2 className="text-xl font-bold">{profile?.full_name}</h2>
-                <p className="text-gray-600 capitalize">{profile?.role || 'utilisateur'}</p>
+                <h2 className="text-xl font-bold">{profile?.first_name} {profile?.last_name}</h2>
+                <p className="text-gray-600 capitalize">Client</p>
               </div>
             </div>
             
             <div className="md:w-2/3">
-              <form>
+              {message && (
+                <div className={`mb-4 p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                  {message.text}
+                </div>
+              )}
+              <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom complet
+                      Prénom
                     </label>
                     <input
                       type="text"
+                      name="first_name"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      defaultValue={profile?.full_name || ''}
+                      defaultValue={profile?.first_name || ''}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
+                      Nom
                     </label>
                     <input
-                      type="email"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                      defaultValue=""
-                      readOnly
+                      type="text"
+                      name="last_name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      defaultValue={profile?.last_name || ''}
                     />
                   </div>
                 </div>
@@ -95,6 +146,7 @@ const ProfilePage: React.FC = () => {
                     </label>
                     <input
                       type="text"
+                      name="phone"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       defaultValue={profile?.phone || ''}
                       placeholder="+223 XX XX XX XX"
@@ -102,34 +154,25 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date de naissance
+                      Email
                     </label>
                     <input
-                      type="date"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      type="email"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                      defaultValue={user?.email || ''}
+                      readOnly
                     />
                   </div>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bio
-                  </label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    rows={3}
-                    defaultValue=""
-                    placeholder="Partagez quelques informations sur vous..."
-                  ></textarea>
                 </div>
                 
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1"
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1 disabled:opacity-50"
                   >
                     <Save size={18} />
-                    <span>Enregistrer</span>
+                    <span>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</span>
                   </button>
                 </div>
               </form>

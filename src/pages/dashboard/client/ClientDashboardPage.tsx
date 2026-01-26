@@ -1,16 +1,21 @@
-import React from 'react'
-import { ShoppingBag, Package, CreditCard, Clock, Calendar, CheckCircle } from 'lucide-react'
-import { useAuthStore } from '@buymore/api-client'
+import React, { useState } from 'react'
+import {
+  ShoppingBag, Package, CreditCard, Clock, Calendar, CheckCircle, Heart, MapPin,
+  Bell, ArrowRight, Star, Truck, Eye, Trash2, Plus, Download, TrendingDown, Award
+} from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
+import { useOrders } from '../../../hooks/useOrders'
+import { useFavorites } from '../../../hooks/useFavorites'
+import { useProducts } from '../../../hooks/useProducts'
 
-const StatCard = ({ title, value, icon, color }: { title: string, value: string, icon: React.ReactNode, color: string }) => (
-  <div className="bg-white rounded-lg shadow p-5 flex items-center">
-    <div className={`rounded-full p-3 mr-4 ${color}`}>
-      {icon}
-    </div>
+const StatCard = ({ title, value, icon, color, trend }: { title: string, value: string, icon: React.ReactNode, color: string, trend?: string }) => (
+  <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 flex items-center justify-between">
     <div>
-      <p className="text-gray-600 text-sm">{title}</p>
-      <h3 className="text-2xl font-bold">{value}</h3>
+      <p className="text-gray-600 text-sm font-medium">{title}</p>
+      <h3 className="text-3xl font-bold mt-2">{value}</h3>
+      {trend && <p className="text-xs text-gray-500 mt-1">{trend}</p>}
     </div>
+    <div className={`${color} p-3 rounded-lg`}>{icon}</div>
   </div>
 )
 
@@ -85,190 +90,284 @@ const ProductSuggestion = ({
 )
 
 const ClientDashboardPage: React.FC = () => {
-  const { profile } = useAuthStore()
+  const { user } = useAuthStore()
+  const { orders, isLoading: ordersLoading } = useOrders()
+  const { favorites, isLoading: favoritesLoading } = useFavorites()
+  const { products } = useProducts()
+  const [tab, setTab] = useState<'overview' | 'wishlist'>('overview')
+
+  const firstName = user?.username || 'Utilisateur'
+  
+  // Calculer les statistiques
+  const totalOrders = orders?.length || 0
+  const pendingOrders = orders?.filter(o => o.status === 'pending' || o.status === 'processing').length || 0
+  const totalSpent = orders?.reduce((sum, order) => sum + parseFloat(order.total_amount), 0) || 0
+  
+  // Récupérer les 3 dernières commandes
+  const recentOrders = orders?.slice(0, 3) || []
+  
+  // Récupérer 4 produits recommandés
+  const recommendedProducts = products?.slice(0, 4) || []
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">Bonjour, {profile?.full_name.split(' ')[0]}</h1>
-      <p className="text-gray-600 mb-6">Bienvenue sur votre tableau de bord client.</p>
-      
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Bonjour, {firstName}! 👋</h1>
+        <p className="text-gray-600 mt-1">Bienvenue sur votre tableau de bord client BuyMore</p>
+      </div>
+
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard 
-          title="Commandes totales" 
-          value="7" 
+        <StatCard
+          title="Commandes totales"
+          value={ordersLoading ? '...' : totalOrders.toString()}
           icon={<ShoppingBag size={24} className="text-white" />}
-          color="bg-blue-500" 
+          color="bg-blue-500"
+          trend="Tous les temps"
         />
-        <StatCard 
-          title="Commandes en cours" 
-          value="2" 
-          icon={<Package size={24} className="text-white" />}
-          color="bg-yellow-500" 
+        <StatCard
+          title="En cours"
+          value={ordersLoading ? '...' : pendingOrders.toString()}
+          icon={<Truck size={24} className="text-white" />}
+          color="bg-orange-500"
+          trend="À livrer bientôt"
         />
-        <StatCard 
-          title="Dépenses" 
-          value="85.700 XOF" 
+        <StatCard
+          title="Dépenses totales"
+          value={ordersLoading ? '...' : `${totalSpent.toLocaleString()} FCFA`}
           icon={<CreditCard size={24} className="text-white" />}
-          color="bg-green-500" 
+          color="bg-green-500"
+          trend="Cette année"
         />
-        <StatCard 
-          title="Économies" 
-          value="12.500 XOF" 
-          icon={<CreditCard size={24} className="text-white" />}
-          color="bg-purple-500" 
+        <StatCard
+          title="Favoris"
+          value={favoritesLoading ? '...' : favorites.length.toString()}
+          icon={<Heart size={24} className="text-white" />}
+          color="bg-purple-500"
+          trend="Produits sauvegardés"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow p-5 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold">Commandes récentes</h2>
-              <a href="/client/orders" className="text-sm text-green-600 hover:text-green-800">
-                Voir toutes
-              </a>
-            </div>
-            <div>
-              <OrderCard 
-                orderId="2457" 
-                shopName="Électronique Plus" 
-                total="35.000 XOF" 
-                date="15 Nov" 
-                status="delivered"
-              />
-              <OrderCard 
-                orderId="2433" 
-                shopName="Mode Bamako" 
-                total="12.500 XOF" 
-                date="30 Oct" 
-                status="processing"
-              />
-              <OrderCard 
-                orderId="2422" 
-                shopName="Tout pour la Maison" 
-                total="28.900 XOF" 
-                date="22 Oct" 
-                status="pending"
-              />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold">Articles recommandés</h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <ProductSuggestion
-                name="Samsung Galaxy A53"
-                price="150.000 XOF"
-                image=""
-              />
-              <ProductSuggestion
-                name="Écouteurs sans fil"
-                price="25.000 XOF"
-                image=""
-              />
-              <ProductSuggestion
-                name="Montre connectée"
-                price="45.000 XOF"
-                image=""
-              />
-              <ProductSuggestion
-                name="Power Bank 10000mAh"
-                price="15.000 XOF"
-                image=""
-              />
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="bg-white rounded-lg shadow p-5 mb-6">
-            <h2 className="text-lg font-bold mb-4">Statut de livraison</h2>
-            <div className="space-y-6">
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <p className="font-medium">Commande #2433</p>
-                  <p className="text-sm text-green-600">En route</p>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '75%' }}></div>
-                </div>
-                <div className="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>Préparation</span>
-                  <span>En transit</span>
-                  <span>Livré</span>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <p className="font-medium">Commande #2422</p>
-                  <p className="text-sm text-blue-600">Préparation</p>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '25%' }}></div>
-                </div>
-                <div className="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>Préparation</span>
-                  <span>En transit</span>
-                  <span>Livré</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-5">
-            <h2 className="text-lg font-bold mb-4">Boutiques favorites</h2>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium">EP</span>
-                </div>
-                <div>
-                  <p className="font-medium">Électronique Plus</p>
-                  <div className="flex items-center">
-                    <div className="flex text-yellow-400">
-                      {'★★★★☆'}
-                    </div>
-                    <span className="text-xs ml-1 text-gray-500">4.0</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium">MB</span>
-                </div>
-                <div>
-                  <p className="font-medium">Mode Bamako</p>
-                  <div className="flex items-center">
-                    <div className="flex text-yellow-400">
-                      {'★★★★★'}
-                    </div>
-                    <span className="text-xs ml-1 text-gray-500">5.0</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium">TM</span>
-                </div>
-                <div>
-                  <p className="font-medium">Tout pour la Maison</p>
-                  <div className="flex items-center">
-                    <div className="flex text-yellow-400">
-                      {'★★★☆☆'}
-                    </div>
-                    <span className="text-xs ml-1 text-gray-500">3.5</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-4 mb-6 border-b">
+        <button
+          onClick={() => setTab('overview')}
+          className={`px-4 py-3 font-medium transition-colors ${
+            tab === 'overview'
+              ? 'border-b-2 border-green-600 text-green-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Vue d'ensemble
+        </button>
+        <button
+          onClick={() => setTab('wishlist')}
+          className={`px-4 py-3 font-medium transition-colors flex items-center gap-2 ${
+            tab === 'wishlist'
+              ? 'border-b-2 border-green-600 text-green-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Heart size={18} />
+          Liste de souhaits ({favoritesLoading ? '...' : favorites.length})
+        </button>
       </div>
+
+      {/* Overview Tab */}
+      {tab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            {/* Recent Orders */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-gray-900">Commandes récentes</h2>
+                <a href="/client/orders" className="text-sm text-green-600 hover:text-green-800 font-medium flex items-center gap-1">
+                  Voir tous <ArrowRight size={16} />
+                </a>
+              </div>
+              <div className="space-y-3">
+                {ordersLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+                  </div>
+                ) : recentOrders.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune commande récente
+                  </div>
+                ) : (
+                  recentOrders.map((order) => (
+                    <OrderCard
+                      key={order.id}
+                      orderId={order.id.toString()}
+                      shopName={order.shop?.name || 'Boutique'}
+                      total={`${parseFloat(order.total_amount).toLocaleString()} FCFA`}
+                      date={new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      status={order.status as any}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Recommended Products */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-gray-900">Recommandé pour vous</h2>
+                <span className="text-xs text-gray-500">Basé sur votre historique</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {recommendedProducts.length === 0 ? (
+                  <div className="col-span-4 text-center py-8 text-gray-500">
+                    Aucun produit recommandé
+                  </div>
+                ) : (
+                  recommendedProducts.map((product) => (
+                    <ProductSuggestion
+                      key={product.id}
+                      name={product.name}
+                      price={`${parseFloat(product.base_price).toLocaleString()} FCFA`}
+                      image={product.media?.[0]?.image_url || ''}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Delivery Status */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Statut de livraison</h2>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="font-medium text-sm">Commande #2433</p>
+                    <p className="text-xs text-green-600 font-medium">En route</p>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-green-600 h-2 rounded-full" style={{ width: '75%' }}></div>
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-gray-500">
+                    <span>Préparation</span>
+                    <span>En transit</span>
+                    <span>Livré</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="font-medium text-sm">Commande #2422</p>
+                    <p className="text-xs text-blue-600 font-medium">Préparation</p>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: '25%' }}></div>
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-gray-500">
+                    <span>Préparation</span>
+                    <span>En transit</span>
+                    <span>Livré</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Favorite Shops */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Boutiques favorites</h2>
+              <div className="space-y-3">
+                {[
+                  { name: 'Électronique Plus', abbr: 'EP', rating: 4.8 },
+                  { name: 'Mode Bamako', abbr: 'MB', rating: 4.9 },
+                  { name: 'Tout pour la Maison', abbr: 'TM', rating: 4.5 }
+                ].map((shop, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-sm">
+                        {shop.abbr}
+                      </div>
+                      <p className="font-medium text-sm">{shop.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm font-medium">{shop.rating}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
+              <h3 className="font-bold text-gray-900 mb-3">Actions rapides</h3>
+              <div className="space-y-2">
+                <button className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                  <MapPin size={16} /> Gérer adresses
+                </button>
+                <button className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                  <Bell size={16} /> Préférences
+                </button>
+                <button className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                  <Download size={16} /> Télécharger factures
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wishlist Tab */}
+      {tab === 'wishlist' && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Ma liste de souhaits</h2>
+            <p className="text-sm text-gray-600">Gardez vos articles préférés pour plus tard</p>
+          </div>
+
+          {favoritesLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Chargement...</p>
+            </div>
+          ) : favorites.length === 0 ? (
+            <div className="text-center py-12">
+              <Heart size={64} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun favori</h3>
+              <p className="text-gray-600">Vous n'avez pas encore ajouté de produits à vos favoris</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {favorites.slice(0, 8).map((favorite) => (
+                <div key={favorite.id} className="group bg-gray-50 rounded-lg p-4 hover:shadow transition-all">
+                  <div className="h-32 bg-gray-200 rounded mb-3 flex items-center justify-center overflow-hidden">
+                    {favorite.product.media?.[0]?.image_url ? (
+                      <img 
+                        src={favorite.product.media[0].image_url} 
+                        alt={favorite.product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package size={32} className="text-gray-400" />
+                    )}
+                  </div>
+                  <h4 className="font-medium text-sm truncate">{favorite.product.name}</h4>
+                  <p className="text-xs text-gray-500 mt-1">{favorite.product.store?.name || 'Boutique'}</p>
+                  <p className="text-green-600 font-bold text-sm mt-2">
+                    {parseFloat(favorite.product.base_price).toLocaleString()} FCFA
+                  </p>
+                  <div className="flex gap-2 mt-3">
+                    <button className="flex-1 p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors text-xs">
+                      <Eye size={16} className="mx-auto" />
+                    </button>
+                    <button className="flex-1 p-1 text-red-600 hover:bg-red-50 rounded transition-colors text-xs">
+                      <Trash2 size={16} className="mx-auto" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

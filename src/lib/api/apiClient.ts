@@ -80,8 +80,37 @@ class ApiClient {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
+        // Gérer les différents formats d'erreur Django
+        let errorMessage = 'Une erreur est survenue';
+        if (data) {
+          if (typeof data === 'string') {
+            errorMessage = data;
+          } else if (data.detail) {
+            errorMessage = data.detail;
+          } else if (data.message) {
+            errorMessage = data.message;
+          } else if (data.error) {
+            errorMessage = data.error;
+          } else if (data.non_field_errors) {
+            errorMessage = Array.isArray(data.non_field_errors) 
+              ? data.non_field_errors.join(', ') 
+              : data.non_field_errors;
+          } else {
+            // Extraire les erreurs de champs spécifiques
+            const fieldErrors = Object.entries(data)
+              .filter(([key]) => key !== 'status')
+              .map(([key, value]) => {
+                const msg = Array.isArray(value) ? value.join(', ') : value;
+                return `${key}: ${msg}`;
+              });
+            if (fieldErrors.length > 0) {
+              errorMessage = fieldErrors.join(' | ');
+            }
+          }
+        }
+        console.error('API Error:', response.status, errorMessage, data);
         return {
-          error: data?.message || data?.detail || 'Une erreur est survenue',
+          error: errorMessage,
           status: response.status,
         };
       }

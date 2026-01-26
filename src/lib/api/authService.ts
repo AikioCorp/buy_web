@@ -28,6 +28,9 @@ export interface AuthResponse {
   username: string;
   email: string;
   is_seller?: boolean;
+  is_superuser?: boolean;
+  is_staff?: boolean;
+  role?: UserRole;
   store?: {
     id: number;
     name: string;
@@ -35,6 +38,8 @@ export interface AuthResponse {
     description?: string;
   };
 }
+
+export type UserRole = 'client' | 'vendor' | 'admin' | 'super_admin';
 
 export interface User {
   id: number;
@@ -44,6 +49,9 @@ export interface User {
   last_name?: string;
   phone?: string;
   is_seller?: boolean;
+  is_superuser?: boolean;
+  is_staff?: boolean;
+  role?: UserRole;
 }
 
 export const authService = {
@@ -81,12 +89,43 @@ export const authService = {
   },
 
   /**
-   * Obtenir le profil client (utilisé comme getCurrentUser)
+   * Obtenir les informations de l'utilisateur connecté
    */
   async getCurrentUser() {
-    const response = await apiClient.get<any[]>('/api/customers/profiles/');
+    // Essayer une liste d'endpoints communs pour récupérer l'utilisateur courant
+    const candidates = [
+      '/api/auth/me/',
+      '/api/auth/user/',
+      '/dj-rest-auth/user/',
+      '/api/users/me/',
+    ]
+
+    for (const endpoint of candidates) {
+      const response = await apiClient.get<any>(endpoint)
+      if (response.data) {
+        const d = response.data as any
+        return {
+          data: {
+            id: d.id ?? d.user?.id,
+            username: d.username ?? d.user?.username ?? '',
+            email: d.email ?? d.user?.email ?? '',
+            first_name: d.first_name,
+            last_name: d.last_name,
+            phone: d.phone,
+            is_seller: d.is_seller,
+            is_superuser: d.is_superuser,
+            is_staff: d.is_staff,
+            role: d.role || (d.is_superuser ? 'super_admin' : d.is_staff ? 'admin' : d.is_seller ? 'vendor' : undefined),
+          } as User,
+          status: response.status,
+        }
+      }
+    }
+
+    // Fallback: profil client (ne contient pas les rôles)
+    const response = await apiClient.get<any[]>('/api/customers/profiles/')
     if (response.data && response.data.length > 0) {
-      const profile = response.data[0];
+      const profile = response.data[0]
       return {
         data: {
           id: profile.user,
@@ -97,9 +136,10 @@ export const authService = {
           phone: profile.phone,
         } as User,
         status: response.status,
-      };
+      }
     }
-    return { error: 'Profil non trouvé', status: 404 };
+
+    return { error: 'Profil non trouvé', status: 404 }
   },
 
   /**

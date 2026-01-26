@@ -1,0 +1,107 @@
+import React, { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Menu, Bell, Search, ChevronDown, LogOut, AlertCircle } from 'lucide-react'
+import { useAuthStore } from '../../../stores/authStore'
+
+interface SuperAdminDashboardHeaderProps {
+  toggleSidebar: () => void
+}
+
+const SuperAdminDashboardHeader: React.FC<SuperAdminDashboardHeaderProps> = ({ toggleSidebar }) => {
+  const navigate = useNavigate()
+  const { logout, user } = useAuthStore()
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const timeoutRef = useRef<number | null>(null)
+  
+  const handleSignOut = async () => {
+    await logout()
+    navigate('/login')
+  }
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current)
+    }
+    setIsDropdownOpen(true)
+  }
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = window.setTimeout(() => {
+      setIsDropdownOpen(false)
+    }, 200)
+  }
+
+  return (
+    <header className="bg-white border-b border-gray-200 h-16 flex items-center px-4 sticky top-0 z-10">
+      <button
+        onClick={toggleSidebar}
+        className="p-2 rounded-md text-gray-600 hover:bg-gray-100 focus:outline-none"
+      >
+        <Menu size={20} />
+      </button>
+
+      <div className="hidden md:flex ml-4 flex-1 relative max-w-xl">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <Search size={18} className="text-gray-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="Rechercher..."
+          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50"
+        />
+      </div>
+
+      <div className="flex items-center ml-auto gap-3">
+        <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100 relative">
+          <AlertCircle size={20} />
+          <span className="absolute top-0 right-0 h-2 w-2 bg-yellow-500 rounded-full"></span>
+        </button>
+
+        <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100 relative">
+          <Bell size={20} />
+          <span className="absolute top-0 right-0 h-2 w-2 bg-indigo-500 rounded-full"></span>
+        </button>
+
+        <div 
+          className="relative ml-2"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <button className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900">
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-800 font-bold">
+              {user?.email?.charAt(0).toUpperCase() || 'S'}
+            </div>
+            <span className="hidden md:block">Super Admin</span>
+            <ChevronDown size={16} />
+          </button>
+
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-20">
+              <a
+                href="/superadmin/profile"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Votre profil
+              </a>
+              <a
+                href="/superadmin/settings"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Paramètres système
+              </a>
+              <button
+                onClick={handleSignOut}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                Se déconnecter
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}
+
+export default SuperAdminDashboardHeader

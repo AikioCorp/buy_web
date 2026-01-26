@@ -1,0 +1,208 @@
+import React, { useState } from 'react'
+import { 
+  Wallet, CreditCard, Building2, ArrowUpRight, ArrowDownRight,
+  Calendar, Download, Clock, CheckCircle, AlertCircle, Plus,
+  Banknote, TrendingUp, PiggyBank, Receipt
+} from 'lucide-react'
+
+const EarningsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'payouts'>('overview')
+
+  // Données fictives
+  const stats = {
+    available: 0,
+    pending: 0,
+    totalEarned: 0,
+    thisMonth: 0
+  }
+
+  const transactions: any[] = []
+  const payouts: any[] = []
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Revenus</h1>
+          <p className="text-gray-500 mt-1">Gérez vos revenus et retraits</p>
+        </div>
+        <button className="mt-4 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors">
+          <Wallet size={18} />
+          Demander un retrait
+        </button>
+      </div>
+
+      {/* Balance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+              <Wallet size={24} />
+            </div>
+            <span className="text-emerald-100 text-sm">Disponible</span>
+          </div>
+          <p className="text-3xl font-bold">{stats.available.toLocaleString()} XOF</p>
+          <p className="text-emerald-100 text-sm mt-2">Prêt à retirer</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+              <Clock size={24} className="text-amber-600" />
+            </div>
+            <span className="text-gray-500 text-sm">En attente</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">{stats.pending.toLocaleString()} XOF</p>
+          <p className="text-gray-500 text-sm mt-2">En cours de traitement</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+              <TrendingUp size={24} className="text-blue-600" />
+            </div>
+            <span className="text-gray-500 text-sm">Ce mois</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">{stats.thisMonth.toLocaleString()} XOF</p>
+          <p className="text-gray-500 text-sm mt-2">Revenus du mois</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+              <PiggyBank size={24} className="text-purple-600" />
+            </div>
+            <span className="text-gray-500 text-sm">Total</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">{stats.totalEarned.toLocaleString()} XOF</p>
+          <p className="text-gray-500 text-sm mt-2">Depuis le début</p>
+        </div>
+      </div>
+
+      {/* Payment Methods */}
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-gray-900">Méthodes de paiement</h2>
+          <button className="flex items-center gap-2 text-emerald-600 font-medium hover:text-emerald-700">
+            <Plus size={18} />
+            Ajouter
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Orange Money */}
+          <div className="border border-gray-200 rounded-xl p-4 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all cursor-pointer">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                <Banknote size={24} className="text-orange-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Orange Money</p>
+                <p className="text-sm text-gray-500">Non configuré</p>
+              </div>
+            </div>
+            <button className="w-full py-2 text-sm text-orange-600 font-medium hover:bg-orange-50 rounded-lg transition-colors">
+              Configurer
+            </button>
+          </div>
+
+          {/* Wave */}
+          <div className="border border-gray-200 rounded-xl p-4 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all cursor-pointer">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                <CreditCard size={24} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Wave</p>
+                <p className="text-sm text-gray-500">Non configuré</p>
+              </div>
+            </div>
+            <button className="w-full py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors">
+              Configurer
+            </button>
+          </div>
+
+          {/* Virement bancaire */}
+          <div className="border border-gray-200 rounded-xl p-4 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all cursor-pointer">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+                <Building2 size={24} className="text-gray-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Virement bancaire</p>
+                <p className="text-sm text-gray-500">Non configuré</p>
+              </div>
+            </div>
+            <button className="w-full py-2 text-sm text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">
+              Configurer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="flex border-b border-gray-100">
+          {[
+            { id: 'overview', label: 'Aperçu' },
+            { id: 'transactions', label: 'Transactions' },
+            { id: 'payouts', label: 'Retraits' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex-1 py-4 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-6">
+          {activeTab === 'overview' && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <Receipt size={32} className="text-gray-400" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Aucune activité</h3>
+              <p className="text-gray-500 text-sm max-w-md mx-auto">
+                Vos revenus et transactions apparaîtront ici une fois que vous aurez effectué vos premières ventes.
+              </p>
+            </div>
+          )}
+
+          {activeTab === 'transactions' && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <Banknote size={32} className="text-gray-400" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Aucune transaction</h3>
+              <p className="text-gray-500 text-sm max-w-md mx-auto">
+                L'historique de vos transactions apparaîtra ici.
+              </p>
+            </div>
+          )}
+
+          {activeTab === 'payouts' && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <Wallet size={32} className="text-gray-400" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Aucun retrait</h3>
+              <p className="text-gray-500 text-sm max-w-md mx-auto">
+                L'historique de vos retraits apparaîtra ici.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default EarningsPage

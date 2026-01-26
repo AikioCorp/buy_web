@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { X, Sparkles } from 'lucide-react'
-import { useAuthStore } from '@buymore/api-client'
+import { useAuthStore } from '@/store/authStore'
 
 export function DashboardWelcomePopup() {
   const [isVisible, setIsVisible] = useState(false)
-  const { user, profile } = useAuthStore()
+  const { user } = useAuthStore()
 
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté et n'a jamais visité le dashboard
-    if (user && profile) {
+    if (user) {
       const hasVisitedDashboard = localStorage.getItem(`dashboard_visited_${user.id}`)
       
       // Afficher le popup seulement si l'utilisateur n'a jamais visité le dashboard
@@ -22,7 +22,7 @@ export function DashboardWelcomePopup() {
         return () => clearTimeout(timer)
       }
     }
-  }, [user, profile])
+  }, [user])
 
   const handleVisitDashboard = () => {
     if (user) {
@@ -67,7 +67,7 @@ export function DashboardWelcomePopup() {
         {/* Contenu */}
         <div className="p-4">
           <p className="text-gray-700 mb-4">
-            Félicitations {profile?.full_name} ! 🎉
+            Félicitations {user?.username} ! 🎉
             <br />
             <span className="text-sm">
               Votre compte a été créé avec succès. Découvrez votre espace personnel et toutes ses fonctionnalités.

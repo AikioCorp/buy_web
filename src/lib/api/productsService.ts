@@ -10,11 +10,20 @@ export interface Product {
   slug: string;
   description?: string;
   base_price: string;
+  stock?: number;
+  low_stock_threshold?: number;
+  is_active?: boolean;
+  is_in_stock?: boolean;
+  is_low_stock?: boolean;
   category: Category;
   store: Store;
   media: ProductMedia[];
   options?: any[];
   related_products?: Product[];
+  average_rating?: number;
+  total_reviews?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Category {
@@ -36,7 +45,10 @@ export interface Store {
 
 export interface ProductMedia {
   id?: number;
+  file?: string;
   image_url?: string;
+  media_type?: string;
+  is_primary?: boolean;
 }
 
 export interface ProductsResponse {
@@ -52,6 +64,9 @@ export interface CreateProductData {
   slug: string;
   description: string;
   base_price: string;
+  stock?: number;
+  low_stock_threshold?: number;
+  is_active?: boolean;
 }
 
 export const productsService = {
@@ -64,6 +79,7 @@ export const productsService = {
     category_id?: number;
     category_slug?: string;
     search?: string;
+    store_id?: number;
   }) {
     const queryParams = new URLSearchParams();
     
@@ -72,6 +88,7 @@ export const productsService = {
     if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
     if (params?.category_slug) queryParams.append('category_slug', params.category_slug);
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.store_id) queryParams.append('store', params.store_id.toString());
 
     const endpoint = `/api/products/${queryParams.toString() ? `?${queryParams}` : ''}`;
     return apiClient.get<ProductsResponse>(endpoint);
@@ -117,5 +134,95 @@ export const productsService = {
    */
   async uploadProductImage(productId: number, file: File) {
     return apiClient.upload(`/api/my-products/${productId}/upload-image/`, file, 'image');
+  },
+
+  // ========== ADMIN ENDPOINTS ==========
+
+  /**
+   * Récupérer tous les produits (Admin)
+   */
+  async getAllProductsAdmin(params?: {
+    page?: number;
+    search?: string;
+    category_id?: number;
+    store_id?: number;
+  }) {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
+      if (params?.store_id) queryParams.append('store_id', params.store_id.toString());
+
+      // Essayer l'endpoint admin d'abord
+      let endpoint = `/api/admin/catalog/products/${queryParams.toString() ? `?${queryParams}` : ''}`;
+      let response = await apiClient.get<ProductsResponse | Product[]>(endpoint);
+      
+      // Fallback to public endpoint if admin fails
+      if (response.error) {
+        endpoint = `/api/products/${queryParams.toString() ? `?${queryParams}` : ''}`;
+        response = await apiClient.get<ProductsResponse | Product[]>(endpoint);
+      }
+      
+      if (response.error) {
+        return { 
+          data: { count: 0, next: null, previous: null, results: [] }, 
+          status: response.status 
+        };
+      }
+      
+      // Gérer les deux formats de réponse
+      if (Array.isArray(response.data)) {
+        return { 
+          data: { 
+            count: response.data.length, 
+            next: null, 
+            previous: null, 
+            results: response.data 
+          }, 
+          status: response.status 
+        };
+      }
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      console.error('Erreur getAllProductsAdmin:', error);
+      return { 
+        data: { count: 0, next: null, previous: null, results: [] }, 
+        status: error.response?.status || 500 
+      };
+    }
+  },
+
+  /**
+   * Créer un produit (Admin)
+   */
+  async createProductAdmin(data: CreateProductData & { store?: number }) {
+    const response = await apiClient.post<Product>('/api/admin/catalog/products/', data);
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    return { data: response.data, status: response.status };
+  },
+
+  /**
+   * Modifier un produit (Admin)
+   */
+  async updateProductAdmin(id: number, data: Partial<CreateProductData>) {
+    const response = await apiClient.patch<Product>(`/api/admin/catalog/products/${id}/`, data);
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    return { data: response.data, status: response.status };
+  },
+
+  /**
+   * Supprimer un produit (Admin)
+   */
+  async deleteProductAdmin(id: number) {
+    const response = await apiClient.delete(`/api/admin/catalog/products/${id}/`);
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    return { status: response.status };
   },
 };

@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { getSupabase } from '@buymore/api-client'
+import { ordersService } from '@/lib/api/ordersService'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card'
-import { formatPrice } from '@/lib/utils'
 import { Package, ShoppingBag } from 'lucide-react'
 
+// Helper to format price
+const formatPrice = (price: number | string, currency: string = 'XOF') => {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 0
+  }).format(numPrice)
+}
+
 export function DashboardPage() {
-  const { user, profile } = useAuthStore()
+  const { user } = useAuthStore()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -18,21 +27,11 @@ export function DashboardPage() {
 
   const loadOrders = async () => {
     try {
-      const supabase = getSupabase()
-      const { data } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          shop:shops(name),
-          items:order_items(
-            *,
-            product:products(name)
-          )
-        `)
-        .eq('customer_id', user?.id)
-        .order('created_at', { ascending: false })
-
-      if (data) setOrders(data)
+      setLoading(true)
+      const response = await ordersService.getOrders()
+      if (response.data) {
+        setOrders(Array.isArray(response.data) ? response.data : [])
+      }
     } catch (error) {
       console.error('Error loading orders:', error)
     } finally {

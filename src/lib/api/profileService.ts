@@ -55,6 +55,13 @@ export const profileService = {
   },
 
   /**
+   * Mettre à jour le profil client
+   */
+  async updateProfile(id: number, data: UpdateProfileData) {
+    return apiClient.patch<CustomerProfile>(`/api/customers/profiles/${id}/`, data);
+  },
+
+  /**
    * Récupérer les adresses
    */
   async getAddresses() {

@@ -1,10 +1,10 @@
 import React from 'react'
 import { Save, UserCircle, Store, Lock } from 'lucide-react'
-import { useAuthStore } from '@buymore/api-client'
+import { useAuthStore } from '@/store/authStore'
 
 const SettingsPage: React.FC = () => {
-  const { profile } = useAuthStore()
-  const isVendor = profile?.role === 'vendor'
+  const { user, role } = useAuthStore()
+  const isVendor = role === 'vendor'
 
   return (
     <div>
@@ -30,15 +30,7 @@ const SettingsPage: React.FC = () => {
             <div className="md:w-1/3">
               <div className="flex flex-col items-center">
                 <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                  {profile?.avatar_url ? (
-                    <img 
-                      src={profile.avatar_url} 
-                      alt={profile.full_name} 
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <UserCircle size={64} className="text-gray-400" />
-                  )}
+                  <UserCircle size={64} className="text-gray-400" />
                 </div>
                 <button className="px-4 py-2 bg-gray-100 rounded-md text-sm text-gray-700 hover:bg-gray-200">
                   Changer la photo
@@ -56,7 +48,7 @@ const SettingsPage: React.FC = () => {
                     <input
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      defaultValue={profile?.full_name || ''}
+                      defaultValue={user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.username || ''}
                     />
                   </div>
                   <div>
@@ -80,7 +72,7 @@ const SettingsPage: React.FC = () => {
                     <input
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      defaultValue={profile?.phone || ''}
+                      defaultValue={user?.phone || ''}
                       placeholder="+223 XX XX XX XX"
                     />
                   </div>
@@ -91,7 +83,7 @@ const SettingsPage: React.FC = () => {
                     <input
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                      defaultValue={profile?.role === 'vendor' ? 'Vendeur' : 'Client'}
+                      defaultValue={role === 'vendor' ? 'Vendeur' : 'Client'}
                       readOnly
                     />
                   </div>

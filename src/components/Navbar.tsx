@@ -1,8 +1,24 @@
 import { useState, useEffect } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Search, Heart, ShoppingCart, Menu, X, LogOut } from 'lucide-react'
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Search, Heart, ShoppingCart, Menu, X, LogOut, ChevronRight } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import { shopsService } from '../lib/api/shopsService'
+import { categoriesService } from '../lib/api/categoriesService'
+
+interface ShopItem {
+  id: number
+  name: string
+  slug: string
+  logo_url?: string
+}
+
+interface CategoryItem {
+  id: number
+  name: string
+  slug: string
+  children?: CategoryItem[]
+}
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -12,8 +28,12 @@ export function Navbar() {
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
   const [showShopsMegaMenu, setShowShopsMegaMenu] = useState(false)
-  const [shops] = useState<any[]>([]) // TODO: Charger depuis l'API Django REST
+  const [showCategoriesMegaMenu, setShowCategoriesMegaMenu] = useState(false)
+  const [shops, setShops] = useState<ShopItem[]>([])
+  const [dynamicCategories, setDynamicCategories] = useState<CategoryItem[]>([])
   const navigate = useNavigate()
+  const location = useLocation()
+  const isHomePage = location.pathname === '/'
   const { user, logout } = useAuthStore()
   const { getItemCount } = useCartStore()
 
@@ -97,14 +117,40 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // TODO: Charger les boutiques depuis l'API Django REST
-  // useEffect(() => {
-  //   const loadShops = async () => {
-  //     const response = await shopsService.getShops()
-  //     if (response.data) setShops(response.data)
-  //   }
-  //   loadShops()
-  // }, [])
+  // Charger les catégories depuis l'API (endpoint public uniquement)
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Charger les catégories (endpoint public - ne nécessite pas d'auth)
+        const categoriesResponse = await categoriesService.getCategories()
+        if (categoriesResponse.data) {
+          setDynamicCategories(Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [])
+        }
+      } catch (error) {
+        // Ignorer silencieusement les erreurs
+      }
+    }
+    loadData()
+  }, [])
+  
+  // Charger les boutiques uniquement si l'utilisateur est connecté
+  useEffect(() => {
+    const loadShops = async () => {
+      if (!user) {
+        setShops([])
+        return
+      }
+      try {
+        const shopsResponse = await shopsService.getPublicShops(1, 8)
+        if (shopsResponse.data?.results) {
+          setShops(shopsResponse.data.results.slice(0, 8))
+        }
+      } catch (error) {
+        // Ignorer silencieusement les erreurs
+      }
+    }
+    loadShops()
+  }, [user])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -122,9 +168,9 @@ export function Navbar() {
 
   return (
     <>
-      {/* Header mobile compact lors du scroll - Logo centré style moderne */}
+      {/* Header mobile compact - Toujours visible sauf sur homepage (où il apparaît au scroll) */}
       <div className={`md:hidden fixed top-0 left-0 right-0 bg-[#0f4c2b] z-[100] shadow-md transition-all duration-300 ease-out ${
-        isScrolled ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+        !isHomePage || isScrolled ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
       }`}>
         <div className="flex items-center justify-between px-4 py-2.5">
           {/* Icône gauche */}
@@ -282,9 +328,9 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Navbar compacte sticky lors du scroll - Uniquement sur desktop */}
+      {/* Navbar compacte sticky - Toujours visible sauf sur homepage (où elle apparaît au scroll) */}
       <div className={`hidden md:block fixed top-0 left-0 right-0 z-[100] bg-[#0f4c2b] shadow-lg transition-transform duration-300 ${
-        isScrolled ? 'translate-y-0' : '-translate-y-full'
+        !isHomePage || isScrolled ? 'translate-y-0' : '-translate-y-full'
       }`}>
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center gap-4">
@@ -430,7 +476,8 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Navbar principale - Masquée lors du scroll */}
+      {/* Navbar principale - Affichée uniquement sur la homepage, masquée lors du scroll */}
+      {isHomePage && (
       <nav className={`bg-[#0f4c2b] text-white sticky top-0 z-50 shadow-lg transition-opacity duration-300 ${
         isScrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}>
@@ -632,9 +679,57 @@ export function Navbar() {
                 )}
               </div>
 
-              <Link to="/categories" className="hover:text-[#e8d20c] transition-colors font-medium">
-                Catégories
-              </Link>
+              <div 
+                className="relative group"
+                onMouseEnter={() => setShowCategoriesMegaMenu(true)}
+                onMouseLeave={() => setShowCategoriesMegaMenu(false)}
+              >
+                <Link to="/categories" className="hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1">
+                  Catégories
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </Link>
+
+                {/* Mega Menu des catégories */}
+                {showCategoriesMegaMenu && dynamicCategories.length > 0 && (
+                  <div className="absolute top-full left-0 mt-2 w-[500px] bg-white rounded-lg shadow-2xl z-[110] overflow-hidden border border-gray-100">
+                    <div className="p-4 bg-gray-50 border-b border-gray-200">
+                      <h3 className="text-lg font-bold text-gray-900">Nos Catégories</h3>
+                      <p className="text-sm text-gray-600">Explorez nos différentes catégories</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 p-3 max-h-[400px] overflow-y-auto">
+                      {dynamicCategories.slice(0, 12).map((category) => (
+                        <Link
+                          key={category.id}
+                          to={`/products?category=${category.slug}`}
+                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group/item"
+                          onClick={() => setShowCategoriesMegaMenu(false)}
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0f4c2b]/10 to-[#e8d20c]/10 flex items-center justify-center group-hover/item:from-[#0f4c2b]/20 group-hover/item:to-[#e8d20c]/20 transition-colors">
+                            <span className="text-lg">📦</span>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-gray-900 group-hover/item:text-[#0f4c2b] transition-colors">
+                              {category.name}
+                            </span>
+                          </div>
+                          <ChevronRight size={16} className="text-gray-400 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="p-3 bg-gray-50 border-t border-gray-200">
+                      <Link 
+                        to="/categories" 
+                        className="block text-center text-sm font-semibold text-[#0f4c2b] hover:text-[#1a5f3a]"
+                        onClick={() => setShowCategoriesMegaMenu(false)}
+                      >
+                        Voir toutes les catégories →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
               <Link to="/products" className="hover:text-[#e8d20c] transition-colors font-medium">
                 Produits
               </Link>
@@ -827,6 +922,7 @@ export function Navbar() {
         </div>
       )}
       </nav>
+      )}
     </>
   )
 }
