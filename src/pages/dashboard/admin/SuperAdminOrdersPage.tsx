@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { Search, ShoppingBag, Eye, X, Truck, CheckCircle, XCircle, Clock, Package } from 'lucide-react'
+import { 
+  Search, ShoppingBag, Eye, X, Truck, CheckCircle, XCircle, Clock, Package,
+  ArrowRightLeft, Store, AlertTriangle, Loader2
+} from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
+import { shopsService } from '../../../lib/api/shopsService'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
 
-// Fonction utilitaire pour construire l'URL de l'image
+interface Shop {
+  id: number
+  name: string
+  is_active: boolean
+}
+
 const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
   if (!media || media.length === 0) return null
   const primaryImage = media.find(m => m.is_primary) || media[0]
   let url = primaryImage?.image_url || primaryImage?.file
   if (!url) return null
-  // Convertir http:// en https:// pour éviter le blocage mixed content
   if (url.startsWith('http://')) {
     url = url.replace('http://', 'https://')
   }
@@ -20,24 +28,52 @@ const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_prima
 
 const SuperAdminOrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([])
+  const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('')
+  
+  // Modals
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null)
   const [orderToUpdate, setOrderToUpdate] = useState<Order | null>(null)
+  const [orderToTransfer, setOrderToTransfer] = useState<Order | null>(null)
   const [newStatus, setNewStatus] = useState<OrderStatus>('pending')
+  const [statusNote, setStatusNote] = useState('')
+  const [transferShopId, setTransferShopId] = useState<number | null>(null)
+  const [transferReason, setTransferReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  
+  // Filtres avancés
+  const [selectedShopId, setSelectedShopId] = useState<number | null>(null)
 
   const pageSize = 20
 
+  const loadShops = async () => {
+    try {
+      const response = await shopsService.getAllShops()
+      if (response.data) {
+        const shopsList = Array.isArray(response.data) ? response.data : response.data.results || []
+        setShops(shopsList)
+      }
+    } catch (err) {
+      console.error('Erreur chargement boutiques:', err)
+    }
+  }
+
   useEffect(() => {
     loadOrders()
-  }, [currentPage, searchQuery, selectedStatus])
+    loadShops()
+  }, [])
+
+  useEffect(() => {
+    loadOrders()
+  }, [currentPage, searchQuery, selectedStatus, selectedShopId])
 
   const loadOrders = async () => {
     try {
@@ -47,7 +83,8 @@ const SuperAdminOrdersPage: React.FC = () => {
       const response = await ordersService.getAllOrdersAdmin({
         page: currentPage,
         status: selectedStatus || undefined,
-        search: searchQuery || undefined
+        search: searchQuery || undefined,
+        store_id: selectedShopId || undefined
       })
 
       console.log('Orders response:', response)
@@ -106,9 +143,50 @@ const SuperAdminOrdersPage: React.FC = () => {
       await ordersService.updateOrderStatus(orderToUpdate.id, newStatus)
       setIsStatusModalOpen(false)
       setOrderToUpdate(null)
+      setStatusNote('')
       loadOrders()
     } catch (err: any) {
       alert(err.message || 'Erreur lors de la mise à jour du statut')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleTransferClick = async (order: Order) => {
+    setOrderToTransfer(order)
+    setTransferShopId(null)
+    setTransferReason('')
+    
+    // Charger les boutiques si pas encore fait
+    if (shops.length === 0) {
+      try {
+        const response = await shopsService.getAllShops()
+        if (response.data) {
+          const shopsList = Array.isArray(response.data) ? response.data : response.data.results || []
+          setShops(shopsList)
+        }
+      } catch (err) {
+        console.error('Erreur chargement boutiques:', err)
+      }
+    }
+    
+    setIsTransferModalOpen(true)
+  }
+
+  const handleTransferOrder = async () => {
+    if (!orderToTransfer || !transferShopId || !transferReason.trim()) return
+    
+    try {
+      setActionLoading(true)
+      await ordersService.transferOrder(orderToTransfer.id, transferShopId, transferReason)
+      
+      setIsTransferModalOpen(false)
+      setOrderToTransfer(null)
+      setTransferShopId(null)
+      setTransferReason('')
+      loadOrders()
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors du transfert de la commande')
     } finally {
       setActionLoading(false)
     }
@@ -220,7 +298,7 @@ const SuperAdminOrdersPage: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
                   type="text"
-                  placeholder="Rechercher une commande..."
+                  placeholder="Rechercher par n° commande, client, produit..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -228,6 +306,22 @@ const SuperAdminOrdersPage: React.FC = () => {
               </div>
             </form>
             
+            {/* Filtre par boutique */}
+            <select
+              value={selectedShopId || ''}
+              onChange={(e) => {
+                setSelectedShopId(e.target.value ? parseInt(e.target.value) : null)
+                setCurrentPage(1)
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              <option value="">Toutes les boutiques</option>
+              {shops.map(shop => (
+                <option key={shop.id} value={shop.id}>{shop.name}</option>
+              ))}
+            </select>
+            
+            {/* Filtre par statut */}
             <select
               value={selectedStatus}
               onChange={(e) => {
@@ -325,13 +419,22 @@ const SuperAdminOrdersPage: React.FC = () => {
                         {formatDate(order.created_at)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          onClick={() => handleViewOrder(order)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="Voir les détails"
-                        >
-                          <Eye size={16} />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleViewOrder(order)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Voir les détails"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleTransferClick(order)}
+                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            title="Transférer la commande"
+                          >
+                            <ArrowRightLeft size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -454,32 +557,54 @@ const SuperAdminOrdersPage: React.FC = () => {
 
       {/* Update Status Modal */}
       {isStatusModalOpen && orderToUpdate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Modifier le statut</h2>
               <p className="text-sm text-gray-500">Commande #{orderToUpdate.id}</p>
             </div>
             
             <div className="p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nouveau statut
-              </label>
-              <select
-                value={newStatus}
-                onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="pending">En attente</option>
-                <option value="confirmed">Confirmée</option>
-                <option value="processing">En préparation</option>
-                <option value="shipped">Expédiée</option>
-                <option value="delivered">Livrée</option>
-                <option value="cancelled">Annulée</option>
-              </select>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Statut actuel
+                </label>
+                <div>{getStatusBadge(orderToUpdate.status)}</div>
+              </div>
 
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nouveau statut
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="pending">En attente</option>
+                  <option value="confirmed">Confirmée</option>
+                  <option value="processing">En préparation</option>
+                  <option value="shipped">Expédiée</option>
+                  <option value="delivered">Livrée</option>
+                  <option value="cancelled">Annulée</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Note pour le client (optionnel)
+                </label>
+                <textarea
+                  value={statusNote}
+                  onChange={(e) => setStatusNote(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Ajouter une note..."
+                />
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
                   <strong>Note:</strong> Le client sera notifié par email et SMS du changement de statut.
                 </p>
               </div>
@@ -496,15 +621,122 @@ const SuperAdminOrdersPage: React.FC = () => {
               <button
                 onClick={handleUpdateStatus}
                 disabled={actionLoading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {actionLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
                     Mise à jour...
-                  </div>
+                  </>
                 ) : (
                   'Mettre à jour'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Order Modal */}
+      {isTransferModalOpen && orderToTransfer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <ArrowRightLeft className="text-orange-600" size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Transférer la commande</h2>
+                  <p className="text-sm text-gray-500">Commande #{orderToTransfer.id}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="text-yellow-600 flex-shrink-0 mt-0.5" size={18} />
+                  <p className="text-sm text-yellow-800">
+                    Le transfert de commande notifiera le client et la nouvelle boutique. 
+                    Cette action est irréversible.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Boutique actuelle
+                </label>
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                  <Store className="text-gray-400" size={18} />
+                  <span className="text-gray-900">
+                    {(orderToTransfer.items?.[0]?.product as any)?.store?.name || 'Non définie'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nouvelle boutique <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={transferShopId || ''}
+                  onChange={(e) => setTransferShopId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">Sélectionner une boutique</option>
+                  {shops.filter(s => s.is_active).map(shop => (
+                    <option key={shop.id} value={shop.id}>{shop.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Raison du transfert <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={transferReason}
+                  onChange={(e) => setTransferReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Expliquez la raison du transfert au client..."
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Cette raison sera communiquée au client par email et SMS.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsTransferModalOpen(false)
+                  setOrderToTransfer(null)
+                  setTransferShopId(null)
+                  setTransferReason('')
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                disabled={actionLoading}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleTransferOrder}
+                disabled={actionLoading || !transferShopId || !transferReason.trim()}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Transfert...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRightLeft size={16} />
+                    Transférer
+                  </>
                 )}
               </button>
             </div>

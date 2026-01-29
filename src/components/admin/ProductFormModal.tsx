@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
   X, Save, Plus, Trash2, Upload, Image as ImageIcon, 
-  Package, Tag, DollarSign, Layers, Box, Info
+  Package, Tag, DollarSign, Layers, Box, Info, Truck, Shield, RefreshCw, Check, Settings
 } from 'lucide-react'
 import { Category } from '../../lib/api/categoriesService'
 import { Shop } from '../../lib/api/shopsService'
@@ -14,11 +14,19 @@ export interface ProductVariant {
   stock: number
 }
 
+export interface ProductFeatures {
+  delivery_time: string
+  warranty_duration: string
+  return_policy: string
+  is_authentic: boolean
+}
+
 export interface ProductFormData {
   name: string
   slug: string
   description: string
   base_price: string
+  promo_price?: string
   category_id: number | null
   store_id: number | null
   stock_quantity: number
@@ -27,6 +35,7 @@ export interface ProductFormData {
   variants: ProductVariant[]
   images: File[]
   existing_images?: string[]
+  features?: ProductFeatures
 }
 
 interface ProductFormModalProps {
@@ -55,6 +64,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     slug: '',
     description: '',
     base_price: '',
+    promo_price: '',
     category_id: null,
     store_id: null,
     stock_quantity: 0,
@@ -65,7 +75,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     existing_images: []
   })
 
-  const [activeTab, setActiveTab] = useState<'general' | 'variants' | 'images'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'features' | 'variants' | 'images'>('general')
+  const [features, setFeatures] = useState<ProductFeatures>({
+    delivery_time: '24-48h',
+    warranty_duration: '12 mois',
+    return_policy: '7 jours',
+    is_authentic: true,
+  })
   const [imagePreview, setImagePreview] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -76,6 +92,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         slug: initialData.slug || '',
         description: initialData.description || '',
         base_price: initialData.base_price || '',
+        promo_price: initialData.promo_price || '',
         category_id: initialData.category_id || null,
         store_id: initialData.store_id || null,
         stock_quantity: initialData.stock_quantity || 0,
@@ -234,6 +251,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </span>
             </button>
             <button
+              onClick={() => setActiveTab('features')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'features'
+                  ? 'bg-white text-green-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Settings size={16} />
+                Caractéristiques
+              </span>
+            </button>
+            <button
               onClick={() => setActiveTab('variants')}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                 activeTab === 'variants'
@@ -243,7 +273,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             >
               <span className="flex items-center gap-2">
                 <Layers size={16} />
-                Variantes & Stock
+                Variantes
               </span>
             </button>
             <button
@@ -333,6 +363,24 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   {errors.base_price && <p className="text-red-500 text-sm mt-1">{errors.base_price}</p>}
                 </div>
 
+                {/* Prix Promo */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Prix promo (FCFA)
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400" size={18} />
+                    <input
+                      type="number"
+                      value={formData.promo_price || ''}
+                      onChange={(e) => setFormData({ ...formData, promo_price: e.target.value })}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="12000"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Laissez vide si pas de promotion</p>
+                </div>
+
                 {/* Stock */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -416,6 +464,154 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     />
                     <span className="text-sm font-medium text-gray-700">Produit actif et visible</span>
                   </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Features Tab */}
+          {activeTab === 'features' && (
+            <div className="space-y-6">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <p className="text-sm text-green-800">
+                  <strong>Caractéristiques :</strong> Ces informations seront affichées sur la page du produit pour rassurer les acheteurs sur la livraison, la garantie et l'authenticité.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Délai de livraison */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <Truck className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Livraison rapide</h4>
+                      <p className="text-xs text-gray-500">Délai de livraison estimé</p>
+                    </div>
+                  </div>
+                  <select
+                    value={features.delivery_time}
+                    onChange={(e) => setFeatures({ ...features, delivery_time: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                  >
+                    <option value="24h">Sous 24h</option>
+                    <option value="24-48h">Sous 24-48h</option>
+                    <option value="48-72h">Sous 48-72h</option>
+                    <option value="3-5 jours">3-5 jours</option>
+                    <option value="5-7 jours">5-7 jours</option>
+                    <option value="1-2 semaines">1-2 semaines</option>
+                  </select>
+                </div>
+
+                {/* Garantie */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Garantie</h4>
+                      <p className="text-xs text-gray-500">Durée de la garantie</p>
+                    </div>
+                  </div>
+                  <select
+                    value={features.warranty_duration}
+                    onChange={(e) => setFeatures({ ...features, warranty_duration: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                  >
+                    <option value="Sans garantie">Sans garantie</option>
+                    <option value="7 jours">7 jours</option>
+                    <option value="15 jours">15 jours</option>
+                    <option value="1 mois">1 mois</option>
+                    <option value="3 mois">3 mois</option>
+                    <option value="6 mois">6 mois</option>
+                    <option value="12 mois">12 mois</option>
+                    <option value="24 mois">24 mois</option>
+                  </select>
+                </div>
+
+                {/* Politique de retour */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                      <RefreshCw className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Retour facile</h4>
+                      <p className="text-xs text-gray-500">Délai pour retourner le produit</p>
+                    </div>
+                  </div>
+                  <select
+                    value={features.return_policy}
+                    onChange={(e) => setFeatures({ ...features, return_policy: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                  >
+                    <option value="Non retournable">Non retournable</option>
+                    <option value="3 jours">Sous 3 jours</option>
+                    <option value="7 jours">Sous 7 jours</option>
+                    <option value="14 jours">Sous 14 jours</option>
+                    <option value="30 jours">Sous 30 jours</option>
+                  </select>
+                </div>
+
+                {/* Authenticité */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <Check className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Authentique</h4>
+                      <p className="text-xs text-gray-500">Produit 100% original</p>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={features.is_authentic}
+                      onChange={(e) => setFeatures({ ...features, is_authentic: e.target.checked })}
+                      className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Ce produit est 100% authentique et original</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Aperçu */}
+              <div className="bg-white rounded-xl p-4 border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-4">Aperçu sur la page produit</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                    <Truck className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="text-xs font-medium text-gray-900">Livraison rapide</p>
+                      <p className="text-xs text-gray-500">Sous {features.delivery_time}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                    <Shield className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="text-xs font-medium text-gray-900">Garantie</p>
+                      <p className="text-xs text-gray-500">{features.warranty_duration}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                    <RefreshCw className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="text-xs font-medium text-gray-900">Retour facile</p>
+                      <p className="text-xs text-gray-500">{features.return_policy}</p>
+                    </div>
+                  </div>
+                  {features.is_authentic && (
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                      <Check className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-900">Authentique</p>
+                        <p className="text-xs text-gray-500">100% original</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -587,9 +783,10 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            {activeTab === 'general' && 'Étape 1/3 - Informations générales'}
-            {activeTab === 'variants' && 'Étape 2/3 - Variantes et stock'}
-            {activeTab === 'images' && 'Étape 3/3 - Images du produit'}
+            {activeTab === 'general' && 'Étape 1/4 - Informations générales'}
+            {activeTab === 'features' && 'Étape 2/4 - Caractéristiques'}
+            {activeTab === 'variants' && 'Étape 3/4 - Variantes et stock'}
+            {activeTab === 'images' && 'Étape 4/4 - Images du produit'}
           </div>
           <div className="flex items-center gap-3">
             <button

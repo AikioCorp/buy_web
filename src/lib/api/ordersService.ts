@@ -82,9 +82,17 @@ export interface OrdersListResponse {
 
 export const ordersService = {
   /**
-   * Récupérer toutes mes commandes
+   * Récupérer les commandes du vendeur connecté (ses propres commandes de boutique)
    */
   async getOrders() {
+    // Endpoint pour le vendeur - retourne uniquement les commandes de sa boutique
+    return apiClient.get<Order[]>('/api/orders/vendor/');
+  },
+
+  /**
+   * Récupérer les commandes du client connecté
+   */
+  async getMyOrders() {
     return apiClient.get<Order[]>('/api/orders/');
   },
 
@@ -142,21 +150,26 @@ export const ordersService = {
   // ========== ADMIN ENDPOINTS ==========
 
   /**
-   * Récupérer toutes les commandes (Admin)
+   * Récupérer toutes les commandes (Admin/SuperAdmin)
+   * Permet de rechercher par numéro de commande, boutique, produit
    */
   async getAllOrdersAdmin(params?: {
     page?: number;
     status?: OrderStatus;
     search?: string;
+    store_id?: number;
+    product_id?: number;
   }) {
     try {
       const queryParams = new URLSearchParams();
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.status) queryParams.append('status', params.status);
       if (params?.search) queryParams.append('search', params.search);
+      if (params?.store_id) queryParams.append('store', params.store_id.toString());
+      if (params?.product_id) queryParams.append('product', params.product_id.toString());
 
-      // Utiliser /api/orders/ car /api/admin/orders/ peut ne pas exister
-      const endpoint = `/api/orders/${queryParams.toString() ? `?${queryParams}` : ''}`;
+      // Endpoint admin pour voir toutes les commandes
+      const endpoint = `/api/orders/admin/${queryParams.toString() ? `?${queryParams}` : ''}`;
       const response = await apiClient.get<OrdersListResponse | Order[]>(endpoint);
       
       // Gérer les deux formats de réponse
@@ -174,10 +187,49 @@ export const ordersService = {
       return { data: response.data, status: response.status };
     } catch (error: any) {
       console.error('Erreur getAllOrdersAdmin:', error);
-      return { 
-        data: { count: 0, next: null, previous: null, results: [] }, 
-        status: error.response?.status || 500 
-      };
+      // Fallback sur l'endpoint standard si l'endpoint admin n'existe pas
+      try {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.search) queryParams.append('search', params.search);
+        
+        const fallbackEndpoint = `/api/orders/${queryParams.toString() ? `?${queryParams}` : ''}`;
+        const fallbackResponse = await apiClient.get<OrdersListResponse | Order[]>(fallbackEndpoint);
+        
+        if (Array.isArray(fallbackResponse.data)) {
+          return { 
+            data: { 
+              count: fallbackResponse.data.length, 
+              next: null, 
+              previous: null, 
+              results: fallbackResponse.data 
+            }, 
+            status: fallbackResponse.status 
+          };
+        }
+        return { data: fallbackResponse.data, status: fallbackResponse.status };
+      } catch {
+        return { 
+          data: { count: 0, next: null, previous: null, results: [] }, 
+          status: error.response?.status || 500 
+        };
+      }
+    }
+  },
+
+  /**
+   * Transférer une commande vers une autre boutique (Admin/SuperAdmin)
+   */
+  async transferOrder(orderId: number, newStoreId: number, reason: string) {
+    try {
+      const response = await apiClient.post<Order>(`/api/orders/${orderId}/transfer/`, {
+        new_store_id: newStoreId,
+        reason: reason
+      });
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du transfert de la commande');
     }
   },
 

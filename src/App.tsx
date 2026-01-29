@@ -20,6 +20,10 @@ import { ProductsPage as PublicProductsPage } from './pages/ProductsPage'
 import { DealsPage } from './pages/DealsPage'
 import { CheckoutPage } from './pages/CheckoutPage'
 import { FavoritesPage as PublicFavoritesPage } from './pages/FavoritesPage'
+import { AboutPage } from './pages/AboutPage'
+import { ContactPage } from './pages/ContactPage'
+import { FAQPage } from './pages/FAQPage'
+import { TermsPage } from './pages/TermsPage'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -113,6 +117,10 @@ function App() {
           <Route path="cart" element={<CartPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="favorites" element={<PublicFavoritesPage />} />
+          <Route path="about" element={<AboutPage />} />
+          <Route path="contact" element={<ContactPage />} />
+          <Route path="faq" element={<FAQPage />} />
+          <Route path="terms" element={<TermsPage />} />
           <Route path="test-api" element={<TestApiPage />} />
         </Route>
 
