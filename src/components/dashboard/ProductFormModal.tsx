@@ -433,11 +433,21 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       type="number"
                       value={formData.promo_price}
                       onChange={(e) => setFormData({ ...formData, promo_price: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent ${
+                        formData.promo_price && formData.base_price && Number(formData.promo_price) >= Number(formData.base_price)
+                          ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                          : 'border-gray-300 focus:ring-orange-500'
+                      }`}
                       placeholder="12000"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Laissez vide si pas de promotion</p>
+                  {formData.promo_price && formData.base_price && Number(formData.promo_price) >= Number(formData.base_price) ? (
+                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                      <span>⚠️</span> Le prix promo doit être inférieur au prix normal ({formData.base_price} FCFA)
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">Laissez vide si pas de promotion</p>
+                  )}
                 </div>
 
                 {/* Stock */}
