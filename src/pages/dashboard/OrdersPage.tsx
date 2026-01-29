@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
-import { Package, Search, Filter, ArrowUp, ArrowDown, Eye, Check, X, Clock } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Package, Search, ArrowUp, ArrowDown, Eye, Check, X, Clock, Loader2, RefreshCw } from 'lucide-react'
+import { ordersService, Order as ApiOrder } from '../../lib/api/ordersService'
 
-type OrderStatus = 'pending' | 'processing' | 'delivered' | 'cancelled'
+type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
 
 interface Order {
   id: string
@@ -13,20 +14,49 @@ interface Order {
 }
 
 const OrdersPage: React.FC = () => {
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [sortField, setSortField] = useState<keyof Order>('date')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [activeFilter, setActiveFilter] = useState<OrderStatus | 'all'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Mock orders data
-  const orders: Order[] = [
-    { id: 'ORD-2021', customer: 'Ibrahim Touré', date: '2023-11-15', total: 12500, items: 2, status: 'delivered' },
-    { id: 'ORD-2020', customer: 'Aminata Diallo', date: '2023-11-14', total: 8700, items: 1, status: 'processing' },
-    { id: 'ORD-2019', customer: 'Moussa Keita', date: '2023-11-12', total: 14250, items: 3, status: 'pending' },
-    { id: 'ORD-2018', customer: 'Fatoumata Sylla', date: '2023-11-10', total: 5800, items: 1, status: 'delivered' },
-    { id: 'ORD-2017', customer: 'Mamadou Coulibaly', date: '2023-11-08', total: 24500, items: 4, status: 'cancelled' },
-    { id: 'ORD-2016', customer: 'Kadiatou Bah', date: '2023-11-07', total: 10200, items: 2, status: 'delivered' },
-    { id: 'ORD-2015', customer: 'Oumar Diop', date: '2023-11-05', total: 7500, items: 1, status: 'processing' },
-    { id: 'ORD-2014', customer: 'Aïssata Camara', date: '2023-11-03', total: 18900, items: 3, status: 'delivered' },
-  ]
+  useEffect(() => {
+    loadOrders()
+  }, [])
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await ordersService.getOrders()
+      
+      if (response.data) {
+        const apiOrders = Array.isArray(response.data) ? response.data : []
+        const formattedOrders: Order[] = apiOrders.map((order: ApiOrder) => ({
+          id: `ORD-${order.id}`,
+          customer: `Client #${order.customer || order.user}`,
+          date: order.created_at,
+          total: parseFloat(order.total_amount) || 0,
+          items: order.items?.length || 0,
+          status: order.status as OrderStatus
+        }))
+        setOrders(formattedOrders)
+      }
+    } catch (err: any) {
+      console.error('Erreur chargement commandes:', err)
+      setError('Impossible de charger les commandes')
+      // Fallback avec données fictives pour la démo
+      setOrders([
+        { id: 'ORD-2021', customer: 'Ibrahim Touré', date: '2024-01-15', total: 12500, items: 2, status: 'delivered' },
+        { id: 'ORD-2020', customer: 'Aminata Diallo', date: '2024-01-14', total: 8700, items: 1, status: 'processing' },
+        { id: 'ORD-2019', customer: 'Moussa Keita', date: '2024-01-12', total: 14250, items: 3, status: 'pending' },
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSort = (field: keyof Order) => {
     if (field === sortField) {
@@ -42,33 +72,23 @@ const OrdersPage: React.FC = () => {
     return sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
   }
 
-  // Sort orders based on current sort field and direction
-  const sortedOrders = [...orders].sort((a, b) => {
-    if (sortField === 'total' || sortField === 'items') {
-      return sortDirection === 'asc'
-        ? a[sortField] - b[sortField]
-        : b[sortField] - a[sortField]
-    }
-    
-    // For string fields
-    const valA = String(a[sortField]).toLowerCase()
-    const valB = String(b[sortField]).toLowerCase()
-    
-    return sortDirection === 'asc'
-      ? valA.localeCompare(valB)
-      : valB.localeCompare(valA)
-  })
-
+  
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case 'pending':
         return <Clock size={18} className="text-yellow-500" />
+      case 'confirmed':
+        return <Check size={18} className="text-blue-500" />
       case 'processing':
         return <Clock size={18} className="text-blue-500" />
+      case 'shipped':
+        return <Package size={18} className="text-purple-500" />
       case 'delivered':
         return <Check size={18} className="text-green-500" />
       case 'cancelled':
         return <X size={18} className="text-red-500" />
+      default:
+        return <Clock size={18} className="text-gray-500" />
     }
   }
 
@@ -76,52 +96,127 @@ const OrdersPage: React.FC = () => {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-800'
       case 'processing':
         return 'bg-blue-100 text-blue-800'
+      case 'shipped':
+        return 'bg-purple-100 text-purple-800'
       case 'delivered':
         return 'bg-green-100 text-green-800'
       case 'cancelled':
         return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  const getStatusLabel = (status: OrderStatus) => {
+    switch (status) {
+      case 'pending': return 'En attente'
+      case 'confirmed': return 'Confirmée'
+      case 'processing': return 'En traitement'
+      case 'shipped': return 'Expédiée'
+      case 'delivered': return 'Livrée'
+      case 'cancelled': return 'Annulée'
+      default: return status
+    }
+  }
+
+  // Filtrer les commandes
+  const filteredOrders = orders.filter(order => {
+    const matchesFilter = activeFilter === 'all' || order.status === activeFilter
+    const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         order.customer.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
+
+  // Compter par statut
+  const statusCounts = {
+    all: orders.length,
+    pending: orders.filter(o => o.status === 'pending').length,
+    processing: orders.filter(o => o.status === 'processing').length,
+    delivered: orders.filter(o => o.status === 'delivered').length,
+    cancelled: orders.filter(o => o.status === 'cancelled').length,
+  }
+
+  // État de chargement
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Chargement des commandes...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold">Commandes</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Commandes</h1>
+          <button 
+            onClick={loadOrders}
+            className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+            title="Actualiser"
+          >
+            <RefreshCw size={18} />
+          </button>
+        </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative">
             <input
               type="text"
               placeholder="Rechercher une commande..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full sm:w-64"
             />
             <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
           </div>
-          <button className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-            <Filter size={18} />
-            <span>Filtres</span>
-          </button>
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+          {error} - Affichage des données de démonstration
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="flex p-4 border-b border-gray-200">
+        <div className="flex p-4 border-b border-gray-200 overflow-x-auto">
           <div className="flex gap-2">
-            <button className="px-3 py-1 rounded-md bg-green-50 text-green-700 font-medium">
-              Toutes (8)
+            <button 
+              onClick={() => setActiveFilter('all')}
+              className={`px-3 py-1 rounded-md font-medium whitespace-nowrap ${activeFilter === 'all' ? 'bg-green-50 text-green-700' : 'hover:bg-gray-50'}`}
+            >
+              Toutes ({statusCounts.all})
             </button>
-            <button className="px-3 py-1 rounded-md hover:bg-gray-50">
-              En attente (1)
+            <button 
+              onClick={() => setActiveFilter('pending')}
+              className={`px-3 py-1 rounded-md whitespace-nowrap ${activeFilter === 'pending' ? 'bg-yellow-50 text-yellow-700' : 'hover:bg-gray-50'}`}
+            >
+              En attente ({statusCounts.pending})
             </button>
-            <button className="px-3 py-1 rounded-md hover:bg-gray-50">
-              En traitement (2)
+            <button 
+              onClick={() => setActiveFilter('processing')}
+              className={`px-3 py-1 rounded-md whitespace-nowrap ${activeFilter === 'processing' ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}`}
+            >
+              En traitement ({statusCounts.processing})
             </button>
-            <button className="px-3 py-1 rounded-md hover:bg-gray-50">
-              Livrées (4)
+            <button 
+              onClick={() => setActiveFilter('delivered')}
+              className={`px-3 py-1 rounded-md whitespace-nowrap ${activeFilter === 'delivered' ? 'bg-green-50 text-green-700' : 'hover:bg-gray-50'}`}
+            >
+              Livrées ({statusCounts.delivered})
             </button>
-            <button className="px-3 py-1 rounded-md hover:bg-gray-50">
-              Annulées (1)
+            <button 
+              onClick={() => setActiveFilter('cancelled')}
+              className={`px-3 py-1 rounded-md whitespace-nowrap ${activeFilter === 'cancelled' ? 'bg-red-50 text-red-700' : 'hover:bg-gray-50'}`}
+            >
+              Annulées ({statusCounts.cancelled})
             </button>
           </div>
         </div>
@@ -176,7 +271,14 @@ const OrdersPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sortedOrders.map(order => (
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">Aucune commande trouvée</p>
+                  </td>
+                </tr>
+              ) : filteredOrders.map(order => (
                 <tr key={order.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -205,10 +307,7 @@ const OrdersPage: React.FC = () => {
                     <div className="flex items-center">
                       {getStatusIcon(order.status)}
                       <span className={`ml-2 px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(order.status)}`}>
-                        {order.status === 'pending' && 'En attente'}
-                        {order.status === 'processing' && 'En traitement'}
-                        {order.status === 'delivered' && 'Livrée'}
-                        {order.status === 'cancelled' && 'Annulée'}
+                        {getStatusLabel(order.status)}
                       </span>
                     </div>
                   </td>

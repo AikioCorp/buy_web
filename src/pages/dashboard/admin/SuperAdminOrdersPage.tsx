@@ -2,6 +2,22 @@ import React, { useState, useEffect } from 'react'
 import { Search, ShoppingBag, Eye, X, Truck, CheckCircle, XCircle, Clock, Package } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+
+// Fonction utilitaire pour construire l'URL de l'image
+const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
+  if (!media || media.length === 0) return null
+  const primaryImage = media.find(m => m.is_primary) || media[0]
+  let url = primaryImage?.image_url || primaryImage?.file
+  if (!url) return null
+  // Convertir http:// en https:// pour éviter le blocage mixed content
+  if (url.startsWith('http://')) {
+    url = url.replace('http://', 'https://')
+  }
+  if (url.startsWith('https://')) return url
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
 const SuperAdminOrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -387,10 +403,10 @@ const SuperAdminOrdersPage: React.FC = () => {
                   {(viewingOrder.items || []).map((item) => (
                     <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                       <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                        {item.product?.media?.[0]?.image_url ? (
+                        {getImageUrl(item.product?.media) ? (
                           <img 
-                            src={item.product.media[0].image_url} 
-                            alt={item.product.name}
+                            src={getImageUrl(item.product?.media)!} 
+                            alt={item.product?.name || 'Produit'}
                             className="h-full w-full object-cover"
                           />
                         ) : (

@@ -51,12 +51,26 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled';
 
+export interface ShippingAddressData {
+  full_name: string;
+  phone: string;
+  email?: string;
+  commune: string;
+  quartier: string;
+  address_details?: string;
+  country: string;
+}
+
 export interface CreateOrderData {
-  shipping_address_id: number;
+  shipping_address_id?: number;
+  shipping_address?: ShippingAddressData;
   items: Array<{
     product_id: number;
     quantity: number;
   }>;
+  payment_method?: string;
+  delivery_fee?: number;
+  notes?: string;
 }
 
 export interface OrdersListResponse {
@@ -83,9 +97,46 @@ export const ordersService = {
 
   /**
    * Créer une nouvelle commande (checkout)
+   * Si shipping_address est fourni, on crée d'abord l'adresse puis la commande
    */
   async createOrder(data: CreateOrderData) {
-    return apiClient.post<Order>('/api/orders/', data);
+    let shippingAddressId = data.shipping_address_id;
+
+    // Si on a des données d'adresse, créer d'abord l'adresse
+    if (data.shipping_address && !shippingAddressId) {
+      const addressResponse = await apiClient.post<{ id: number }>('/api/customers/addresses/', {
+        full_name: data.shipping_address.full_name,
+        phone: data.shipping_address.phone,
+        email: data.shipping_address.email || '',
+        commune: data.shipping_address.commune,
+        quartier: data.shipping_address.quartier,
+        address_details: data.shipping_address.address_details || '',
+        country: data.shipping_address.country || 'Mali',
+        // Champs de compatibilité pour l'ancien backend
+        line1: `${data.shipping_address.quartier}, ${data.shipping_address.commune}`,
+        city: 'Bamako',
+        postal_code: '00000',
+        is_default: true,
+      });
+
+      if (addressResponse.error) {
+        return { data: null, error: addressResponse.error, status: addressResponse.status };
+      }
+
+      shippingAddressId = addressResponse.data?.id;
+    }
+
+    if (!shippingAddressId) {
+      return { data: null, error: 'Adresse de livraison requise', status: 400 };
+    }
+
+    // Créer la commande avec l'ID de l'adresse
+    const orderData: any = {
+      items: data.items,
+      shipping_address_id: shippingAddressId,
+    };
+
+    return apiClient.post<Order>('/api/orders/', orderData);
   },
 
   // ========== ADMIN ENDPOINTS ==========

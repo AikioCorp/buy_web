@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Store, Search, MapPin, Star, ArrowRight, Filter, Grid, List } from 'lucide-react'
+import { Store, Search, MapPin, Star, ArrowRight, Grid, List, ShoppingBag } from 'lucide-react'
 import { shopsService } from '../lib/api/shopsService'
 
 interface Shop {
@@ -9,12 +9,31 @@ interface Shop {
   slug: string
   description?: string
   logo_url?: string
+  logo?: string
   banner_url?: string
+  banner?: string
   city?: string
+  category?: string
   is_active: boolean
   rating?: number
   products_count?: number
 }
+
+// Boutiques fictives
+const mockShops: Shop[] = [
+  { id: 9, name: 'Shopreate', slug: 'shopreate', description: 'Supermarché alimentaire moderne. Produits frais, épicerie fine, fruits et légumes de qualité.', logo: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&h=300&fit=crop', city: 'Bamako', category: 'Alimentaire', is_active: true, rating: 4.7, products_count: 156 },
+  { id: 10, name: 'Orca', slug: 'orca', description: 'Spécialiste cuisine et aménagement intérieur. Ustensiles, électroménager et mobilier.', logo: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1556909114-44e3e70034e2?w=800&h=300&fit=crop', city: 'Bamako', category: 'Cuisine', is_active: true, rating: 4.5, products_count: 89 },
+  { id: 11, name: 'Dicarlo', slug: 'dicarlo', description: 'Parfumerie et cosmétiques de luxe. Grandes marques internationales et soins beauté.', logo: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&h=300&fit=crop', city: 'Bamako', category: 'Parfumerie', is_active: true, rating: 4.9, products_count: 234 },
+  { id: 12, name: 'Carré Marché', slug: 'carre-marche', description: 'Alimentaire et équipement cuisine. Produits locaux et importés de qualité.', logo: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=800&h=300&fit=crop', city: 'Bamako', category: 'Alimentaire', is_active: true, rating: 4.6, products_count: 178 },
+  { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali', description: 'Votre destination pour les dernières technologies. Smartphones, tablettes, ordinateurs.', logo: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=300&fit=crop', city: 'Bamako', category: 'Électronique', is_active: true, rating: 4.8, products_count: 312 },
+  { id: 2, name: 'Mode Bamako', slug: 'mode-bamako', description: 'Boutique de mode africaine et internationale. Vêtements wax, bazin, et styles modernes.', logo: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&h=300&fit=crop', city: 'Bamako', category: 'Mode', is_active: true, rating: 4.6, products_count: 267 },
+  { id: 3, name: 'Sport Plus', slug: 'sport-plus', description: 'Équipements sportifs de qualité. Chaussures, vêtements de sport, et accessoires.', logo: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&h=300&fit=crop', city: 'Bamako', category: 'Sport', is_active: true, rating: 4.5, products_count: 145 },
+  { id: 4, name: 'Beauté Plus', slug: 'beaute-plus', description: 'Cosmétiques et soins beauté. Maquillage, soins du visage et du corps.', logo: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&h=300&fit=crop', city: 'Bamako', category: 'Beauté', is_active: true, rating: 4.7, products_count: 198 },
+  { id: 5, name: 'Maison & Déco', slug: 'maison-deco', description: 'Décoration intérieure et mobilier. Transformez votre maison en un espace unique.', logo: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&h=300&fit=crop', city: 'Bamako', category: 'Maison', is_active: true, rating: 4.4, products_count: 123 },
+  { id: 6, name: 'Saveurs du Mali', slug: 'saveurs-du-mali', description: 'Produits alimentaires locaux et traditionnels. Épices, céréales, et spécialités maliennes.', logo: 'https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=300&fit=crop', city: 'Bamako', category: 'Alimentaire', is_active: true, rating: 4.9, products_count: 87 },
+  { id: 7, name: 'Électro Bamako', slug: 'electro-bamako', description: 'Électroménager et appareils électroniques. TV, climatiseurs, réfrigérateurs.', logo: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&h=300&fit=crop', city: 'Bamako', category: 'Électroménager', is_active: true, rating: 4.6, products_count: 156 },
+  { id: 8, name: 'Tendance Afrique', slug: 'tendance-afrique', description: 'Mode africaine contemporaine. Créations uniques et tendances actuelles.', logo: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200&h=200&fit=crop', banner: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=300&fit=crop', city: 'Bamako', category: 'Mode', is_active: true, rating: 4.8, products_count: 189 },
+]
 
 export function ShopsPage() {
   const [shops, setShops] = useState<Shop[]>([])
@@ -34,13 +53,17 @@ export function ShopsPage() {
       setSearchQuery(search)
       
       const response = await shopsService.getPublicShops(1, 50)
-      if (response.data?.results) {
+      if (response.data?.results && response.data.results.length > 0) {
         setShops(response.data.results)
-      } else if (Array.isArray(response.data)) {
+      } else if (Array.isArray(response.data) && response.data.length > 0) {
         setShops(response.data)
+      } else {
+        // Fallback sur les boutiques fictives
+        setShops(mockShops)
       }
     } catch (error) {
-      // Ignorer silencieusement les erreurs
+      // Fallback sur les boutiques fictives
+      setShops(mockShops)
     } finally {
       setLoading(false)
     }
@@ -57,8 +80,8 @@ export function ShopsPage() {
       <div className="bg-gradient-to-br from-[#0f4c2b] via-[#1a5f3a] to-[#0f4c2b] text-white">
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Découvrez nos <span className="text-[#e8d20c]">Boutiques</span>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-wide">
+              DÉCOUVREZ NOS <span className="text-[#e8d20c]">BOUTIQUES</span>
             </h1>
             <p className="text-lg text-white/80 mb-8">
               Explorez une sélection de boutiques partenaires offrant des produits de qualité
@@ -142,13 +165,13 @@ export function ShopsPage() {
               >
                 {/* Banner/Logo */}
                 <div className="relative h-40 bg-gradient-to-br from-[#0f4c2b]/10 to-[#e8d20c]/10">
-                  {shop.banner_url ? (
-                    <img src={shop.banner_url} alt="" className="w-full h-full object-cover" />
+                  {(shop.banner_url || shop.banner) ? (
+                    <img src={shop.banner_url || shop.banner} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center">
-                        {shop.logo_url ? (
-                          <img src={shop.logo_url} alt={shop.name} className="w-16 h-16 rounded-full object-cover" />
+                        {(shop.logo_url || shop.logo) ? (
+                          <img src={shop.logo_url || shop.logo} alt={shop.name} className="w-16 h-16 rounded-full object-cover" />
                         ) : (
                           <span className="text-3xl font-bold text-[#0f4c2b]">{shop.name.charAt(0)}</span>
                         )}
@@ -211,8 +234,8 @@ export function ShopsPage() {
               >
                 {/* Logo */}
                 <div className="w-32 h-32 flex-shrink-0 bg-gradient-to-br from-[#0f4c2b]/10 to-[#e8d20c]/10 flex items-center justify-center">
-                  {shop.logo_url ? (
-                    <img src={shop.logo_url} alt={shop.name} className="w-20 h-20 rounded-full object-cover" />
+                  {(shop.logo_url || shop.logo) ? (
+                    <img src={shop.logo_url || shop.logo} alt={shop.name} className="w-20 h-20 rounded-full object-cover" />
                   ) : (
                     <span className="text-4xl font-bold text-[#0f4c2b]">{shop.name.charAt(0)}</span>
                   )}

@@ -1,23 +1,103 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
-  Wallet, CreditCard, Building2, ArrowUpRight, ArrowDownRight,
-  Calendar, Download, Clock, CheckCircle, AlertCircle, Plus,
-  Banknote, TrendingUp, PiggyBank, Receipt
+  Wallet, CreditCard, Building2,
+  Clock, Plus,
+  Banknote, TrendingUp, PiggyBank, Receipt, Loader2
 } from 'lucide-react'
+import { ordersService } from '../../lib/api/ordersService'
+
+interface Transaction {
+  id: string
+  type: 'sale' | 'payout'
+  amount: number
+  date: string
+  status: 'completed' | 'pending'
+  description: string
+}
 
 const EarningsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'payouts'>('overview')
-
-  // Données fictives
-  const stats = {
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
     available: 0,
     pending: 0,
     totalEarned: 0,
     thisMonth: 0
+  })
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+
+  useEffect(() => {
+    loadEarnings()
+  }, [])
+
+  const loadEarnings = async () => {
+    try {
+      setLoading(true)
+      
+      // Charger les commandes pour calculer les revenus
+      const ordersResponse = await ordersService.getOrders()
+      const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
+      
+      // Calculer les revenus
+      let totalEarned = 0
+      let thisMonth = 0
+      let pending = 0
+      const currentMonth = new Date().getMonth()
+      const currentYear = new Date().getFullYear()
+      
+      const transactionsList: Transaction[] = []
+      
+      orders.forEach(order => {
+        const amount = parseFloat(order.total_amount) || 0
+        const orderDate = new Date(order.created_at)
+        
+        totalEarned += amount
+        
+        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+          thisMonth += amount
+        }
+        
+        if (order.status === 'pending' || order.status === 'processing') {
+          pending += amount
+        }
+        
+        transactionsList.push({
+          id: `TXN-${order.id}`,
+          type: 'sale',
+          amount,
+          date: order.created_at,
+          status: order.status === 'delivered' ? 'completed' : 'pending',
+          description: `Commande #${order.id}`
+        })
+      })
+      
+      setStats({
+        available: totalEarned - pending,
+        pending,
+        totalEarned,
+        thisMonth
+      })
+      
+      setTransactions(transactionsList.sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      ))
+    } catch (error) {
+      console.error('Erreur chargement revenus:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const transactions: any[] = []
-  const payouts: any[] = []
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Chargement des revenus...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -177,15 +257,55 @@ const EarningsPage: React.FC = () => {
           )}
 
           {activeTab === 'transactions' && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <Banknote size={32} className="text-gray-400" />
+            transactions.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                  <Banknote size={32} className="text-gray-400" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Aucune transaction</h3>
+                <p className="text-gray-500 text-sm max-w-md mx-auto">
+                  L'historique de vos transactions apparaîtra ici.
+                </p>
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Aucune transaction</h3>
-              <p className="text-gray-500 text-sm max-w-md mx-auto">
-                L'historique de vos transactions apparaîtra ici.
-              </p>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                {transactions.map((txn) => (
+                  <div key={txn.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        txn.type === 'sale' ? 'bg-emerald-100' : 'bg-blue-100'
+                      }`}>
+                        {txn.type === 'sale' ? (
+                          <TrendingUp size={20} className="text-emerald-600" />
+                        ) : (
+                          <Wallet size={20} className="text-blue-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{txn.description}</p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(txn.date).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-semibold ${txn.type === 'sale' ? 'text-emerald-600' : 'text-gray-900'}`}>
+                        {txn.type === 'sale' ? '+' : '-'}{txn.amount.toLocaleString()} XOF
+                      </p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        txn.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {txn.status === 'completed' ? 'Complété' : 'En attente'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
 
           {activeTab === 'payouts' && (

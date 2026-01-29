@@ -1,412 +1,573 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { 
   Package, ShoppingCart, Star, ChevronRight, Truck, Shield, 
-  CreditCard, Clock, ArrowRight, Heart, Eye, Store, UtensilsCrossed,
-  Sparkles, TrendingUp, Gift, Percent
+  Clock, ArrowRight, Heart, Eye, ChevronLeft, RefreshCw,
+  ShoppingBag, Sparkles, UtensilsCrossed, Store,
+  Smartphone, Home, Shirt, Dumbbell, Laptop, Zap, Gift, Percent, Tag,
+  Headphones, Monitor, Watch, Camera
 } from 'lucide-react'
-import { Card, CardContent } from '../components/Card'
-import { Hero } from '../components/Hero'
 import { useProducts } from '../hooks/useProducts'
-import { useCategories } from '../hooks/useCategories'
+import { Product } from '../lib/api/productsService'
+import { useCartStore } from '../store/cartStore'
+import { useFavoritesStore } from '../store/favoritesStore'
+import { useToast } from '../components/Toast'
 
-const categoryIcons: Record<string, React.ReactNode> = {
-  'alimentaire': <Package className="w-8 h-8" />,
-  'parfumerie': <Sparkles className="w-8 h-8" />,
-  'cuisine': <UtensilsCrossed className="w-8 h-8" />,
-  'mode': <Gift className="w-8 h-8" />,
-  'restauration': <UtensilsCrossed className="w-8 h-8" />,
-  'default': <Package className="w-8 h-8" />
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+
+const getImageUrl = (product: Product): string | null => {
+  if (!product.media || product.media.length === 0) return null
+  const primaryImage = product.media.find(m => m.is_primary) || product.media[0]
+  let url = primaryImage?.image_url || primaryImage?.file
+  if (!url) return null
+  if (url.startsWith('http://')) url = url.replace('http://', 'https://')
+  if (url.startsWith('https://')) return url
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
-const getCategoryIcon = (slug: string) => {
-  const key = Object.keys(categoryIcons).find(k => slug.toLowerCase().includes(k))
-  return categoryIcons[key || 'default']
-}
+// 8 Catégories principales
+const mainCategories = [
+  { name: 'Mode', slug: 'mode', icon: Shirt, color: 'bg-pink-500', image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop' },
+  { name: 'Alimentaire', slug: 'alimentaire', icon: ShoppingBag, color: 'bg-green-500', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&h=200&fit=crop' },
+  { name: 'Parfumerie', slug: 'parfumerie', icon: Sparkles, color: 'bg-purple-500', image: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop' },
+  { name: 'Cuisine', slug: 'cuisine', icon: UtensilsCrossed, color: 'bg-orange-500', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop' },
+  { name: 'Électronique', slug: 'electronique', icon: Laptop, color: 'bg-blue-500', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop' },
+  { name: 'Téléphones', slug: 'telephones', icon: Smartphone, color: 'bg-cyan-500', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&h=200&fit=crop' },
+  { name: 'Sport', slug: 'sport', icon: Dumbbell, color: 'bg-red-500', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=200&fit=crop' },
+  { name: 'Maison', slug: 'maison', icon: Home, color: 'bg-teal-500', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop' },
+]
 
+// Boutiques en vedette
 const featuredShops = [
-  { name: 'Shopreate', category: 'Alimentaire', color: 'from-green-500 to-emerald-600', icon: '🛒' },
-  { name: 'Orca', category: 'Cuisine & Aménagement', color: 'from-blue-500 to-cyan-600', icon: '🏠' },
-  { name: 'Dicarlo', category: 'Parfumerie', color: 'from-purple-500 to-pink-600', icon: '✨' },
-  { name: 'Carré Marché', category: 'Alimentaire & Cuisine', color: 'from-orange-500 to-red-600', icon: '🍎' }
+  { id: 9, name: 'Shopreate', slug: 'shopreate', logo: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=200&h=200&fit=crop', category: 'Alimentaire', rating: 4.7, color: 'from-green-500 to-emerald-600' },
+  { id: 10, name: 'Orca', slug: 'orca', logo: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop', category: 'Cuisine', rating: 4.5, color: 'from-blue-500 to-cyan-600' },
+  { id: 11, name: 'Dicarlo', slug: 'dicarlo', logo: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop', category: 'Parfumerie', rating: 4.9, color: 'from-purple-500 to-pink-600' },
+  { id: 12, name: 'Carré Marché', slug: 'carre-marche', logo: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=200&h=200&fit=crop', category: 'Alimentaire', rating: 4.6, color: 'from-orange-500 to-red-600' },
+]
+
+// Toutes les boutiques
+const allShopsData = [
+  ...featuredShops,
+  { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali', logo: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&h=200&fit=crop', category: 'Électronique', rating: 4.8 },
+  { id: 2, name: 'Mode Bamako', slug: 'mode-bamako', logo: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=200&h=200&fit=crop', category: 'Mode', rating: 4.6 },
+  { id: 3, name: 'Sport Plus', slug: 'sport-plus', logo: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=200&h=200&fit=crop', category: 'Sport', rating: 4.5 },
+  { id: 4, name: 'Beauté Plus', slug: 'beaute-plus', logo: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&h=200&fit=crop', category: 'Beauté', rating: 4.7 },
+  { id: 5, name: 'Maison & Déco', slug: 'maison-deco', logo: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop', category: 'Maison', rating: 4.4 },
+  { id: 6, name: 'Saveurs du Mali', slug: 'saveurs-du-mali', logo: 'https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=200&h=200&fit=crop', category: 'Alimentaire', rating: 4.9 },
+  { id: 7, name: 'Électro Bamako', slug: 'electro-bamako', logo: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=200&fit=crop', category: 'Électroménager', rating: 4.6 },
+  { id: 8, name: 'Tendance Afrique', slug: 'tendance-afrique', logo: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200&h=200&fit=crop', category: 'Mode', rating: 4.8 },
+]
+
+// Produits fictifs (30 produits variés)
+const mockProducts = [
+  { id: 101, name: 'iPhone 15 Pro Max', base_price: '850000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 102, name: 'AirPods Pro 2', base_price: '175000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 103, name: 'Robe Africaine Wax', base_price: '35000', store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
+  { id: 104, name: 'Nike Air Max 270', base_price: '95000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
+  { id: 105, name: 'Apple Watch Series 9', base_price: '350000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 106, name: 'Parfum Dior Sauvage', base_price: '145000', store: { id: 11, name: 'Dicarlo', slug: 'dicarlo' }, media: [{ image_url: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=400&h=400&fit=crop', is_primary: true }], category: 'Parfumerie' },
+  { id: 107, name: 'Set Casseroles Inox', base_price: '65000', store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop', is_primary: true }], category: 'Cuisine' },
+  { id: 108, name: 'Riz Parfumé Thaï 5kg', base_price: '12500', store: { id: 9, name: 'Shopreate', slug: 'shopreate' }, media: [{ image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop', is_primary: true }], category: 'Alimentaire' },
+  { id: 109, name: 'MacBook Air M3', base_price: '1200000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 110, name: 'Boubou Bazin Riche', base_price: '75000', store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
+  { id: 111, name: 'Samsung Galaxy S24', base_price: '950000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&h=400&fit=crop', is_primary: true }], category: 'Téléphones' },
+  { id: 112, name: 'TV Samsung 55" 4K', base_price: '450000', store: { id: 7, name: 'Électro Bamako', slug: 'electro-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=400&fit=crop', is_primary: true }], category: 'Électroménager' },
+  { id: 113, name: 'Climatiseur 12000 BTU', base_price: '285000', store: { id: 7, name: 'Électro Bamako', slug: 'electro-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=400&h=400&fit=crop', is_primary: true }], category: 'Électroménager' },
+  { id: 114, name: 'Canapé 3 Places', base_price: '350000', store: { id: 5, name: 'Maison & Déco', slug: 'maison-deco' }, media: [{ image_url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop', is_primary: true }], category: 'Maison' },
+  { id: 115, name: 'Miel Pays Dogon 1kg', base_price: '15000', store: { id: 6, name: 'Saveurs du Mali', slug: 'saveurs-du-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&h=400&fit=crop', is_primary: true }], category: 'Alimentaire' },
+  { id: 116, name: 'Ballon Adidas Pro', base_price: '35000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1614632537190-23e4146777db?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
+  { id: 117, name: 'Parfum Chanel N°5', base_price: '185000', store: { id: 4, name: 'Beauté Plus', slug: 'beaute-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=400&h=400&fit=crop', is_primary: true }], category: 'Parfumerie' },
+  { id: 118, name: 'Robot Cuisine', base_price: '125000', store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=400&h=400&fit=crop', is_primary: true }], category: 'Cuisine' },
+  { id: 119, name: 'Chemise Bogolan', base_price: '28000', store: { id: 8, name: 'Tendance Afrique', slug: 'tendance-afrique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
+  { id: 120, name: 'JBL Flip 6', base_price: '85000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 121, name: 'Casque Sony WH-1000XM5', base_price: '295000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 122, name: 'iPad Pro 12.9"', base_price: '850000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 123, name: 'Sneakers Adidas', base_price: '75000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
+  { id: 124, name: 'Montre Rolex', base_price: '2500000', store: { id: 4, name: 'Beauté Plus', slug: 'beaute-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop', is_primary: true }], category: 'Accessoires' },
+  { id: 125, name: 'Sac Louis Vuitton', base_price: '450000', store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
+  { id: 126, name: 'Lunettes Ray-Ban', base_price: '125000', store: { id: 4, name: 'Beauté Plus', slug: 'beaute-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&h=400&fit=crop', is_primary: true }], category: 'Accessoires' },
+  { id: 127, name: 'Drone DJI Mini 3', base_price: '450000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
+  { id: 128, name: 'Console PS5', base_price: '550000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400&h=400&fit=crop', is_primary: true }], category: 'Gaming' },
+  { id: 129, name: 'Vélo VTT Pro', base_price: '350000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1532298229144-0ec0c57515c7?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
+  { id: 130, name: 'Machine à Café', base_price: '185000', store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=400&h=400&fit=crop', is_primary: true }], category: 'Cuisine' },
+]
+
+// Bannières Hero
+const heroBanners = [
+  { title: 'Nouvelle Collection', subtitle: 'Mode Africaine 2025', description: 'Découvrez les dernières tendances', bgColor: 'from-purple-600 to-pink-600', image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=400&fit=crop', cta: 'Découvrir', link: '/shops?category=mode' },
+  { title: 'Flash Sale', subtitle: 'Jusqu\'à -70%', description: 'Offres limitées sur l\'électronique', bgColor: 'from-red-600 to-orange-500', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=400&fit=crop', cta: 'En profiter', link: '/deals' },
+  { title: 'Livraison Gratuite', subtitle: 'Sur +50 000 FCFA', description: 'Partout à Bamako', bgColor: 'from-green-600 to-emerald-500', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&h=400&fit=crop', cta: 'Commander', link: '/shops' },
+]
+
+// Bannières promotionnelles
+const promoBanners = [
+  { title: 'Smartphones', subtitle: 'Dernière génération', discount: '-30%', bgColor: 'from-blue-600 to-indigo-700', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=200&fit=crop' },
+  { title: 'Électroménager', subtitle: 'Qualité premium', discount: '-25%', bgColor: 'from-orange-500 to-red-600', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=200&fit=crop' },
+  { title: 'Mode Africaine', subtitle: 'Créations uniques', discount: '-40%', bgColor: 'from-purple-600 to-pink-600', image: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=200&fit=crop' },
 ]
 
 export function HomePage() {
-  const { products, isLoading: productsLoading, refresh: refreshProducts } = useProducts()
-  const { categories, isLoading: categoriesLoading } = useCategories()
+  const { products: apiProducts, refresh: refreshProducts } = useProducts()
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
+  const [currentBanner, setCurrentBanner] = useState(0)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const addItem = useCartStore((state) => state.addItem)
+  const { toggleFavorite, isFavorite } = useFavoritesStore()
+  const { showToast } = useToast()
+  
+  const [countdown, setCountdown] = useState({ hours: 23, minutes: 45, seconds: 30 })
+
+  useEffect(() => { refreshProducts() }, [])
 
   useEffect(() => {
-    refreshProducts()
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 }
+        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 }
+        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 }
+        return { hours: 23, minutes: 59, seconds: 59 }
+      })
+    }, 1000)
+    return () => clearInterval(timer)
   }, [])
 
-  const loading = productsLoading || categoriesLoading
-  const displayProducts = products?.slice(0, 8) || []
-  const displayCategories = categories?.slice(0, 5) || []
-  const trendingProducts = products?.slice(0, 4) || []
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentBanner(prev => (prev + 1) % heroBanners.length), 5000)
+    return () => clearInterval(interval)
+  }, [])
 
-  const formatPrice = (price: string | number) => {
-    return new Intl.NumberFormat('fr-FR').format(Number(price))
+  const allProducts = apiProducts && apiProducts.length > 0 ? apiProducts : mockProducts as unknown as Product[]
+  const dealProducts = allProducts.slice(0, 6)
+  const trendingProducts = allProducts.slice(0, 12)
+  const newArrivals = allProducts.slice(8, 16)
+  const bestSellers = allProducts.slice(4, 12)
+
+  const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
+
+  const nextBanner = () => setCurrentBanner((prev) => (prev + 1) % heroBanners.length)
+  const prevBanner = () => setCurrentBanner((prev) => (prev - 1 + heroBanners.length) % heroBanners.length)
+
+  const handleAddToCart = (e: React.MouseEvent, product: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    addItem(product, 1)
+    showToast(`${product.name} ajouté au panier !`, 'success')
   }
 
+  const handleToggleFavorite = (e: React.MouseEvent, product: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const added = toggleFavorite(product)
+    showToast(added ? 'Ajouté aux favoris !' : 'Retiré des favoris', 'success')
+  }
+
+  const handleQuickView = (e: React.MouseEvent, productId: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    navigate(`/products/${productId}`)
+  }
+
+  const ProductCard = ({ product, index, showDiscount = false }: { product: any, index: number, showDiscount?: boolean }) => (
+    <Link 
+      to={`/products/${product.id}`}
+      className="group bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
+      onMouseEnter={() => setHoveredProduct(product.id)}
+      onMouseLeave={() => setHoveredProduct(null)}
+    >
+      <div className="relative aspect-square bg-gray-50 overflow-hidden">
+        {showDiscount && (
+          <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+            -{15 + (index % 5) * 10}%
+          </div>
+        )}
+        {index < 3 && !showDiscount && (
+          <div className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">HOT</div>
+        )}
+        {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+          <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-12 w-12" /></div>
+        )}
+        <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 transition-all duration-300 ${hoveredProduct === product.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <button 
+            onClick={(e) => handleToggleFavorite(e, product)} 
+            className={`w-8 h-8 rounded-full shadow flex items-center justify-center transition-colors ${isFavorite(product.id) ? 'bg-red-500 text-white' : 'bg-white hover:bg-red-500 hover:text-white'}`}
+          >
+            <Heart className={`w-4 h-4 ${isFavorite(product.id) ? 'fill-current' : ''}`} />
+          </button>
+          <button 
+            onClick={(e) => handleAddToCart(e, product)} 
+            className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors"
+          >
+            <ShoppingCart className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={(e) => handleQuickView(e, product.id)} 
+            className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div className="p-3">
+        <p className="text-xs text-gray-400 mb-0.5">{product.store?.name || product.category || 'BuyMore'}</p>
+        <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-green-600 transition-colors">{product.name}</h3>
+        <div className="flex items-center gap-1 mb-1">
+          {[...Array(5)].map((_, i) => (<Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />))}
+          <span className="text-xs text-gray-400 ml-1">(24)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-green-600 font-bold text-sm">{formatPrice(product.base_price)} <span className="text-xs font-normal">FCFA</span></span>
+          {showDiscount && <span className="text-gray-400 text-xs line-through">{formatPrice(Number(product.base_price) * 1.3)}</span>}
+        </div>
+      </div>
+    </Link>
+  )
+
   return (
-    <div className="bg-gray-50">
-      <Hero />
-
-      {/* Avantages */}
-      <section className="bg-white border-b">
-        <div className="container mx-auto px-4 py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center gap-3 p-3">
-              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                <Truck className="w-6 h-6 text-green-600" />
+    <div className="bg-gray-50 min-h-screen">
+      {/* Hero Section avec Sidebar Catégories */}
+      <section className="bg-white">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex gap-4">
+            {/* Sidebar Catégories - Desktop avec Mega Menu */}
+            <div className="hidden lg:block w-64 flex-shrink-0 relative">
+              <div className="bg-[#0f4c2b] text-white rounded-t-xl px-4 py-3">
+                <h3 className="font-bold flex items-center gap-2"><ShoppingBag className="w-5 h-5" /> Catégories</h3>
               </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">Livraison Bamako</p>
-                <p className="text-xs text-gray-500">1 000 FCFA seulement</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3">
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Shield className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">Paiement Sécurisé</p>
-                <p className="text-xs text-gray-500">Wave, Orange Money</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3">
-              <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                <CreditCard className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">Paiement Mobile</p>
-                <p className="text-xs text-gray-500">Sama, Moov Africa</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3">
-              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                <Clock className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">Support 24/7</p>
-                <p className="text-xs text-gray-500">Assistance rapide</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Boutiques Partenaires */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Boutiques Partenaires</h2>
-              <p className="text-gray-600 mt-1">Découvrez nos boutiques de confiance</p>
-            </div>
-            <Link to="/shops" className="hidden md:flex items-center gap-2 text-green-600 hover:text-green-700 font-medium">
-              Voir toutes <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {featuredShops.map((shop, index) => (
-              <Link 
-                key={index}
-                to={`/shops`}
-                className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${shop.color} p-6 text-white hover:scale-105 transition-transform duration-300 shadow-lg`}
-              >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
-                <div className="text-4xl mb-4">{shop.icon}</div>
-                <h3 className="font-bold text-lg">{shop.name}</h3>
-                <p className="text-white/80 text-sm">{shop.category}</p>
-                <div className="mt-4 flex items-center gap-1 text-sm">
-                  <Store className="w-4 h-4" />
-                  <span>Visiter</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-          
-          <Link to="/shops" className="md:hidden flex items-center justify-center gap-2 mt-6 text-green-600 hover:text-green-700 font-medium">
-            Voir toutes les boutiques <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Catégories */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Catégories</h2>
-              <p className="text-gray-600 mt-1">Explorez par catégorie</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {displayCategories.map((category) => (
-              <Link
-                key={category.id}
-                to={`/shops?category=${category.slug}`}
-                className="group relative bg-gray-50 rounded-2xl p-6 hover:bg-green-50 transition-all duration-300 border border-gray-100 hover:border-green-200 hover:shadow-lg"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
-                  <span className="text-green-600">
-                    {getCategoryIcon(category.slug)}
-                  </span>
-                </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-green-700">{category.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">Voir les produits</p>
-                <ArrowRight className="absolute bottom-6 right-6 w-5 h-5 text-gray-300 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Produits Tendance */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Tendances</h2>
-                <p className="text-gray-600">Les plus populaires</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {trendingProducts.map((product, index) => (
-              <Link 
-                key={product.id} 
-                to={`/products/${product.id}`}
-                className="group"
-                onMouseEnter={() => setHoveredProduct(product.id)}
-                onMouseLeave={() => setHoveredProduct(null)}
-              >
-                <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100">
-                  <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                    {index === 0 && (
-                      <div className="absolute top-3 left-3 z-10 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        🔥 HOT
-                      </div>
-                    )}
-                    {product.media?.[0]?.image_url ? (
-                      <img
-                        src={product.media[0].image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        <Package className="h-16 w-16" />
-                      </div>
-                    )}
-                    <div className={`absolute inset-0 bg-black/40 flex items-center justify-center gap-3 transition-opacity duration-300 ${hoveredProduct === product.id ? 'opacity-100' : 'opacity-0'}`}>
-                      <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors">
-                        <Heart className="w-5 h-5" />
-                      </button>
-                      <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors">
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors">
-                        <ShoppingCart className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-1 mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
-                      ))}
-                      <span className="text-xs text-gray-500 ml-1">(24)</span>
-                    </div>
-                    <h3 className="font-semibold text-gray-900 line-clamp-2 mb-1 group-hover:text-green-600 transition-colors">
-                      {product.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 mb-2">{product.store?.name}</p>
-                    <div className="flex items-center justify-between">
-                      <p className="text-lg font-bold text-green-600">
-                        {formatPrice(product.base_price)} <span className="text-xs font-normal">FCFA</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Bannière Promo */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 via-green-500 to-emerald-500 p-8 md:p-12">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-24 -translate-x-24"></div>
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="text-center md:text-left">
-                <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-2 mb-4">
-                  <Percent className="w-4 h-4 text-yellow-300" />
-                  <span className="text-white text-sm font-medium">Offre Spéciale</span>
-                </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
-                  Livraison Gratuite
-                </h2>
-                <p className="text-white/90 text-lg">
-                  Sur votre première commande avec le code <span className="font-bold text-yellow-300">BIENVENUE</span>
-                </p>
-              </div>
-              <Link 
-                to="/shops"
-                className="flex items-center gap-2 bg-white text-green-600 px-8 py-4 rounded-full font-bold hover:bg-yellow-400 hover:text-green-800 transition-colors shadow-lg"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Commander maintenant
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Produits Récents */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Nouveautés</h2>
-              <p className="text-gray-600 mt-1">Les derniers produits ajoutés</p>
-            </div>
-            <Link to="/shops" className="hidden md:flex items-center gap-2 text-green-600 hover:text-green-700 font-medium">
-              Voir tout <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-gray-100 rounded-2xl animate-pulse">
-                  <div className="aspect-square bg-gray-200 rounded-t-2xl"></div>
-                  <div className="p-4 space-y-3">
-                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    <div className="h-5 bg-gray-200 rounded w-1/3"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {displayProducts.map((product) => (
-                <Link key={product.id} to={`/products/${product.id}`} className="group">
-                  <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-0 bg-gray-50 group-hover:bg-white">
-                    <div className="relative aspect-square bg-white overflow-hidden">
-                      {product.media?.[0]?.image_url ? (
-                        <img
-                          src={product.media[0].image_url}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300">
-                          <Package className="h-12 w-12" />
+              <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm">
+                {mainCategories.map((cat) => {
+                  const IconComponent = cat.icon
+                  return (
+                    <div key={cat.slug} className="relative group/cat">
+                      <Link to={`/products?category=${cat.slug}`} className="flex items-center gap-3 px-4 py-3 hover:bg-green-50 border-b border-gray-100 last:border-b-0 transition-colors">
+                        <div className={`w-8 h-8 rounded-lg ${cat.color} flex items-center justify-center text-white shadow-sm`}><IconComponent className="w-4 h-4" /></div>
+                        <span className="text-gray-700 group-hover/cat:text-green-600 font-medium text-sm">{cat.name}</span>
+                        <ChevronRight className="w-4 h-4 text-gray-400 ml-auto group-hover/cat:text-green-600 group-hover/cat:translate-x-1 transition-transform" />
+                      </Link>
+                      {/* Mega Menu au survol */}
+                      <div className="absolute left-full top-0 ml-1 w-[500px] bg-white rounded-xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible transition-all z-50">
+                        <div className="p-4">
+                          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+                            <div className={`w-12 h-12 rounded-xl ${cat.color} flex items-center justify-center text-white`}><IconComponent className="w-6 h-6" /></div>
+                            <div>
+                              <h4 className="font-bold text-gray-900">{cat.name}</h4>
+                              <p className="text-sm text-gray-500">Découvrez nos produits</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {mockProducts.filter((p: any) => p.category === cat.name || p.category?.includes(cat.name.split(' ')[0])).slice(0, 4).map((product: any) => (
+                              <Link key={product.id} to={`/products/${product.id}`} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                                <img src={product.media[0].image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h5>
+                                  <p className="text-green-600 font-bold text-xs mt-1">{formatPrice(product.base_price)} FCFA</p>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                          <Link to={`/products?category=${cat.slug}`} className="mt-3 flex items-center justify-center gap-2 w-full py-2 bg-green-50 text-green-600 rounded-lg font-medium text-sm hover:bg-green-100 transition-colors">
+                            Voir tous les produits <ArrowRight className="w-4 h-4" />
+                          </Link>
                         </div>
-                      )}
-                      <button className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500">
-                        <Heart className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <CardContent className="p-4">
-                      <p className="text-xs text-gray-500 mb-1">{product.store?.name}</p>
-                      <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-green-600 transition-colors">
-                        {product.name}
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <p className="text-lg font-bold text-green-600">
-                          {formatPrice(product.base_price)} <span className="text-xs font-normal text-gray-500">FCFA</span>
-                        </p>
-                        <button className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 hover:bg-green-600 hover:text-white transition-colors">
-                          <ShoppingCart className="w-4 h-4" />
-                        </button>
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          )}
-          
-          <Link to="/shops" className="md:hidden flex items-center justify-center gap-2 mt-6 text-green-600 hover:text-green-700 font-medium">
-            Voir tous les produits <ChevronRight className="w-4 h-4" />
-          </Link>
+
+            {/* Hero Carousel */}
+            <div className="flex-1">
+              <div className="relative h-[300px] md:h-[400px] rounded-xl overflow-hidden">
+                {heroBanners.map((banner, index) => (
+                  <div key={index} className={`absolute inset-0 transition-all duration-700 ${currentBanner === index ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                    <div className={`h-full bg-gradient-to-r ${banner.bgColor} flex items-center relative`}>
+                      <div className="absolute inset-0 bg-black/20"></div>
+                      <img src={banner.image} alt="" className="absolute right-0 top-0 h-full w-1/2 object-cover opacity-50" />
+                      <div className="container mx-auto px-6 md:px-12 relative z-10">
+                        <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur rounded-full text-white text-sm mb-3">{banner.subtitle}</span>
+                        <h1 className="text-3xl md:text-5xl font-black text-white mb-3">{banner.title}</h1>
+                        <p className="text-white/90 mb-6 text-lg">{banner.description}</p>
+                        <Link to={banner.link} className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-full font-bold hover:bg-yellow-400 transition-colors">
+                          {banner.cta} <ArrowRight className="w-5 h-5" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={prevBanner} className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/60 transition-all shadow-lg cursor-pointer"><ChevronLeft className="w-7 h-7" /></button>
+                <button onClick={nextBanner} className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/60 transition-all shadow-lg cursor-pointer"><ChevronRight className="w-7 h-7" /></button>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {heroBanners.map((_, index) => (<button key={index} onClick={() => setCurrentBanner(index)} className={`h-2 rounded-full transition-all ${currentBanner === index ? 'bg-white w-8' : 'bg-white/50 w-2'}`} />))}
+                </div>
+              </div>
+
+              {/* Mini Banners */}
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                {promoBanners.map((banner, index) => (
+                  <Link key={index} to="/deals" className={`relative h-24 md:h-28 rounded-xl overflow-hidden bg-gradient-to-r ${banner.bgColor} group`}>
+                    <img src={banner.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity" />
+                    <div className="relative z-10 p-3 h-full flex flex-col justify-between">
+                      <div>
+                        <p className="text-white/80 text-xs">{banner.subtitle}</p>
+                        <h4 className="text-white font-bold text-sm md:text-base">{banner.title}</h4>
+                      </div>
+                      <span className="text-yellow-300 font-black text-lg">{banner.discount}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Sidebar Produits - Desktop */}
+            <div className="hidden xl:block w-56 flex-shrink-0">
+              <div className="bg-orange-500 text-white rounded-t-xl px-4 py-3">
+                <h3 className="font-bold flex items-center gap-2"><Zap className="w-5 h-5" /> Top Ventes</h3>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm divide-y divide-gray-100">
+                {mockProducts.slice(0, 4).map((product) => (
+                  <Link key={product.id} to={`/products/${product.id}`} className="flex gap-3 p-3 hover:bg-gray-50 transition-colors">
+                    <img src={product.media[0].image_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h4>
+                      <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(product.base_price)}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Section Restaurants */}
-      <section className="py-12 bg-gradient-to-br from-orange-50 to-red-50">
+      {/* Features Bar */}
+      <section className="bg-white border-y border-gray-200 py-4">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
-                <UtensilsCrossed className="w-6 h-6 text-white" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { icon: Truck, title: 'Livraison Rapide', desc: 'Partout à Bamako', color: 'text-green-600' },
+              { icon: Shield, title: 'Paiement Sécurisé', desc: '100% protégé', color: 'text-blue-600' },
+              { icon: RefreshCw, title: 'Retour Facile', desc: 'Sous 7 jours', color: 'text-orange-600' },
+              { icon: Clock, title: 'Support 24/7', desc: 'Assistance rapide', color: 'text-purple-600' },
+            ].map((feature, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center ${feature.color}`}><feature.icon className="w-6 h-6" /></div>
+                <div><h4 className="font-semibold text-gray-900 text-sm">{feature.title}</h4><p className="text-xs text-gray-500">{feature.desc}</p></div>
               </div>
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Restaurants</h2>
-                <p className="text-gray-600">Commandez vos plats préférés</p>
-              </div>
-            </div>
-            <Link to="/restaurants" className="hidden md:flex items-center gap-2 text-orange-600 hover:text-orange-700 font-medium">
-              Voir les restaurants <ChevronRight className="w-4 h-4" />
-            </Link>
+            ))}
           </div>
-          
-          <div className="bg-white rounded-3xl p-8 shadow-lg">
-            <div className="text-center py-12">
-              <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
-                <UtensilsCrossed className="w-10 h-10 text-orange-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Bientôt disponible</h3>
-              <p className="text-gray-600 max-w-md mx-auto">
-                Notre section restauration arrive bientôt ! Commandez vos plats préférés directement depuis BuyMore.
-              </p>
-              <button className="mt-6 px-6 py-3 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition-colors">
-                Me notifier
-              </button>
+        </div>
+      </section>
+
+      {/* Catégories Mobile */}
+      <section className="lg:hidden py-4 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">Catégories</h2>
+            <Link to="/categories" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {mainCategories.map((cat) => {
+              const IconComponent = cat.icon
+              return (
+                <Link key={cat.slug} to={`/categories?cat=${cat.slug}`} className="flex flex-col items-center gap-2 min-w-[70px]">
+                  <div className={`w-14 h-14 rounded-full ${cat.color} flex items-center justify-center text-white shadow-lg`}><IconComponent className="w-6 h-6" /></div>
+                  <span className="text-xs text-gray-700 font-medium text-center">{cat.name}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Boutiques en vedette */}
+      <section className="py-6 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Boutiques en vedette</h2>
+            <Link to="/shops" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {featuredShops.map((shop) => (
+              <Link key={shop.id} to={`/shops/${shop.slug}`} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${shop.color} p-4 text-white hover:scale-[1.02] transition-transform shadow-lg`}>
+                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-2 overflow-hidden">
+                  <img src={shop.logo} alt={shop.name} className="w-full h-full object-cover" />
+                </div>
+                <h3 className="font-bold">{shop.name}</h3>
+                <p className="text-white/80 text-xs">{shop.category}</p>
+                <div className="flex items-center gap-1 mt-2"><Star className="w-3 h-3 fill-yellow-300 text-yellow-300" /><span className="text-xs">{shop.rating}</span></div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Toutes les boutiques */}
+      <section className="py-4 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Toutes les boutiques</h2>
+            <Link to="/shops" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            {allShopsData.map((shop) => (
+              <Link key={shop.id} to={`/shops/${shop.slug}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
+                <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-200 flex items-center justify-center overflow-hidden group-hover:border-green-400 transition-colors">
+                  <img src={shop.logo} alt={shop.name} className="w-full h-full object-cover" />
+                </div>
+                <span className="text-xs text-gray-700 font-medium text-center line-clamp-2 max-w-[80px] group-hover:text-green-600">{shop.name}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Flash Deals */}
+      <section className="py-6 bg-gradient-to-r from-red-500 to-orange-500">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><Zap className="w-6 h-6 text-yellow-300" /></div>
+              <div><h2 className="text-xl font-bold text-white">Ventes Flash</h2><p className="text-white/80 text-sm">Offres limitées - Dépêchez-vous!</p></div>
             </div>
+            <div className="flex items-center gap-3">
+              <span className="text-white/80 text-sm">Se termine dans:</span>
+              <div className="flex gap-1">
+                {[{ value: countdown.hours, label: 'H' }, { value: countdown.minutes, label: 'M' }, { value: countdown.seconds, label: 'S' }].map((item, i) => (
+                  <div key={i} className="bg-white rounded-lg px-3 py-2 text-center min-w-[50px]">
+                    <div className="text-xl font-black text-red-500">{String(item.value).padStart(2, '0')}</div>
+                    <div className="text-[10px] text-gray-500 font-medium">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {dealProducts.map((product: any, index: number) => (
+              <Link key={product.id} to={`/products/${product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-lg">
+                <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                  <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{20 + index * 10}%</div>
+                  {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+                    <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  ) : (<div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>)}
+                </div>
+                <div className="p-2">
+                  <h3 className="font-medium text-gray-900 text-xs line-clamp-2 mb-1">{product.name}</h3>
+                  <div className="flex items-center gap-1">
+                    <span className="text-red-600 font-bold text-sm">{formatPrice(Number(product.base_price) * 0.8)}</span>
+                    <span className="text-gray-400 text-xs line-through">{formatPrice(product.base_price)}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Produits par catégorie avec tabs */}
+      <section className="py-8 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Produits Populaires</h2>
+            <div className="flex gap-2 overflow-x-auto">
+              {['Tous', 'Électronique', 'Mode', 'Sport', 'Maison'].map((cat) => (
+                <button key={cat} onClick={() => setSelectedCategory(cat === 'Tous' ? null : cat)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === cat || (cat === 'Tous' && !selectedCategory) ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>{cat}</button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {(selectedCategory ? trendingProducts.filter((p: any) => p.category === selectedCategory) : trendingProducts).slice(0, 10).map((product: any, index: number) => (
+              <ProductCard key={product.id} product={product} index={index} />
+            ))}
+          </div>
+          <div className="text-center mt-6">
+            <Link to="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 transition-colors">Voir tous les produits <ArrowRight className="w-5 h-5" /></Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Grande bannière promo */}
+      <section className="py-6">
+        <div className="container mx-auto px-4">
+          <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden bg-gradient-to-r from-indigo-600 to-purple-600">
+            <img src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&h=400&fit=crop" alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+            <div className="relative z-10 h-full flex items-center px-8 md:px-16">
+              <div>
+                <span className="inline-block px-3 py-1 bg-yellow-400 text-gray-900 text-sm font-bold rounded-full mb-3">OFFRE SPÉCIALE</span>
+                <h2 className="text-2xl md:text-4xl font-black text-white mb-2">Jusqu'à 50% de réduction</h2>
+                <p className="text-white/80 mb-4">Sur une sélection de produits électroniques</p>
+                <Link to="/deals" className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-full font-bold hover:bg-yellow-400 transition-colors">Découvrir <ArrowRight className="w-5 h-5" /></Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Nouveautés */}
+      <section className="py-8 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center"><Gift className="w-5 h-5 text-purple-600" /></div>
+              <div><h2 className="text-xl font-bold text-gray-900">Nouveautés</h2><p className="text-gray-500 text-sm">Derniers produits ajoutés</p></div>
+            </div>
+            <Link to="/products?sort=newest" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {newArrivals.map((product: any, index: number) => (<ProductCard key={product.id} product={product} index={index} />))}
+          </div>
+        </div>
+      </section>
+
+      {/* Meilleures ventes */}
+      <section className="py-8 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center"><Tag className="w-5 h-5 text-orange-600" /></div>
+              <div><h2 className="text-xl font-bold text-gray-900">Meilleures Ventes</h2><p className="text-gray-500 text-sm">Les plus populaires</p></div>
+            </div>
+            <Link to="/products?sort=bestsellers" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {bestSellers.map((product: any, index: number) => (<ProductCard key={product.id} product={product} index={index} showDiscount />))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Footer */}
+      <section className="py-8 bg-gray-900 text-white">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { icon: Truck, title: 'Livraison Rapide', desc: 'Partout à Bamako en 24h' },
+              { icon: Shield, title: 'Paiement Sécurisé', desc: 'Transactions 100% protégées' },
+              { icon: RefreshCw, title: 'Retour Facile', desc: 'Satisfait ou remboursé' },
+              { icon: Clock, title: 'Support 24/7', desc: 'Une équipe à votre écoute' },
+            ].map((feature, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center"><feature.icon className="w-6 h-6 text-green-400" /></div>
+                <div><h4 className="font-semibold">{feature.title}</h4><p className="text-sm text-gray-400">{feature.desc}</p></div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Newsletter */}
-      <section className="py-16 bg-gray-900">
+      <section className="py-10 bg-gradient-to-r from-green-600 to-emerald-600">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Restez informé des nouveautés
-            </h2>
-            <p className="text-gray-400 mb-8">
-              Inscrivez-vous à notre newsletter pour recevoir les dernières offres et promotions
-            </p>
-            <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="Votre adresse email"
-                className="flex-1 px-6 py-4 rounded-full bg-gray-800 text-white placeholder-gray-500 border border-gray-700 focus:border-green-500 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="px-8 py-4 bg-green-500 text-white rounded-full font-semibold hover:bg-green-600 transition-colors"
-              >
-                S'inscrire
-              </button>
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Inscrivez-vous à notre Newsletter</h2>
+            <p className="text-green-100 mb-6">Recevez nos offres exclusives et nouveautés en avant-première</p>
+            <form className="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto">
+              <input type="email" placeholder="Votre adresse email" className="flex-1 px-5 py-3 rounded-full bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              <button type="submit" className="px-8 py-3 bg-yellow-400 text-green-900 rounded-full font-bold hover:bg-yellow-300 transition-colors">S'inscrire</button>
             </form>
+            <p className="text-green-200 text-sm mt-4">🎁 -10% sur votre première commande</p>
           </div>
         </div>
       </section>

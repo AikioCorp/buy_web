@@ -1,2 +1,8 @@
 export { default as AdminDashboardPage } from './AdminDashboardPage'
 export { default as SuperAdminDashboardPage } from './SuperAdminDashboardPage'
+export { default as AdminUsersPage } from './AdminUsersPage'
+export { default as AdminReportsPage } from './AdminReportsPage'
+export { default as AdminModerationPage } from './AdminModerationPage'
+export { default as AdminAnalyticsPage } from './AdminAnalyticsPage'
+export { default as AdminSecurityPage } from './AdminSecurityPage'
+export { default as AdminSettingsPage } from './AdminSettingsPage'

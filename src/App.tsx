@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
+import { ScrollToTop } from './components/ScrollToTop'
+import { ToastProvider } from './components/Toast'
 import { Layout } from './components/Layout'
 import { AuthLayout } from './components/AuthLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -16,6 +18,8 @@ import { TestApiPage } from './pages/TestApiPage'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { ProductsPage as PublicProductsPage } from './pages/ProductsPage'
 import { DealsPage } from './pages/DealsPage'
+import { CheckoutPage } from './pages/CheckoutPage'
+import { FavoritesPage as PublicFavoritesPage } from './pages/FavoritesPage'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -58,7 +62,13 @@ import { SuperAdminDashboardLayout } from './components/dashboard/superadmin'
 // Import des pages dashboard admin
 import {
   AdminDashboardPage,
-  SuperAdminDashboardPage
+  SuperAdminDashboardPage,
+  AdminUsersPage,
+  AdminReportsPage,
+  AdminModerationPage,
+  AdminAnalyticsPage,
+  AdminSecurityPage,
+  AdminSettingsPage
 } from './pages/dashboard/admin'
 import SuperAdminUsersPage from './pages/dashboard/admin/SuperAdminUsersPage'
 import SuperAdminShopsPage from './pages/dashboard/admin/SuperAdminShopsPage'
@@ -79,8 +89,10 @@ function App() {
   }, [loadUser])
 
   return (
+    <ToastProvider>
     <div className="pb-20 md:pb-0"> {/* Padding-bottom pour la navbar mobile */}
     <Router>
+      <ScrollToTop />
       <DashboardWelcomePopup />
       <Routes>
         {/* Routes d'authentification sans navbar */}
@@ -99,6 +111,8 @@ function App() {
           <Route path="products/:id" element={<ProductDetailPage />} />
           <Route path="deals" element={<DealsPage />} />
           <Route path="cart" element={<CartPage />} />
+          <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="favorites" element={<PublicFavoritesPage />} />
           <Route path="test-api" element={<TestApiPage />} />
         </Route>
 
@@ -143,12 +157,12 @@ function App() {
           </ProtectedRouteByRole>
         }>
           <Route index element={<AdminDashboardPage />} />
-          <Route path="users" element={<AdminDashboardPage />} />
-          <Route path="reports" element={<AdminDashboardPage />} />
-          <Route path="moderation" element={<AdminDashboardPage />} />
-          <Route path="analytics" element={<AdminDashboardPage />} />
-          <Route path="security" element={<AdminDashboardPage />} />
-          <Route path="settings" element={<AdminDashboardPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="reports" element={<AdminReportsPage />} />
+          <Route path="moderation" element={<AdminModerationPage />} />
+          <Route path="analytics" element={<AdminAnalyticsPage />} />
+          <Route path="security" element={<AdminSecurityPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
 
         {/* Routes du dashboard super admin */}
@@ -172,6 +186,7 @@ function App() {
       </Routes>
     </Router>
     </div>
+    </ToastProvider>
   )
 }
 

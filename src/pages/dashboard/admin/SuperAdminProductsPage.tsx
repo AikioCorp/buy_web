@@ -1,9 +1,25 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Package, Edit2, Trash2, X, Eye, Store, Tag, Plus, Save } from 'lucide-react'
-import { productsService, Product } from '../../../lib/api/productsService'
+import { Search, Package, Edit2, Trash2, X, Eye, Store, Tag, Plus, Save, Image as ImageIcon } from 'lucide-react'
+import { productsService, Product, ProductMedia } from '../../../lib/api/productsService'
 import { categoriesService, Category } from '../../../lib/api/categoriesService'
 import { shopsService, Shop } from '../../../lib/api/shopsService'
 import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+
+// Fonction utilitaire pour construire l'URL de l'image
+const getProductImageUrl = (media?: ProductMedia[]): string | null => {
+  if (!media || media.length === 0) return null
+  const primaryImage = media.find(m => m.is_primary) || media[0]
+  let url = primaryImage?.image_url || primaryImage?.file
+  if (!url) return null
+  // Convertir http:// en https:// pour éviter le blocage mixed content
+  if (url.startsWith('http://')) {
+    url = url.replace('http://', 'https://')
+  }
+  if (url.startsWith('https://')) return url
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+}
 
 const SuperAdminProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
@@ -201,14 +217,28 @@ const SuperAdminProductsPage: React.FC = () => {
   const handleSaveNewProduct = async (data: ProductFormData) => {
     try {
       setActionLoading(true)
-      await productsService.createProductAdmin({
+      // 1. Créer le produit
+      const result = await productsService.createProductAdmin({
         name: data.name,
         slug: data.slug,
         description: data.description,
         base_price: data.base_price,
         category: data.category_id || 0,
-        store: data.store_id || undefined
+        store: data.store_id || undefined,
+        stock: data.stock_quantity || 0,
+        is_active: data.is_active
       })
+      
+      // 2. Uploader les images si présentes
+      if (result.data?.id && data.images && data.images.length > 0) {
+        try {
+          await productsService.uploadProductImagesAdmin(result.data.id, data.images)
+        } catch (imgErr: any) {
+          console.error('Erreur upload images:', imgErr)
+          // On continue même si l'upload échoue
+        }
+      }
+      
       setIsCreateModalOpen(false)
       loadProducts()
     } catch (err: any) {
@@ -216,11 +246,6 @@ const SuperAdminProductsPage: React.FC = () => {
     } finally {
       setActionLoading(false)
     }
-  }
-
-  const handleEditWithModal = (product: Product) => {
-    setEditingProduct(product)
-    setIsEditModalOpen(true)
   }
 
   const handleSaveEditProduct = async (data: ProductFormData) => {
@@ -232,7 +257,9 @@ const SuperAdminProductsPage: React.FC = () => {
         name: data.name,
         slug: data.slug,
         description: data.description,
-        base_price: data.base_price
+        base_price: data.base_price,
+        stock: data.stock_quantity || 0,
+        is_active: data.is_active
       })
       setIsEditModalOpen(false)
       setEditingProduct(null)
@@ -328,7 +355,61 @@ const SuperAdminProductsPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Vue Mobile - Cartes */}
+            <div className="block lg:hidden">
+              <div className="divide-y divide-gray-200">
+                {(products || []).map((product) => {
+                  const imageUrl = getProductImageUrl(product.media)
+                  return (
+                    <div key={product.id} className="p-4 hover:bg-gray-50">
+                      <div className="flex items-start gap-4">
+                        <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageIcon size={24} className="text-gray-300" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                          <p className="text-sm text-gray-500 truncate">{product.store?.name || '-'}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm font-bold text-green-600">{formatPrice(product.base_price)}</span>
+                            <span className="text-xs text-gray-400">•</span>
+                            <span className="text-xs text-gray-500">{product.category?.name || '-'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button 
+                          onClick={() => handleViewProduct(product)}
+                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
+                        >
+                          <Eye size={14} /> Voir
+                        </button>
+                        <button 
+                          onClick={() => handleEditProduct(product)}
+                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm"
+                        >
+                          <Edit2 size={14} /> Modifier
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClick(product)}
+                          className="px-3 py-2 bg-red-50 text-red-600 rounded-lg"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Vue Desktop - Tableau */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -350,73 +431,76 @@ const SuperAdminProductsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {(products || []).map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-12 w-12 bg-gray-100 rounded-lg overflow-hidden">
-                            {product.media && product.media[0]?.image_url ? (
-                              <img 
-                                src={product.media[0].image_url} 
-                                alt={product.name}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center">
-                                <Package className="text-gray-400" size={24} />
-                              </div>
-                            )}
+                  {(products || []).map((product) => {
+                    const imageUrl = getProductImageUrl(product.media)
+                    return (
+                      <tr key={product.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-12 w-12 bg-gray-100 rounded-lg overflow-hidden">
+                              {imageUrl ? (
+                                <img 
+                                  src={imageUrl} 
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center">
+                                  <Package className="text-gray-400" size={24} />
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                              <div className="text-sm text-gray-500">{product.slug}</div>
+                            </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                            <div className="text-sm text-gray-500">{product.slug}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Store size={14} className="text-gray-400" />
+                            <span className="text-sm text-gray-900">{product.store?.name || '-'}</span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Store size={14} className="text-gray-400" />
-                          <span className="text-sm text-gray-900">{product.store?.name || '-'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Tag size={14} className="text-gray-400" />
-                          <span className="text-sm text-gray-900">{product.category?.name || '-'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-medium text-gray-900">
-                          {formatPrice(product.base_price)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => handleViewProduct(product)}
-                            className="text-gray-600 hover:text-gray-900"
-                            title="Voir"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleEditProduct(product)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                            title="Modifier"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteClick(product)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Tag size={14} className="text-gray-400" />
+                            <span className="text-sm text-gray-900">{product.category?.name || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-medium text-gray-900">
+                            {formatPrice(product.base_price)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => handleViewProduct(product)}
+                              className="text-gray-600 hover:text-gray-900"
+                              title="Voir"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleEditProduct(product)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                              title="Modifier"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteClick(product)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Supprimer"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -465,9 +549,9 @@ const SuperAdminProductsPage: React.FC = () => {
             <div className="p-6">
               <div className="flex gap-6">
                 <div className="w-48 h-48 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                  {viewingProduct.media && viewingProduct.media[0]?.image_url ? (
+                  {getProductImageUrl(viewingProduct.media) ? (
                     <img 
-                      src={viewingProduct.media[0].image_url} 
+                      src={getProductImageUrl(viewingProduct.media)!} 
                       alt={viewingProduct.name}
                       className="h-full w-full object-cover"
                     />
@@ -684,6 +768,8 @@ const SuperAdminProductsPage: React.FC = () => {
             base_price: editingProduct.base_price,
             category_id: editingProduct.category?.id,
             store_id: editingProduct.store?.id,
+            stock_quantity: editingProduct.stock || 0,
+            is_active: editingProduct.is_active !== false,
             existing_images: editingProduct.media?.map(m => m.image_url || '').filter(Boolean)
           }}
           categories={categories}

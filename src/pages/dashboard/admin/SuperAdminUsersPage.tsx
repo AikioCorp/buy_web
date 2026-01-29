@@ -354,7 +354,89 @@ const SuperAdminUsersPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Vue Mobile - Cartes */}
+            <div className="block lg:hidden">
+              <div className="divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <div key={user.id} className="p-4 hover:bg-gray-50">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-800 font-bold text-lg">
+                          {user.email?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{user.username || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </div>
+                      {getStatusBadge(user.is_active)}
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {getRoleBadge(user)}
+                      {user.phone && (
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {user.phone}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 mb-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-medium">Inscrit:</span> {formatDate(user.date_joined)}
+                      </div>
+                      <div>
+                        <span className="font-medium">Connexion:</span> {user.last_login ? formatDate(user.last_login) : 'Jamais'}
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      <button 
+                        onClick={() => handleToggleActive(user)}
+                        className={`px-3 py-1.5 rounded text-xs font-medium ${
+                          user.is_active 
+                            ? 'bg-yellow-100 text-yellow-700' 
+                            : 'bg-green-100 text-green-700'
+                        }`}
+                      >
+                        {user.is_active ? 'Suspendre' : 'Activer'}
+                      </button>
+                      <button 
+                        onClick={() => handleToggleSeller(user)}
+                        className={`px-3 py-1.5 rounded text-xs font-medium ${
+                          user.is_seller 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-green-100 text-green-700'
+                        }`}
+                      >
+                        {user.is_seller ? '→ Client' : '→ Vendeur'}
+                      </button>
+                      <button 
+                        onClick={() => handleOpenResetPassword(user)}
+                        className="p-1.5 text-orange-600 bg-orange-50 rounded"
+                      >
+                        <Key size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="p-1.5 text-indigo-600 bg-indigo-50 rounded"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteClick(user)}
+                        className="p-1.5 text-red-600 bg-red-50 rounded"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Vue Desktop - Tableau */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -419,7 +501,6 @@ const SuperAdminUsersPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-1">
-                          {/* Toggle Active/Suspend */}
                           <button 
                             onClick={() => handleToggleActive(user)}
                             className={`px-2 py-1 rounded text-xs font-medium ${
@@ -431,7 +512,6 @@ const SuperAdminUsersPage: React.FC = () => {
                           >
                             {user.is_active ? 'Suspendre' : 'Activer'}
                           </button>
-                          {/* Toggle Seller */}
                           <button 
                             onClick={() => handleToggleSeller(user)}
                             className={`px-2 py-1 rounded text-xs font-medium ${
@@ -501,10 +581,10 @@ const SuperAdminUsersPage: React.FC = () => {
 
       {/* Edit User Modal */}
       {isEditModalOpen && editingUser && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Modifier l'utilisateur</h2>
+        <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Modifier l'utilisateur</h2>
           <button
             onClick={() => setIsEditModalOpen(false)}
             className="text-gray-400 hover:text-gray-600"
@@ -513,8 +593,8 @@ const SuperAdminUsersPage: React.FC = () => {
           </button>
         </div>
         
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="p-4 sm:p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
               <input
@@ -609,10 +689,10 @@ const SuperAdminUsersPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+        <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             onClick={() => setIsEditModalOpen(false)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 order-2 sm:order-1"
             disabled={actionLoading}
           >
             Annuler
@@ -620,7 +700,7 @@ const SuperAdminUsersPage: React.FC = () => {
           <button
             onClick={handleSaveUser}
             disabled={actionLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 order-1 sm:order-2"
           >
             {actionLoading ? (
               <>
@@ -641,10 +721,10 @@ const SuperAdminUsersPage: React.FC = () => {
 
   {/* Create User Modal */}
   {isCreateModalOpen && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Créer un nouvel utilisateur</h2>
+        <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Créer un nouvel utilisateur</h2>
           <button
             onClick={() => setIsCreateModalOpen(false)}
             className="text-gray-400 hover:text-gray-600"
@@ -653,8 +733,8 @@ const SuperAdminUsersPage: React.FC = () => {
           </button>
         </div>
         
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="p-4 sm:p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Username <span className="text-red-500">*</span>
@@ -694,7 +774,7 @@ const SuperAdminUsersPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
               <input
@@ -769,10 +849,10 @@ const SuperAdminUsersPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+        <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             onClick={() => setIsCreateModalOpen(false)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 order-2 sm:order-1"
             disabled={actionLoading}
           >
             Annuler
@@ -780,7 +860,7 @@ const SuperAdminUsersPage: React.FC = () => {
           <button
             onClick={handleSaveNewUser}
             disabled={actionLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 order-1 sm:order-2"
           >
             {actionLoading ? (
               <>
@@ -801,7 +881,7 @@ const SuperAdminUsersPage: React.FC = () => {
 
   {/* Delete Confirmation Modal */}
   {isDeleteModalOpen && userToDelete && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">

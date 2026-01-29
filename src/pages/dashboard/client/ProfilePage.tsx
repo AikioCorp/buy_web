@@ -80,7 +80,7 @@ const ProfilePage: React.FC = () => {
                     {avatarPreview ? (
                       <img 
                         src={avatarPreview} 
-                        alt={profile?.full_name || 'Avatar'} 
+                        alt={profile ? `${profile.first_name} ${profile.last_name}` : 'Avatar'} 
                         className="w-full h-full object-cover"
                       />
                     ) : (

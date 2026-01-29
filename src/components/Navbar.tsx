@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Search, Heart, ShoppingCart, Menu, X, LogOut, ChevronRight } from 'lucide-react'
+import { Search, Heart, ShoppingCart, Menu, X, LogOut, ChevronRight, Store, Tag, Package } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import { useFavoritesStore } from '../store/favoritesStore'
 import { shopsService } from '../lib/api/shopsService'
 import { categoriesService } from '../lib/api/categoriesService'
+import { productsService } from '../lib/api/productsService'
 
 interface ShopItem {
   id: number
@@ -20,22 +22,56 @@ interface CategoryItem {
   children?: CategoryItem[]
 }
 
+interface SearchSuggestion {
+  type: 'product' | 'shop' | 'category'
+  id: number
+  name: string
+  slug?: string
+  image?: string
+  price?: string
+}
+
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
+  const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
   const [showShopsMegaMenu, setShowShopsMegaMenu] = useState(false)
   const [showCategoriesMegaMenu, setShowCategoriesMegaMenu] = useState(false)
   const [shops, setShops] = useState<ShopItem[]>([])
+  const [megaMenuTimeout, setMegaMenuTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
+  const [categoriesMegaMenuTimeout, setCategoriesMegaMenuTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleShopsMegaMenuEnter = () => {
+    if (megaMenuTimeout) clearTimeout(megaMenuTimeout)
+    setShowShopsMegaMenu(true)
+  }
+
+  const handleShopsMegaMenuLeave = () => {
+    const timeout = setTimeout(() => setShowShopsMegaMenu(false), 150)
+    setMegaMenuTimeout(timeout)
+  }
+
+  const handleCategoriesMegaMenuEnter = () => {
+    if (categoriesMegaMenuTimeout) clearTimeout(categoriesMegaMenuTimeout)
+    setShowCategoriesMegaMenu(true)
+  }
+
+  const handleCategoriesMegaMenuLeave = () => {
+    const timeout = setTimeout(() => setShowCategoriesMegaMenu(false), 150)
+    setCategoriesMegaMenuTimeout(timeout)
+  }
   const [dynamicCategories, setDynamicCategories] = useState<CategoryItem[]>([])
   const navigate = useNavigate()
   const location = useLocation()
   const isHomePage = location.pathname === '/'
   const { user, logout } = useAuthStore()
   const { getItemCount } = useCartStore()
+  const { getFavoritesCount } = useFavoritesStore()
 
   const promos = [
     {
@@ -133,31 +169,122 @@ export function Navbar() {
     loadData()
   }, [])
   
-  // Charger les boutiques uniquement si l'utilisateur est connecté
+  // Boutiques fictives pour le mega menu
+  const mockShopsForMenu = [
+    { id: 9, name: 'Shopreate', slug: 'shopreate', logo_url: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=100&h=100&fit=crop' },
+    { id: 10, name: 'Orca', slug: 'orca', logo_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=100&h=100&fit=crop' },
+    { id: 11, name: 'Dicarlo', slug: 'dicarlo', logo_url: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=100&h=100&fit=crop' },
+    { id: 12, name: 'Carré Marché', slug: 'carre-marche', logo_url: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=100&h=100&fit=crop' },
+    { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali', logo_url: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=100&h=100&fit=crop' },
+    { id: 2, name: 'Mode Bamako', slug: 'mode-bamako', logo_url: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=100&h=100&fit=crop' },
+    { id: 3, name: 'Sport Plus', slug: 'sport-plus', logo_url: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=100&h=100&fit=crop' },
+    { id: 4, name: 'Beauté Plus', slug: 'beaute-plus', logo_url: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=100&h=100&fit=crop' },
+  ]
+
+  // Charger les boutiques (avec fallback sur les données fictives)
   useEffect(() => {
     const loadShops = async () => {
-      if (!user) {
-        setShops([])
-        return
-      }
       try {
         const shopsResponse = await shopsService.getPublicShops(1, 8)
-        if (shopsResponse.data?.results) {
+        if (shopsResponse.data?.results && shopsResponse.data.results.length > 0) {
           setShops(shopsResponse.data.results.slice(0, 8))
+        } else {
+          setShops(mockShopsForMenu)
         }
       } catch (error) {
-        // Ignorer silencieusement les erreurs
+        // Fallback sur les boutiques fictives
+        setShops(mockShopsForMenu)
       }
     }
     loadShops()
-  }, [user])
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      navigate(`/shops?search=${encodeURIComponent(searchQuery)}`)
+      setShowSearchSuggestions(false)
+      navigate(`/products?search=${encodeURIComponent(searchQuery)}`)
     }
   }
+
+  // Recherche intelligente avec debounce
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchSuggestions([])
+      setShowSearchSuggestions(false)
+      return
+    }
+
+    const searchTimeout = setTimeout(async () => {
+      setIsSearching(true)
+      const suggestions: SearchSuggestion[] = []
+      const query = searchQuery.toLowerCase()
+
+      try {
+        // Recherche dans les produits
+        const productsResponse = await productsService.getProducts({ search: searchQuery, page_size: 5 })
+        if (productsResponse.data?.results) {
+          productsResponse.data.results.forEach((product: any) => {
+            suggestions.push({
+              type: 'product',
+              id: product.id,
+              name: product.name,
+              slug: product.slug,
+              image: product.media?.[0]?.image_url,
+              price: product.base_price
+            })
+          })
+        }
+      } catch (e) {
+        // Fallback: recherche locale dans les boutiques mockées
+      }
+
+      // Recherche dans les boutiques chargées
+      shops.filter(shop => shop.name.toLowerCase().includes(query)).slice(0, 3).forEach(shop => {
+        suggestions.push({
+          type: 'shop',
+          id: shop.id,
+          name: shop.name,
+          slug: shop.slug,
+          image: shop.logo_url
+        })
+      })
+
+      // Recherche dans les catégories chargées
+      dynamicCategories.filter(cat => cat.name.toLowerCase().includes(query)).slice(0, 3).forEach(cat => {
+        suggestions.push({
+          type: 'category',
+          id: cat.id,
+          name: cat.name,
+          slug: cat.slug
+        })
+      })
+
+      setSearchSuggestions(suggestions)
+      setShowSearchSuggestions(suggestions.length > 0)
+      setIsSearching(false)
+    }, 300)
+
+    return () => clearTimeout(searchTimeout)
+  }, [searchQuery, shops, dynamicCategories])
+
+  const handleSuggestionClick = (suggestion: SearchSuggestion) => {
+    setSearchQuery('')
+    setShowSearchSuggestions(false)
+    switch (suggestion.type) {
+      case 'product':
+        navigate(`/products/${suggestion.id}`)
+        break
+      case 'shop':
+        navigate(`/shops/${suggestion.slug || suggestion.id}`)
+        break
+      case 'category':
+        navigate(`/products?category=${suggestion.slug}`)
+        break
+    }
+  }
+
+  const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
 
   const handleSignOut = async () => {
     await logout()
@@ -361,20 +488,21 @@ export function Navbar() {
             {/* Liens de navigation */}
             <div className="hidden lg:flex items-center gap-6">
               <div 
-                className="relative group"
-                onMouseEnter={() => setShowShopsMegaMenu(true)}
-                onMouseLeave={() => setShowShopsMegaMenu(false)}
+                className="relative"
+                onMouseEnter={handleShopsMegaMenuEnter}
+                onMouseLeave={handleShopsMegaMenuLeave}
               >
-                <Link to="/shops" className="text-white hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1">
+                <Link to="/shops" className="text-white hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1 py-2">
                   Boutiques
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </Link>
 
-                {/* Mega Menu des boutiques */}
-                {showShopsMegaMenu && shops.length > 0 && (
-                  <div className="absolute top-full left-0 mt-2 w-[600px] bg-white rounded-lg shadow-2xl z-[110] overflow-hidden border border-gray-100">
+                {/* Mega Menu des boutiques - Header sticky */}
+                {showShopsMegaMenu && shops.length > 0 && isScrolled && (
+                  <div className="absolute top-full left-0 pt-2 w-[600px] z-[110]">
+                    <div className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-100">
                     <div className="p-4 bg-gray-50 border-b border-gray-200">
                       <h3 className="text-lg font-bold text-gray-900">Nos Boutiques</h3>
                       <p className="text-sm text-gray-600">Découvrez nos boutiques partenaires</p>
@@ -409,13 +537,98 @@ export function Navbar() {
                         Voir toutes les boutiques →
                       </Link>
                     </div>
+                    </div>
                   </div>
                 )}
               </div>
               
-              <Link to="/categories" className="text-white hover:text-[#e8d20c] transition-colors font-medium">
-                Catégories
-              </Link>
+              <div 
+                className="relative"
+                onMouseEnter={handleCategoriesMegaMenuEnter}
+                onMouseLeave={handleCategoriesMegaMenuLeave}
+              >
+                <Link to="/categories" className="text-white hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1 py-2">
+                  Catégories
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </Link>
+
+                {/* Mega Menu des catégories - Header sticky */}
+                {showCategoriesMegaMenu && isScrolled && (
+                  <div className="absolute top-full left-0 pt-2 w-[500px] z-[110]">
+                    <div className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-100">
+                      <div className="p-4 bg-gray-50 border-b border-gray-200">
+                        <h3 className="text-lg font-bold text-gray-900">Nos Catégories</h3>
+                        <p className="text-sm text-gray-600">Explorez nos différentes catégories</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 p-4">
+                        {dynamicCategories.length > 0 ? dynamicCategories.slice(0, 8).map((cat) => {
+                          const categoryImages: Record<string, string> = {
+                            'electronique': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&h=100&fit=crop',
+                            'mode': 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=100&h=100&fit=crop',
+                            'alimentaire': 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=100&h=100&fit=crop',
+                            'parfumerie': 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=100&h=100&fit=crop',
+                            'cuisine': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=100&h=100&fit=crop',
+                            'sport': 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=100&h=100&fit=crop',
+                            'electromenager': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=100&h=100&fit=crop',
+                            'maison': 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=100&h=100&fit=crop',
+                          }
+                          const imgUrl = categoryImages[cat.slug] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'
+                          return (
+                          <Link
+                            key={cat.id}
+                            to={`/products?category=${cat.slug}`}
+                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group"
+                            onClick={() => setShowCategoriesMegaMenu(false)}
+                          >
+                            <div className="w-12 h-12 rounded-xl overflow-hidden">
+                              <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <span className="font-medium text-gray-700 group-hover:text-green-600">{cat.name}</span>
+                          </Link>
+                        )}) : (
+                          <>
+                            <Link to="/products?category=electronique" className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group" onClick={() => setShowCategoriesMegaMenu(false)}>
+                              <div className="w-12 h-12 rounded-xl overflow-hidden"><img src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&h=100&fit=crop" alt="" className="w-full h-full object-cover" /></div>
+                              <span className="font-medium text-gray-700 group-hover:text-green-600">Électronique</span>
+                            </Link>
+                            <Link to="/products?category=mode" className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group" onClick={() => setShowCategoriesMegaMenu(false)}>
+                              <div className="w-12 h-12 rounded-xl overflow-hidden"><img src="https://images.unsplash.com/photo-1558171813-4c088753af8f?w=100&h=100&fit=crop" alt="" className="w-full h-full object-cover" /></div>
+                              <span className="font-medium text-gray-700 group-hover:text-green-600">Mode & Habillement</span>
+                            </Link>
+                            <Link to="/products?category=alimentaire" className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group" onClick={() => setShowCategoriesMegaMenu(false)}>
+                              <div className="w-12 h-12 rounded-xl overflow-hidden"><img src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=100&h=100&fit=crop" alt="" className="w-full h-full object-cover" /></div>
+                              <span className="font-medium text-gray-700 group-hover:text-green-600">Alimentaires</span>
+                            </Link>
+                            <Link to="/products?category=parfumerie" className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group" onClick={() => setShowCategoriesMegaMenu(false)}>
+                              <div className="w-12 h-12 rounded-xl overflow-hidden"><img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=100&h=100&fit=crop" alt="" className="w-full h-full object-cover" /></div>
+                              <span className="font-medium text-gray-700 group-hover:text-green-600">Parfumerie</span>
+                            </Link>
+                            <Link to="/products?category=cuisine" className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group" onClick={() => setShowCategoriesMegaMenu(false)}>
+                              <div className="w-12 h-12 rounded-xl overflow-hidden"><img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=100&h=100&fit=crop" alt="" className="w-full h-full object-cover" /></div>
+                              <span className="font-medium text-gray-700 group-hover:text-green-600">Cuisine & Aménagement</span>
+                            </Link>
+                            <Link to="/products?category=sport" className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group" onClick={() => setShowCategoriesMegaMenu(false)}>
+                              <div className="w-12 h-12 rounded-xl overflow-hidden"><img src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=100&h=100&fit=crop" alt="" className="w-full h-full object-cover" /></div>
+                              <span className="font-medium text-gray-700 group-hover:text-green-600">Sport & Loisirs</span>
+                            </Link>
+                          </>
+                        )}
+                      </div>
+                      <div className="p-3 bg-gray-50 border-t border-gray-200">
+                        <Link 
+                          to="/categories" 
+                          className="block text-center text-sm font-semibold text-[#0f4c2b] hover:text-[#1a5f3a]"
+                          onClick={() => setShowCategoriesMegaMenu(false)}
+                        >
+                          Voir toutes les catégories →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
               <Link to="/products" className="text-white hover:text-[#e8d20c] transition-colors font-medium">
                 Produits
               </Link>
@@ -431,7 +644,11 @@ export function Navbar() {
             <div className="flex items-center gap-3">
               <Link to="/favorites" className="relative p-2 hover:bg-white/10 rounded-full transition-colors">
                 <Heart className="w-5 h-5 text-white" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">0</span>
+                {getFavoritesCount() > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                    {getFavoritesCount()}
+                  </span>
+                )}
               </Link>
               
               <Link to="/cart" className="relative p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -570,28 +787,125 @@ export function Navbar() {
               </div>
             </form>
 
-            {/* Suggestions de recherche */}
+            {/* Suggestions de recherche dynamiques */}
             {showSearchSuggestions && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl z-50 overflow-hidden border border-gray-100">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recherches populaires</p>
-                </div>
-                <div className="py-2">
-                  {popularSearches.map((search, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setSearchQuery(search)
-                        setShowSearchSuggestions(false)
-                        navigate(`/shops?search=${encodeURIComponent(search)}`)
-                      }}
-                      className="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors flex items-center space-x-3 group"
-                    >
-                      <Search className="w-4 h-4 text-gray-400 group-hover:text-[#0f4c2b]" />
-                      <span className="text-gray-700 group-hover:text-[#0f4c2b]">{search}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl z-50 overflow-hidden border border-gray-100 max-h-[400px] overflow-y-auto">
+                {isSearching ? (
+                  <div className="px-4 py-6 text-center">
+                    <div className="animate-spin w-6 h-6 border-2 border-[#0f4c2b] border-t-transparent rounded-full mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">Recherche en cours...</p>
+                  </div>
+                ) : searchSuggestions.length > 0 ? (
+                  <>
+                    {/* Produits */}
+                    {searchSuggestions.filter(s => s.type === 'product').length > 0 && (
+                      <div>
+                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                            <Package className="w-3 h-3" /> Produits
+                          </p>
+                        </div>
+                        {searchSuggestions.filter(s => s.type === 'product').map((suggestion) => (
+                          <button
+                            key={`product-${suggestion.id}`}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="w-full px-4 py-3 text-left hover:bg-green-50 transition-colors flex items-center gap-3 group"
+                          >
+                            {suggestion.image ? (
+                              <img src={suggestion.image} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                <Package className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#0f4c2b]">{suggestion.name}</p>
+                              {suggestion.price && (
+                                <p className="text-sm text-green-600 font-semibold">{formatPrice(suggestion.price)} FCFA</p>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Boutiques */}
+                    {searchSuggestions.filter(s => s.type === 'shop').length > 0 && (
+                      <div>
+                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                            <Store className="w-3 h-3" /> Boutiques
+                          </p>
+                        </div>
+                        {searchSuggestions.filter(s => s.type === 'shop').map((suggestion) => (
+                          <button
+                            key={`shop-${suggestion.id}`}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="w-full px-4 py-3 text-left hover:bg-green-50 transition-colors flex items-center gap-3 group"
+                          >
+                            {suggestion.image ? (
+                              <img src={suggestion.image} alt="" className="w-10 h-10 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                                <Store className="w-5 h-5 text-green-600" />
+                              </div>
+                            )}
+                            <span className="text-sm font-medium text-gray-900 group-hover:text-[#0f4c2b]">{suggestion.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Catégories */}
+                    {searchSuggestions.filter(s => s.type === 'category').length > 0 && (
+                      <div>
+                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                            <Tag className="w-3 h-3" /> Catégories
+                          </p>
+                        </div>
+                        {searchSuggestions.filter(s => s.type === 'category').map((suggestion) => (
+                          <button
+                            key={`cat-${suggestion.id}`}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="w-full px-4 py-3 text-left hover:bg-green-50 transition-colors flex items-center gap-3 group"
+                          >
+                            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                              <Tag className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-900 group-hover:text-[#0f4c2b]">{suggestion.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : searchQuery.length >= 2 ? (
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-sm text-gray-500">Aucun résultat pour "{searchQuery}"</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recherches populaires</p>
+                    </div>
+                    <div className="py-2">
+                      {popularSearches.map((search, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setSearchQuery(search)
+                            setShowSearchSuggestions(false)
+                            navigate(`/products?search=${encodeURIComponent(search)}`)
+                          }}
+                          className="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors flex items-center space-x-3 group"
+                        >
+                          <Search className="w-4 h-4 text-gray-400 group-hover:text-[#0f4c2b]" />
+                          <span className="text-gray-700 group-hover:text-[#0f4c2b]">{search}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -627,20 +941,21 @@ export function Navbar() {
             {/* Liens de navigation */}
             <div className="flex items-center space-x-8">
               <div 
-                className="relative group"
-                onMouseEnter={() => setShowShopsMegaMenu(true)}
-                onMouseLeave={() => setShowShopsMegaMenu(false)}
+                className="relative"
+                onMouseEnter={handleShopsMegaMenuEnter}
+                onMouseLeave={handleShopsMegaMenuLeave}
               >
-                <Link to="/shops" className="hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1">
+                <Link to="/shops" className="hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1 py-2">
                   Boutiques
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </Link>
 
-                {/* Mega Menu des boutiques */}
-                {showShopsMegaMenu && shops.length > 0 && (
-                  <div className="absolute top-full left-0 mt-2 w-[600px] bg-white rounded-lg shadow-2xl z-[110] overflow-hidden border border-gray-100">
+                {/* Mega Menu des boutiques - Homepage */}
+                {showShopsMegaMenu && shops.length > 0 && !isScrolled && (
+                  <div className="absolute top-full left-0 pt-2 w-[600px] z-[110]">
+                    <div className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-100">
                     <div className="p-4 bg-gray-50 border-b border-gray-200">
                       <h3 className="text-lg font-bold text-gray-900">Nos Boutiques</h3>
                       <p className="text-sm text-gray-600">Découvrez nos boutiques partenaires</p>
@@ -675,16 +990,17 @@ export function Navbar() {
                         Voir toutes les boutiques →
                       </Link>
                     </div>
+                    </div>
                   </div>
                 )}
               </div>
 
               <div 
-                className="relative group"
-                onMouseEnter={() => setShowCategoriesMegaMenu(true)}
-                onMouseLeave={() => setShowCategoriesMegaMenu(false)}
+                className="relative"
+                onMouseEnter={handleCategoriesMegaMenuEnter}
+                onMouseLeave={handleCategoriesMegaMenuLeave}
               >
-                <Link to="/categories" className="hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1">
+                <Link to="/categories" className="hover:text-[#e8d20c] transition-colors font-medium flex items-center gap-1 py-2">
                   Catégories
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -692,22 +1008,35 @@ export function Navbar() {
                 </Link>
 
                 {/* Mega Menu des catégories */}
-                {showCategoriesMegaMenu && dynamicCategories.length > 0 && (
-                  <div className="absolute top-full left-0 mt-2 w-[500px] bg-white rounded-lg shadow-2xl z-[110] overflow-hidden border border-gray-100">
+                {showCategoriesMegaMenu && !isScrolled && (
+                  <div className="absolute top-full left-0 pt-2 w-[500px] z-[110]">
+                    <div className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-100">
                     <div className="p-4 bg-gray-50 border-b border-gray-200">
                       <h3 className="text-lg font-bold text-gray-900">Nos Catégories</h3>
                       <p className="text-sm text-gray-600">Explorez nos différentes catégories</p>
                     </div>
                     <div className="grid grid-cols-2 gap-1 p-3 max-h-[400px] overflow-y-auto">
-                      {dynamicCategories.slice(0, 12).map((category) => (
+                      {dynamicCategories.slice(0, 12).map((category) => {
+                        const categoryImages: Record<string, string> = {
+                          'electronique': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=80&h=80&fit=crop',
+                          'mode': 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=80&h=80&fit=crop',
+                          'alimentaire': 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=80&h=80&fit=crop',
+                          'parfumerie': 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=80&h=80&fit=crop',
+                          'cuisine': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=80&h=80&fit=crop',
+                          'sport': 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=80&h=80&fit=crop',
+                          'electromenager': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=80&h=80&fit=crop',
+                          'maison': 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=80&h=80&fit=crop',
+                        }
+                        const imgUrl = categoryImages[category.slug] || `https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=80&h=80&fit=crop`
+                        return (
                         <Link
                           key={category.id}
                           to={`/products?category=${category.slug}`}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group/item"
+                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 transition-colors group/item"
                           onClick={() => setShowCategoriesMegaMenu(false)}
                         >
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0f4c2b]/10 to-[#e8d20c]/10 flex items-center justify-center group-hover/item:from-[#0f4c2b]/20 group-hover/item:to-[#e8d20c]/20 transition-colors">
-                            <span className="text-lg">📦</span>
+                          <div className="w-10 h-10 rounded-lg overflow-hidden shadow-sm">
+                            <img src={imgUrl} alt="" className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1">
                             <span className="text-sm font-medium text-gray-900 group-hover/item:text-[#0f4c2b] transition-colors">
@@ -716,7 +1045,7 @@ export function Navbar() {
                           </div>
                           <ChevronRight size={16} className="text-gray-400 opacity-0 group-hover/item:opacity-100 transition-opacity" />
                         </Link>
-                      ))}
+                      )})}
                     </div>
                     <div className="p-3 bg-gray-50 border-t border-gray-200">
                       <Link 
@@ -726,6 +1055,7 @@ export function Navbar() {
                       >
                         Voir toutes les catégories →
                       </Link>
+                    </div>
                     </div>
                   </div>
                 )}

@@ -1,9 +1,10 @@
 /**
- * Hook personnalisé pour la gestion des produits
+ * Hook personnalisé pour la gestion des produits avec cache
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { productsService, type Product } from '../lib/api';
+import { cache, CACHE_TTL } from '../lib/cache';
 
 export function useProducts(params?: {
   page?: number;
@@ -21,13 +22,40 @@ export function useProducts(params?: {
     previous: string | null;
   } | null>(null);
 
+  // Générer une clé de cache unique basée sur les paramètres
+  const getCacheKey = useCallback(() => {
+    const parts = ['products'];
+    if (params?.page) parts.push(`p${params.page}`);
+    if (params?.category_id) parts.push(`cat${params.category_id}`);
+    if (params?.category_slug) parts.push(`slug_${params.category_slug}`);
+    if (params?.search) parts.push(`q_${params.search}`);
+    return parts.join('_');
+  }, [params?.page, params?.category_id, params?.category_slug, params?.search]);
+
   useEffect(() => {
     loadProducts();
   }, [params?.page, params?.category_id, params?.category_slug, params?.search]);
 
-  const loadProducts = async () => {
+  const loadProducts = async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
+
+    const cacheKey = getCacheKey();
+
+    // Vérifier le cache d'abord (sauf si forceRefresh)
+    if (!forceRefresh) {
+      const cachedData = cache.get<{ results: Product[]; count: number; next: string | null; previous: string | null }>(cacheKey);
+      if (cachedData) {
+        setProducts(cachedData.results);
+        setPagination({
+          count: cachedData.count,
+          next: cachedData.next,
+          previous: cachedData.previous,
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
 
     try {
       const response = await productsService.getProducts(params);
@@ -35,6 +63,9 @@ export function useProducts(params?: {
       if (response.error) {
         setError(response.error);
       } else if (response.data) {
+        // Sauvegarder dans le cache
+        cache.set(cacheKey, response.data, CACHE_TTL.MEDIUM);
+        
         setProducts(response.data.results);
         setPagination({
           count: response.data.count,
@@ -50,7 +81,7 @@ export function useProducts(params?: {
   };
 
   const refresh = () => {
-    loadProducts();
+    loadProducts(true); // Force refresh bypasse le cache
   };
 
   return {

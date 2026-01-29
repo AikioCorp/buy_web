@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { 
-  Store, Save, Upload, MapPin, Mail, Phone, Globe, 
+  Store, Save, MapPin, Mail, Phone, Globe, 
   Camera, CheckCircle, AlertCircle, Loader2, Eye,
-  Facebook, Instagram, Twitter, ExternalLink
+  Facebook, Instagram, Twitter
 } from 'lucide-react'
-import { useAuthStore } from '../../stores/authStore'
 import { shopsService, Shop, CreateShopData } from '../../lib/api/shopsService'
+import { BAMAKO_COMMUNES } from '../../lib/api/deliveryService'
+import { DeliveryZonesManager } from '../../components/dashboard/DeliveryZonesManager'
 
 const StorePage: React.FC = () => {
-  const { user } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [store, setStore] = useState<Shop | null>(null)
@@ -20,12 +20,22 @@ const StorePage: React.FC = () => {
     description: '',
     email: '',
     phone: '',
-    address: '',
+    whatsapp: '',
+    address_commune: '',
+    address_quartier: '',
+    address_details: '',
     website: '',
     facebook: '',
     instagram: '',
     twitter: '',
   })
+  
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([])
+  
+  // Quartiers disponibles en fonction de la commune sélectionnée
+  const availableQuartiers = formData.address_commune 
+    ? BAMAKO_COMMUNES[formData.address_commune] || []
+    : []
 
   useEffect(() => {
     loadStore()
@@ -41,14 +51,21 @@ const StorePage: React.FC = () => {
           name: response.data.name || '',
           slug: response.data.slug || '',
           description: response.data.description || '',
-          email: '',
-          phone: '',
-          address: '',
+          email: response.data.email || '',
+          phone: response.data.phone || '',
+          whatsapp: response.data.whatsapp || '',
+          address_commune: response.data.address_commune || '',
+          address_quartier: response.data.address_quartier || '',
+          address_details: response.data.address_details || '',
           website: '',
           facebook: '',
           instagram: '',
           twitter: '',
         })
+        // Charger les zones de livraison si disponibles
+        if (response.data.delivery_zones) {
+          setDeliveryZones(response.data.delivery_zones)
+        }
       }
     } catch (error) {
       console.error('Erreur chargement boutique:', error)
@@ -90,6 +107,12 @@ const StorePage: React.FC = () => {
         name: formData.name,
         slug: formData.slug || generateSlug(formData.name),
         description: formData.description,
+        phone: formData.phone,
+        whatsapp: formData.whatsapp,
+        email: formData.email,
+        address_commune: formData.address_commune,
+        address_quartier: formData.address_quartier,
+        address_details: formData.address_details,
       }
 
       if (store) {
@@ -297,28 +320,90 @@ const StorePage: React.FC = () => {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="+223 XX XX XX XX"
+                    placeholder="+223 70 12 34 56"
                   />
                 </div>
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Adresse
+                  WhatsApp
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="tel"
+                    value={formData.whatsapp}
+                    onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="+223 70 12 34 56"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Commune <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.address_commune}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    address_commune: e.target.value,
+                    address_quartier: '' 
+                  })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+                >
+                  <option value="">Sélectionnez votre commune</option>
+                  {Object.keys(BAMAKO_COMMUNES).map((commune) => (
+                    <option key={commune} value={commune}>{commune}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quartier <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.address_quartier}
+                  onChange={(e) => setFormData({ ...formData, address_quartier: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+                  disabled={!formData.address_commune}
+                >
+                  <option value="">Sélectionnez votre quartier</option>
+                  {availableQuartiers.map((quartier) => (
+                    <option key={quartier} value={quartier}>{quartier}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Indications supplémentaires
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-3 text-gray-400" size={18} />
                   <input
                     type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    value={formData.address_details}
+                    onChange={(e) => setFormData({ ...formData, address_details: e.target.value })}
                     className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="Bamako, Mali"
+                    placeholder="Près de la mosquée, en face de la pharmacie..."
                   />
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Zones de livraison */}
+          {store && (
+            <DeliveryZonesManager
+              storeId={store.id}
+              initialZones={deliveryZones}
+              onZonesChange={(zones) => setDeliveryZones(zones)}
+            />
+          )}
 
           {/* Social Links */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100">

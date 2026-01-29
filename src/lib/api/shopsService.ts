@@ -11,6 +11,24 @@ export interface Shop {
   description?: string;
   logo?: string | null;
   is_active: boolean;
+  // Adresse de la boutique
+  address_commune?: string;
+  address_quartier?: string;
+  address_details?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  // Configuration de livraison
+  delivery_base_fee?: number;
+  delivery_zones?: ShopDeliveryZone[];
+}
+
+export interface ShopDeliveryZone {
+  id?: number;
+  commune: string;
+  delivery_fee: number;
+  estimated_time: string;
+  is_active: boolean;
 }
 
 export interface CreateShopData {
@@ -18,6 +36,15 @@ export interface CreateShopData {
   slug: string;
   description?: string;
   is_active?: boolean;
+  // Adresse de la boutique
+  address_commune?: string;
+  address_quartier?: string;
+  address_details?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  // Configuration de livraison
+  delivery_base_fee?: number;
 }
 
 export interface ShopsListResponse {
@@ -30,20 +57,19 @@ export interface ShopsListResponse {
 export const shopsService = {
   /**
    * Récupérer les boutiques publiques (sans authentification)
-   * Essaie plusieurs endpoints pour trouver celui qui fonctionne
+   * Utilise l'endpoint admin pour les utilisateurs authentifiés admin
    */
   async getPublicShops(page: number = 1, pageSize: number = 20) {
-    // Liste des endpoints à essayer (du plus public au plus restreint)
+    // Utiliser l'endpoint customers/stores
     const endpoints = [
-      `/api/stores/?page=${page}&page_size=${pageSize}`,
-      `/api/catalog/stores/?page=${page}&page_size=${pageSize}`,
+      `/api/customers/stores/?page=${page}&page_size=${pageSize}`,
     ];
 
     for (const endpoint of endpoints) {
       try {
         const response = await apiClient.get<ShopsListResponse | Shop[]>(endpoint);
         
-        if (response.error || response.status === 401 || response.status === 403) {
+        if (response.error || response.status === 401 || response.status === 403 || response.status === 404) {
           continue; // Essayer le prochain endpoint
         }
         
@@ -124,6 +150,35 @@ export const shopsService = {
       throw new Error(error.response?.data?.message || 'Erreur lors de la récupération de la boutique');
     }
   },
+
+  /**
+   * Récupérer une boutique par slug ou ID
+   */
+  async getShopBySlugOrId(slugOrId: string) {
+    try {
+      // Essayer d'abord par ID si c'est un nombre
+      if (!isNaN(Number(slugOrId))) {
+        const response = await apiClient.get<Shop>(`/api/customers/stores/${slugOrId}/`);
+        if (response.data) {
+          return { data: response.data, status: response.status };
+        }
+      }
+      
+      // Sinon chercher par slug dans la liste
+      const listResponse = await this.getPublicShops(1, 100);
+      if (listResponse.data) {
+        const shops = 'results' in listResponse.data ? listResponse.data.results : listResponse.data as unknown as Shop[];
+        const shop = shops.find(s => s.slug === slugOrId || s.name.toLowerCase() === slugOrId.toLowerCase());
+        if (shop) {
+          return { data: shop, status: 200 };
+        }
+      }
+      
+      return { data: undefined, status: 404 };
+    } catch (error: any) {
+      return { data: undefined, status: 500 };
+    }
+  },
   /**
    * Récupérer mes boutiques (vendeur uniquement) - retourne 0 ou 1 boutique
    */
@@ -147,16 +202,54 @@ export const shopsService = {
 
   /**
    * Créer une nouvelle boutique (vendeur uniquement)
+   * Note: Envoie uniquement les champs compatibles avec le backend actuel
    */
   async createShop(data: CreateShopData) {
-    return apiClient.post<Shop>('/api/customers/stores/', data);
+    // Champs compatibles avec l'ancien backend
+    const compatibleData: any = {
+      name: data.name,
+      slug: data.slug,
+      description: data.description || '',
+      email: data.email || '',
+      is_active: data.is_active !== undefined ? data.is_active : true,
+    };
+
+    // Construire l'adresse au format ancien si les nouveaux champs sont fournis
+    if (data.address_commune || data.address_quartier) {
+      compatibleData.address = [
+        data.address_quartier,
+        data.address_commune,
+        data.address_details
+      ].filter(Boolean).join(', ');
+    }
+
+    return apiClient.post<Shop>('/api/customers/stores/', compatibleData);
   },
 
   /**
    * Mettre à jour une boutique (vendeur uniquement)
+   * Note: Envoie uniquement les champs compatibles avec le backend actuel
    */
   async updateShop(id: number, data: Partial<CreateShopData>) {
-    return apiClient.patch<Shop>(`/api/customers/stores/${id}/`, data);
+    // Champs compatibles avec l'ancien backend
+    const compatibleData: any = {};
+
+    if (data.name !== undefined) compatibleData.name = data.name;
+    if (data.slug !== undefined) compatibleData.slug = data.slug;
+    if (data.description !== undefined) compatibleData.description = data.description;
+    if (data.email !== undefined) compatibleData.email = data.email;
+    if (data.is_active !== undefined) compatibleData.is_active = data.is_active;
+
+    // Construire l'adresse au format ancien si les nouveaux champs sont fournis
+    if (data.address_commune || data.address_quartier || data.address_details) {
+      compatibleData.address = [
+        data.address_quartier,
+        data.address_commune,
+        data.address_details
+      ].filter(Boolean).join(', ');
+    }
+
+    return apiClient.patch<Shop>(`/api/customers/stores/${id}/`, compatibleData);
   },
 
   /**
@@ -170,8 +263,7 @@ export const shopsService = {
 
   /**
    * Récupérer toutes les boutiques (Admin) - avec pagination
-   * Note: L'API n'a pas d'endpoint admin spécifique pour les boutiques
-   * On utilise /api/customers/stores/ qui retourne les boutiques du vendeur connecté
+   * Utilise l'endpoint admin /api/customers/admin/stores/
    */
   async getAllShopsAdmin(params?: {
     page?: number;

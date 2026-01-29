@@ -232,7 +232,50 @@ const SuperAdminShopsPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Vue Mobile - Cartes */}
+            <div className="block lg:hidden">
+              <div className="divide-y divide-gray-200">
+                {(shops || []).map((shop) => (
+                  <div key={shop.id} className="p-4 hover:bg-gray-50">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <Store className="text-indigo-600" size={24} />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{shop.name}</div>
+                          <div className="text-sm text-gray-500">{shop.slug}</div>
+                        </div>
+                      </div>
+                      {getStatusBadge(shop.is_active)}
+                    </div>
+                    
+                    {shop.description && (
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{shop.description}</p>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleEditShop(shop)}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium"
+                      >
+                        <Edit2 size={16} />
+                        Modifier
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteClick(shop)}
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Vue Desktop - Tableau */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -302,7 +345,7 @@ const SuperAdminShopsPage: React.FC = () => {
             </div>
 
             {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="text-sm text-gray-700">
                   Page {currentPage} sur {totalPages}
                 </div>
@@ -330,10 +373,10 @@ const SuperAdminShopsPage: React.FC = () => {
 
       {/* Edit Shop Modal */}
       {isEditModalOpen && editingShop && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Modifier la boutique</h2>
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Modifier la boutique</h2>
               <button
                 onClick={() => setIsEditModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -342,7 +385,7 @@ const SuperAdminShopsPage: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom de la boutique</label>
                 <input
@@ -388,10 +431,10 @@ const SuperAdminShopsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 order-2 sm:order-1"
                 disabled={actionLoading}
               >
                 Annuler
@@ -399,7 +442,7 @@ const SuperAdminShopsPage: React.FC = () => {
               <button
                 onClick={handleSaveShop}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 order-1 sm:order-2"
               >
                 {actionLoading ? (
                   <>
@@ -420,10 +463,10 @@ const SuperAdminShopsPage: React.FC = () => {
 
       {/* Create Shop Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Créer une nouvelle boutique</h2>
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Créer une nouvelle boutique</h2>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -432,7 +475,7 @@ const SuperAdminShopsPage: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nom de la boutique <span className="text-red-500">*</span>
@@ -484,10 +527,10 @@ const SuperAdminShopsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 order-2 sm:order-1"
                 disabled={actionLoading}
               >
                 Annuler
@@ -495,7 +538,7 @@ const SuperAdminShopsPage: React.FC = () => {
               <button
                 onClick={handleSaveNewShop}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 order-1 sm:order-2"
               >
                 {actionLoading ? (
                   <>

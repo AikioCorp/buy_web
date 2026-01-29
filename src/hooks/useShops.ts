@@ -19,12 +19,12 @@ export function useShops() {
     setError(null);
 
     try {
-      const response = await shopsService.getShops();
+      const response = await shopsService.getPublicShops();
 
-      if (response.error) {
-        setError(response.error);
-      } else if (response.data) {
-        setShops(response.data);
+      if (response.data) {
+        // Gérer les deux formats de réponse
+        const shopsList = 'results' in response.data ? response.data.results : response.data as unknown as Shop[];
+        setShops(shopsList);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des boutiques');
@@ -59,12 +59,17 @@ export function useShop(id: number) {
     setError(null);
 
     try {
-      const response = await shopsService.getShop(id);
+      // Essayer d'abord getMyShop, sinon chercher dans la liste publique
+      const response = await shopsService.getPublicShops();
 
-      if (response.error) {
-        setError(response.error);
-      } else if (response.data) {
-        setShop(response.data);
+      if (response.data) {
+        const shopsList = 'results' in response.data ? response.data.results : response.data as unknown as Shop[];
+        const foundShop = shopsList.find(s => s.id === id);
+        if (foundShop) {
+          setShop(foundShop);
+        } else {
+          setError('Boutique non trouvée');
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement de la boutique');

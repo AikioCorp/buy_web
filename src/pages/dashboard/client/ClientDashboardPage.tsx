@@ -8,6 +8,22 @@ import { useOrders } from '../../../hooks/useOrders'
 import { useFavorites } from '../../../hooks/useFavorites'
 import { useProducts } from '../../../hooks/useProducts'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+
+// Fonction utilitaire pour construire l'URL de l'image
+const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
+  if (!media || media.length === 0) return null
+  const primaryImage = media.find(m => m.is_primary) || media[0]
+  let url = primaryImage?.image_url || primaryImage?.file
+  if (!url) return null
+  // Convertir http:// en https:// pour éviter le blocage mixed content
+  if (url.startsWith('http://')) {
+    url = url.replace('http://', 'https://')
+  }
+  if (url.startsWith('https://')) return url
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
 const StatCard = ({ title, value, icon, color, trend }: { title: string, value: string, icon: React.ReactNode, color: string, trend?: string }) => (
   <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 flex items-center justify-between">
     <div>
@@ -226,7 +242,7 @@ const ClientDashboardPage: React.FC = () => {
                       key={product.id}
                       name={product.name}
                       price={`${parseFloat(product.base_price).toLocaleString()} FCFA`}
-                      image={product.media?.[0]?.image_url || ''}
+                      image={getImageUrl(product.media) || ''}
                     />
                   ))
                 )}
@@ -339,9 +355,9 @@ const ClientDashboardPage: React.FC = () => {
               {favorites.slice(0, 8).map((favorite) => (
                 <div key={favorite.id} className="group bg-gray-50 rounded-lg p-4 hover:shadow transition-all">
                   <div className="h-32 bg-gray-200 rounded mb-3 flex items-center justify-center overflow-hidden">
-                    {favorite.product.media?.[0]?.image_url ? (
+                    {getImageUrl(favorite.product.media) ? (
                       <img 
-                        src={favorite.product.media[0].image_url} 
+                        src={getImageUrl(favorite.product.media)!} 
                         alt={favorite.product.name}
                         className="w-full h-full object-cover"
                       />

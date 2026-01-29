@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
-  Package, Plus, Search, Filter, Edit, Trash2, Eye, 
-  MoreVertical, AlertCircle, CheckCircle, XCircle, Loader2,
-  Grid, List, TrendingUp, Image as ImageIcon
+  Package, Plus, Search, Edit, Trash2,
+  AlertCircle, CheckCircle, XCircle, Loader2,
+  Grid, List, Image as ImageIcon
 } from 'lucide-react'
 import { productsService, Product } from '../../lib/api/productsService'
 import { shopsService, Shop } from '../../lib/api/shopsService'
@@ -21,62 +21,79 @@ const ProductCard = ({
   onDelete: () => void
   viewMode: 'grid' | 'list'
 }) => {
-  const [showMenu, setShowMenu] = useState(false)
   const primaryImage = product.media?.find(m => m.is_primary) || product.media?.[0]
-  const imageUrl = primaryImage?.file || primaryImage?.image_url
+  
+  // Construire l'URL de l'image (gérer les chemins relatifs et absolus)
+  const getImageUrl = () => {
+    let url = primaryImage?.image_url || primaryImage?.file
+    if (!url) return null
+    // Convertir http:// en https:// pour éviter le blocage mixed content
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://')
+    }
+    // Si c'est déjà une URL absolue, la retourner
+    if (url.startsWith('https://')) return url
+    // Sinon, construire l'URL avec le backend
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
+  }
+  const imageUrl = getImageUrl()
 
   if (viewMode === 'list') {
     return (
       <div className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-all">
-        <div className="flex items-center gap-4">
-          {/* Image */}
-          <div className="w-16 h-16 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-            {imageUrl ? (
-              <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ImageIcon size={24} className="text-gray-300" />
-              </div>
-            )}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Image + Info (mobile: row, desktop: separate) */}
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+              {imageUrl ? (
+                <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon size={24} className="text-gray-300" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 truncate">{product.name}</h3>
+              <p className="text-sm text-gray-500">{product.category?.name || 'Sans catégorie'}</p>
+              {/* Mobile: show price here */}
+              <p className="sm:hidden font-bold text-emerald-600 mt-1">{parseFloat(product.base_price).toLocaleString()} XOF</p>
+            </div>
           </div>
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 truncate">{product.name}</h3>
-            <p className="text-sm text-gray-500">{product.category?.name || 'Sans catégorie'}</p>
-          </div>
-
-          {/* Price */}
-          <div className="text-right">
+          {/* Price - Desktop only */}
+          <div className="hidden sm:block text-right">
             <p className="font-bold text-gray-900">{parseFloat(product.base_price).toLocaleString()} XOF</p>
             <p className="text-sm text-gray-500">Stock: {product.stock || 0}</p>
           </div>
 
-          {/* Status */}
-          <div>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              product.is_active !== false
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-gray-100 text-gray-600'
-            }`}>
-              {product.is_active !== false ? 'Actif' : 'Inactif'}
-            </span>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onEdit}
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            >
-              <Edit size={18} />
-            </button>
-            <button
-              onClick={onDelete}
-              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 size={18} />
-            </button>
+          {/* Status + Actions */}
+          <div className="flex items-center justify-between sm:justify-end gap-3">
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                product.is_active !== false
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {product.is_active !== false ? 'Actif' : 'Inactif'}
+              </span>
+              <span className="sm:hidden text-xs text-gray-500">Stock: {product.stock || 0}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onEdit}
+                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                <Edit size={18} />
+              </button>
+              <button
+                onClick={onDelete}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -384,7 +401,7 @@ const ProductsPage: React.FC = () => {
 
       {/* Stats */}
       {products.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border border-gray-100">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">

@@ -95,10 +95,10 @@ export const productsService = {
   },
 
   /**
-   * Récupérer les détails d'un produit
+   * Récupérer les détails d'un produit par ID ou slug
    */
-  async getProduct(id: number) {
-    return apiClient.get<Product>(`/api/products/${id}/`);
+  async getProduct(idOrSlug: number | string) {
+    return apiClient.get<Product>(`/api/products/${idOrSlug}/`);
   },
 
   /**
@@ -130,7 +130,8 @@ export const productsService = {
   },
 
   /**
-   * Upload d'image pour un produit
+   * Upload d'image pour un produit via l'API backend
+   * POST /api/my-products/{product_id}/upload-image/
    */
   async uploadProductImage(productId: number, file: File) {
     return apiClient.upload(`/api/my-products/${productId}/upload-image/`, file, 'image');
@@ -225,4 +226,43 @@ export const productsService = {
     }
     return { status: response.status };
   },
+
+  /**
+   * Upload des images pour un produit (Admin) via l'API backend
+   * POST /api/admin/catalog/products/{product_id}/upload_images/
+   */
+  async uploadProductImagesAdmin(productId: number, images: File[]) {
+    const formData = new FormData();
+    images.forEach(image => {
+      formData.append('images', image);
+    });
+    
+    const response = await apiClient.postFormData<ProductMedia[]>(
+      `/api/admin/catalog/products/${productId}/upload_images/`,
+      formData
+    );
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    return { data: response.data, status: response.status };
+  },
 };
+
+/**
+ * Récupère l'URL de l'image produit depuis l'API backend
+ */
+export function getProductImageUrl(product: Product): string {
+  // Chercher dans les médias
+  if (product.media && product.media.length > 0) {
+    const primaryMedia = product.media.find(m => m.is_primary) || product.media[0];
+    // Priorité: image_url (URL externe) puis file (fichier local)
+    if (primaryMedia.image_url) {
+      return primaryMedia.image_url;
+    }
+    if (primaryMedia.file) {
+      return primaryMedia.file;
+    }
+  }
+  // Image par défaut
+  return '/placeholder-product.png';
+}

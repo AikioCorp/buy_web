@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Upload } from 'lucide-react'
 import { NeighborhoodAutocomplete } from '@/components/NeighborhoodAutocomplete'
@@ -22,6 +22,7 @@ export function RegisterPage() {
   
   const { register, error, isLoading, clearError } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -62,7 +63,9 @@ export function RegisterPage() {
     const success = await register(registerData)
     
     if (success) {
-      navigate('/')
+      // Rediriger vers la page précédente (ex: checkout) ou vers l'accueil
+      const from = (location.state as any)?.from?.pathname || '/'
+      navigate(from, { replace: true })
     }
   }
 

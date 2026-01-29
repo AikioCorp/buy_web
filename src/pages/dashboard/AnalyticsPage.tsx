@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
-  BarChart3, TrendingUp, TrendingDown, Eye, ShoppingCart, 
-  Users, Package, Calendar, ArrowUpRight, ArrowDownRight,
-  DollarSign, Target, Clock, Percent
+  BarChart3, TrendingUp, Eye, ShoppingCart, 
+  Users, Package, ArrowUpRight, ArrowDownRight,
+  DollarSign, Target, Percent, Loader2
 } from 'lucide-react'
+import { ordersService } from '../../lib/api/ordersService'
 
 // Stat Card
 const StatCard = ({ 
@@ -36,34 +37,6 @@ const StatCard = ({
     </div>
   </div>
 )
-
-// Simple Bar Chart
-const SimpleBarChart = ({ data, labels }: { data: number[], labels: string[] }) => {
-  const max = Math.max(...data)
-  
-  return (
-    <div className="h-64 flex items-end justify-between gap-2">
-      {data.map((value, idx) => {
-        const height = (value / max) * 100
-        return (
-          <div key={idx} className="flex-1 flex flex-col items-center group">
-            <div className="relative w-full">
-              <div
-                className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t-lg hover:from-emerald-600 hover:to-emerald-500 transition-all cursor-pointer"
-                style={{ height: `${height * 2}px` }}
-              >
-                <div className="hidden group-hover:block absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
-                  {value.toLocaleString()} XOF
-                </div>
-              </div>
-            </div>
-            <span className="text-xs text-gray-500 mt-2">{labels[idx]}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 // Progress Ring
 const ProgressRing = ({ percent, label, color }: { percent: number, label: string, color: string }) => {
@@ -106,30 +79,82 @@ const ProgressRing = ({ percent, label, color }: { percent: number, label: strin
 
 const AnalyticsPage: React.FC = () => {
   const [period, setPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d')
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    revenue: 0,
+    orders: 0,
+    visitors: 0,
+    conversionRate: 0,
+    products: [] as { name: string; sales: number; revenue: string }[]
+  })
 
-  // Données fictives pour la démo
-  const chartData = {
-    '7d': [12000, 15000, 8000, 22000, 18000, 25000, 20000],
-    '30d': [45000, 52000, 48000, 65000, 72000, 68000, 75000, 82000, 78000, 85000, 90000, 95000],
-    '90d': [150000, 180000, 165000, 200000, 220000, 195000, 240000, 260000, 250000, 280000, 300000, 320000],
-    '1y': [500000, 650000, 720000, 800000, 950000, 1100000, 1250000, 1400000, 1550000, 1700000, 1850000, 2000000],
+  useEffect(() => {
+    loadAnalytics()
+  }, [])
+
+  const loadAnalytics = async () => {
+    try {
+      setLoading(true)
+      
+      // Charger les commandes
+      const ordersResponse = await ordersService.getOrders()
+      const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
+      
+      // Calculer le chiffre d'affaires
+      const totalRevenue = orders.reduce((sum, order) => {
+        return sum + (parseFloat(order.total_amount) || 0)
+      }, 0)
+
+      // Top produits (basé sur les commandes)
+      const productSales: Record<string, { name: string; sales: number; revenue: number }> = {}
+      orders.forEach(order => {
+        order.items?.forEach(item => {
+          const productId = item.product?.id?.toString() || 'unknown'
+          if (!productSales[productId]) {
+            productSales[productId] = {
+              name: item.product?.name || 'Produit inconnu',
+              sales: 0,
+              revenue: 0
+            }
+          }
+          productSales[productId].sales += item.quantity
+          productSales[productId].revenue += parseFloat(item.unit_price) * item.quantity
+        })
+      })
+
+      const topProducts = Object.values(productSales)
+        .sort((a, b) => b.sales - a.sales)
+        .slice(0, 5)
+        .map(p => ({
+          name: p.name,
+          sales: p.sales,
+          revenue: `${p.revenue.toLocaleString()} XOF`
+        }))
+
+      setStats({
+        revenue: totalRevenue,
+        orders: orders.length,
+        visitors: 0, // Pas de données de visiteurs dans l'API
+        conversionRate: 0,
+        products: topProducts
+      })
+    } catch (error) {
+      console.error('Erreur chargement analytics:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const chartLabels = {
-    '7d': ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
-    '30d': ['1', '5', '10', '15', '20', '25', '30', '', '', '', '', ''],
-    '90d': ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
-    '1y': ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Chargement des statistiques...</p>
+        </div>
+      </div>
+    )
   }
-
-  // Top produits fictifs
-  const topProducts = [
-    { name: 'iPhone 15 Pro Max', sales: 45, revenue: '67,500,000 XOF' },
-    { name: 'Samsung Galaxy S24', sales: 38, revenue: '45,600,000 XOF' },
-    { name: 'MacBook Pro M3', sales: 22, revenue: '55,000,000 XOF' },
-    { name: 'AirPods Pro 2', sales: 67, revenue: '13,400,000 XOF' },
-    { name: 'iPad Air', sales: 31, revenue: '24,800,000 XOF' },
-  ]
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -167,32 +192,32 @@ const AnalyticsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           title="Chiffre d'affaires"
-          value="0 XOF"
-          change="Pas encore de données"
-          changeType="neutral"
+          value={`${stats.revenue.toLocaleString()} XOF`}
+          change={stats.revenue > 0 ? "Données en temps réel" : "Pas encore de ventes"}
+          changeType={stats.revenue > 0 ? "up" : "neutral"}
           icon={<DollarSign size={24} className="text-emerald-600" />}
           color="bg-emerald-100"
         />
         <StatCard
           title="Commandes"
-          value="0"
-          change="Pas encore de données"
-          changeType="neutral"
+          value={stats.orders.toString()}
+          change={stats.orders > 0 ? `${stats.orders} commande(s)` : "Pas encore de commandes"}
+          changeType={stats.orders > 0 ? "up" : "neutral"}
           icon={<ShoppingCart size={24} className="text-blue-600" />}
           color="bg-blue-100"
         />
         <StatCard
           title="Visiteurs"
-          value="0"
-          change="Pas encore de données"
+          value={stats.visitors.toString()}
+          change="Données non disponibles"
           changeType="neutral"
           icon={<Eye size={24} className="text-purple-600" />}
           color="bg-purple-100"
         />
         <StatCard
           title="Taux de conversion"
-          value="0%"
-          change="Pas encore de données"
+          value={`${stats.conversionRate}%`}
+          change="Données non disponibles"
           changeType="neutral"
           icon={<Percent size={24} className="text-orange-600" />}
           color="bg-orange-100"
@@ -265,11 +290,30 @@ const AnalyticsPage: React.FC = () => {
             <span className="text-sm text-gray-500">Par ventes</span>
           </div>
           
-          <div className="text-center py-8 text-gray-400">
-            <Package size={48} className="mx-auto mb-3 opacity-30" />
-            <p>Aucun produit vendu</p>
-            <p className="text-sm">Vos meilleurs produits apparaîtront ici</p>
-          </div>
+          {stats.products.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Package size={48} className="mx-auto mb-3 opacity-30" />
+              <p>Aucun produit vendu</p>
+              <p className="text-sm">Vos meilleurs produits apparaîtront ici</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {stats.products.map((product, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
+                      #{index + 1}
+                    </span>
+                    <div>
+                      <p className="font-medium text-gray-900 truncate max-w-[150px]">{product.name}</p>
+                      <p className="text-sm text-gray-500">{product.sales} vente(s)</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">{product.revenue}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Traffic Sources */}

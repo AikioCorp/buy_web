@@ -1,16 +1,51 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Percent, Clock, ShoppingCart, Zap, Gift, Tag, ArrowRight } from 'lucide-react'
+import { Percent, Clock, ShoppingCart, Zap, Gift, Tag, ArrowRight, Star, Package } from 'lucide-react'
 import { productsService, Product } from '../lib/api/productsService'
+
+// Produits fictifs pour les promotions
+const mockDealsProducts: any[] = [
+  { id: 101, name: 'iPhone 15 Pro Max', base_price: '850000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 102, name: 'AirPods Pro 2', base_price: '175000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 103, name: 'Robe Africaine Wax', base_price: '35000', category: { name: 'Mode' }, media: [{ image_url: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 104, name: 'Nike Air Max 270', base_price: '95000', category: { name: 'Sport' }, media: [{ image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 105, name: 'Apple Watch Series 9', base_price: '350000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 106, name: 'Parfum Dior Sauvage', base_price: '145000', category: { name: 'Parfumerie' }, media: [{ image_url: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 107, name: 'Set Casseroles Inox', base_price: '65000', category: { name: 'Cuisine' }, media: [{ image_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 108, name: 'Riz Parfumé Thaï 5kg', base_price: '12500', category: { name: 'Alimentaire' }, media: [{ image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 109, name: 'MacBook Air M3', base_price: '1200000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 110, name: 'Boubou Bazin Riche', base_price: '75000', category: { name: 'Mode' }, media: [{ image_url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 111, name: 'Samsung Galaxy S24', base_price: '950000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 112, name: 'TV Samsung 55" 4K', base_price: '450000', category: { name: 'Électroménager' }, media: [{ image_url: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 113, name: 'Climatiseur 12000 BTU', base_price: '285000', category: { name: 'Électroménager' }, media: [{ image_url: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 114, name: 'Canapé 3 Places', base_price: '350000', category: { name: 'Maison' }, media: [{ image_url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 115, name: 'Miel Pays Dogon 1kg', base_price: '15000', category: { name: 'Alimentaire' }, media: [{ image_url: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 121, name: 'Casque Sony WH-1000XM5', base_price: '295000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 122, name: 'iPad Pro 12.9"', base_price: '850000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 123, name: 'Sneakers Adidas', base_price: '75000', category: { name: 'Sport' }, media: [{ image_url: 'https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 127, name: 'Drone DJI Mini 3', base_price: '450000', category: { name: 'Électronique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&h=400&fit=crop', is_primary: true }] },
+  { id: 128, name: 'Console PS5', base_price: '550000', category: { name: 'Gaming' }, media: [{ image_url: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400&h=400&fit=crop', is_primary: true }] },
+]
 
 // Helper to get price as number
 const getPrice = (product: Product): number => {
   return parseFloat(product.base_price) || 0
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+
 // Helper to get image URL
 const getImageUrl = (product: Product): string | undefined => {
-  return product.media?.[0]?.image_url
+  if (!product.media || product.media.length === 0) return undefined
+  const primaryImage = product.media.find(m => m.is_primary) || product.media[0]
+  let url = primaryImage?.image_url || primaryImage?.file
+  if (!url) return undefined
+  // Convertir http:// en https:// pour éviter le blocage mixed content
+  if (url.startsWith('http://')) {
+    url = url.replace('http://', 'https://')
+  }
+  if (url.startsWith('https://')) return url
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
 export function DealsPage() {
@@ -25,13 +60,17 @@ export function DealsPage() {
     try {
       setLoading(true)
       const response = await productsService.getProducts({ page: 1 })
-      if (response.data?.results) {
+      if (response.data?.results && response.data.results.length > 0) {
         setProducts(response.data.results)
-      } else if (Array.isArray(response.data)) {
+      } else if (Array.isArray(response.data) && response.data.length > 0) {
         setProducts(response.data)
+      } else {
+        // Fallback sur les produits fictifs
+        setProducts(mockDealsProducts as Product[])
       }
     } catch (error) {
-      console.error('Error loading products:', error)
+      // Fallback sur les produits fictifs
+      setProducts(mockDealsProducts as Product[])
     } finally {
       setLoading(false)
     }
