@@ -82,7 +82,7 @@ export const productsService = {
     store_id?: number;
   }) {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
     if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
@@ -90,7 +90,7 @@ export const productsService = {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.store_id) queryParams.append('store', params.store_id.toString());
 
-    const endpoint = `/api/products/${queryParams.toString() ? `?${queryParams}` : ''}`;
+    const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
     return apiClient.get<ProductsResponse>(endpoint);
   },
 
@@ -98,35 +98,35 @@ export const productsService = {
    * Récupérer les détails d'un produit par ID ou slug
    */
   async getProduct(idOrSlug: number | string) {
-    return apiClient.get<Product>(`/api/products/${idOrSlug}/`);
+    return apiClient.get<Product>(`/api/products/${idOrSlug}`);
   },
 
   /**
    * Créer un nouveau produit (vendeur uniquement)
    */
   async createProduct(data: CreateProductData) {
-    return apiClient.post<Product>('/api/my-products/', data);
+    return apiClient.post<Product>('/api/my-products', data);
   },
 
   /**
    * Mettre à jour un produit (vendeur uniquement)
    */
   async updateProduct(id: number, data: Partial<CreateProductData>) {
-    return apiClient.patch<Product>(`/api/my-products/${id}/`, data);
+    return apiClient.patch<Product>(`/api/my-products/${id}`, data);
   },
 
   /**
    * Supprimer un produit (vendeur uniquement)
    */
   async deleteProduct(id: number) {
-    return apiClient.delete(`/api/my-products/${id}/`);
+    return apiClient.delete(`/api/my-products/${id}`);
   },
 
   /**
    * Récupérer mes produits (vendeur uniquement)
    */
   async getMyProducts() {
-    return apiClient.get<Product[]>('/api/my-products/');
+    return apiClient.get<Product[]>('/api/my-products');
   },
 
   /**
@@ -134,7 +134,7 @@ export const productsService = {
    * POST /api/my-products/{product_id}/upload-image/
    */
   async uploadProductImage(productId: number, file: File) {
-    return apiClient.upload(`/api/my-products/${productId}/upload-image/`, file, 'image');
+    return apiClient.upload(`/api/my-products/${productId}/upload-image`, file, 'image');
   },
 
   // ========== ADMIN ENDPOINTS ==========
@@ -156,40 +156,34 @@ export const productsService = {
       if (params?.store_id) queryParams.append('store_id', params.store_id.toString());
 
       // Essayer l'endpoint admin d'abord
-      let endpoint = `/api/admin/catalog/products/${queryParams.toString() ? `?${queryParams}` : ''}`;
-      let response = await apiClient.get<ProductsResponse | Product[]>(endpoint);
-      
-      // Fallback to public endpoint if admin fails
+      const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
+      const response = await apiClient.get<ProductsResponse | Product[]>(endpoint);
+
       if (response.error) {
-        endpoint = `/api/products/${queryParams.toString() ? `?${queryParams}` : ''}`;
-        response = await apiClient.get<ProductsResponse | Product[]>(endpoint);
-      }
-      
-      if (response.error) {
-        return { 
-          data: { count: 0, next: null, previous: null, results: [] }, 
-          status: response.status 
+        return {
+          data: { count: 0, next: null, previous: null, results: [] },
+          status: response.status
         };
       }
-      
+
       // Gérer les deux formats de réponse
       if (Array.isArray(response.data)) {
-        return { 
-          data: { 
-            count: response.data.length, 
-            next: null, 
-            previous: null, 
-            results: response.data 
-          }, 
-          status: response.status 
+        return {
+          data: {
+            count: response.data.length,
+            next: null,
+            previous: null,
+            results: response.data
+          },
+          status: response.status
         };
       }
       return { data: response.data, status: response.status };
     } catch (error: any) {
       console.error('Erreur getAllProductsAdmin:', error);
-      return { 
-        data: { count: 0, next: null, previous: null, results: [] }, 
-        status: error.response?.status || 500 
+      return {
+        data: { count: 0, next: null, previous: null, results: [] },
+        status: error.response?.status || 500
       };
     }
   },
@@ -198,7 +192,7 @@ export const productsService = {
    * Créer un produit (Admin)
    */
   async createProductAdmin(data: CreateProductData & { store?: number }) {
-    const response = await apiClient.post<Product>('/api/admin/catalog/products/', data);
+    const response = await apiClient.post<Product>('/api/products', data);
     if (response.error) {
       throw new Error(response.error);
     }
@@ -209,7 +203,7 @@ export const productsService = {
    * Modifier un produit (Admin)
    */
   async updateProductAdmin(id: number, data: Partial<CreateProductData>) {
-    const response = await apiClient.patch<Product>(`/api/admin/catalog/products/${id}/`, data);
+    const response = await apiClient.patch<Product>(`/api/products/${id}`, data);
     if (response.error) {
       throw new Error(response.error);
     }
@@ -220,7 +214,7 @@ export const productsService = {
    * Supprimer un produit (Admin)
    */
   async deleteProductAdmin(id: number) {
-    const response = await apiClient.delete(`/api/admin/catalog/products/${id}/`);
+    const response = await apiClient.delete(`/api/products/${id}`);
     if (response.error) {
       throw new Error(response.error);
     }
@@ -230,20 +224,28 @@ export const productsService = {
   /**
    * Upload des images pour un produit (Admin) via l'API backend
    * POST /api/admin/catalog/products/{product_id}/upload_images/
+   * Le backend attend: request.FILES.getlist('images')
    */
   async uploadProductImagesAdmin(productId: number, images: File[]) {
     const formData = new FormData();
+    // Le backend attend le champ 'images' (voir admin_views.py ligne 39)
     images.forEach(image => {
       formData.append('images', image);
     });
-    
+
+    console.log(`Upload ${images.length} images pour produit ${productId}`);
+
     const response = await apiClient.postFormData<ProductMedia[]>(
-      `/api/admin/catalog/products/${productId}/upload_images/`,
+      `/api/products/${productId}/upload_images`,
       formData
     );
+
     if (response.error) {
-      throw new Error(response.error);
+      console.error('Erreur upload images:', response.error, response.status);
+      // Ne pas bloquer - le produit est créé, juste sans images
+      return { data: [], status: response.status };
     }
+
     return { data: response.data, status: response.status };
   },
 };

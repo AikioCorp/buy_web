@@ -10,6 +10,13 @@ export interface Shop {
   slug: string;
   description?: string;
   logo?: string | null;
+  logo_url?: string | null;
+  banner?: string | null;
+  banner_url?: string | null;
+  city?: string;
+  category?: string;
+  rating?: number;
+  products_count?: number;
   is_active: boolean;
   // Adresse de la boutique
   address_commune?: string;
@@ -57,49 +64,43 @@ export interface ShopsListResponse {
 export const shopsService = {
   /**
    * Récupérer les boutiques publiques (sans authentification)
-   * Utilise l'endpoint admin pour les utilisateurs authentifiés admin
    */
   async getPublicShops(page: number = 1, pageSize: number = 20) {
-    // Utiliser l'endpoint customers/stores
-    const endpoints = [
-      `/api/customers/stores/?page=${page}&page_size=${pageSize}`,
-    ];
+    try {
+      const response = await apiClient.get<ShopsListResponse | Shop[]>(
+        `/api/shops?page=${page}&page_size=${pageSize}`
+      );
 
-    for (const endpoint of endpoints) {
-      try {
-        const response = await apiClient.get<ShopsListResponse | Shop[]>(endpoint);
-        
-        if (response.error || response.status === 401 || response.status === 403 || response.status === 404) {
-          continue; // Essayer le prochain endpoint
-        }
-        
-        // Gérer les deux formats de réponse possibles
-        if (Array.isArray(response.data)) {
-          return { 
-            data: { 
-              count: response.data.length, 
-              next: null, 
-              previous: null, 
-              results: response.data 
-            }, 
-            status: response.status 
-          };
-        }
+      if (response.error) {
         return {
-          data: response.data,
-          status: response.status,
+          data: { count: 0, next: null, previous: null, results: [] },
+          status: response.status || 200,
         };
-      } catch (error: any) {
-        // Continuer avec le prochain endpoint
-        continue;
       }
-    }
 
-    // Aucun endpoint n'a fonctionné - retourner un résultat vide sans erreur
-    return { 
-      data: { count: 0, next: null, previous: null, results: [] }, 
-      status: 200 
-    };
+      // Gérer les deux formats de réponse possibles
+      if (Array.isArray(response.data)) {
+        return {
+          data: {
+            count: response.data.length,
+            next: null,
+            previous: null,
+            results: response.data
+          },
+          status: response.status
+        };
+      }
+      return {
+        data: response.data,
+        status: response.status,
+      };
+    } catch (error: any) {
+      console.error('Erreur getPublicShops:', error);
+      return {
+        data: { count: 0, next: null, previous: null, results: [] },
+        status: 200
+      };
+    }
   },
 
   /**
@@ -108,7 +109,7 @@ export const shopsService = {
   async getAllShops(page: number = 1, pageSize: number = 20) {
     try {
       const response = await apiClient.get<ShopsListResponse>(
-        `/api/customers/stores/?page=${page}&page_size=${pageSize}`
+        `/api/shops?page=${page}&page_size=${pageSize}`
       );
       return {
         data: response.data,
@@ -125,7 +126,7 @@ export const shopsService = {
   async searchShops(query: string, page: number = 1, pageSize: number = 20) {
     try {
       const response = await apiClient.get<ShopsListResponse>(
-        `/api/customers/stores/?search=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}`
+        `/api/shops?search=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}`
       );
       return {
         data: response.data,
@@ -141,7 +142,7 @@ export const shopsService = {
    */
   async getShopById(shopId: number) {
     try {
-      const response = await apiClient.get<Shop>(`/api/customers/stores/${shopId}/`);
+      const response = await apiClient.get<Shop>(`/api/shops/${shopId}`);
       return {
         data: response.data,
         status: response.status,
@@ -158,12 +159,12 @@ export const shopsService = {
     try {
       // Essayer d'abord par ID si c'est un nombre
       if (!isNaN(Number(slugOrId))) {
-        const response = await apiClient.get<Shop>(`/api/customers/stores/${slugOrId}/`);
+        const response = await apiClient.get<Shop>(`/api/shops/${slugOrId}`);
         if (response.data) {
           return { data: response.data, status: response.status };
         }
       }
-      
+
       // Sinon chercher par slug dans la liste
       const listResponse = await this.getPublicShops(1, 100);
       if (listResponse.data) {
@@ -173,7 +174,7 @@ export const shopsService = {
           return { data: shop, status: 200 };
         }
       }
-      
+
       return { data: undefined, status: 404 };
     } catch (error: any) {
       return { data: undefined, status: 500 };
@@ -183,14 +184,14 @@ export const shopsService = {
    * Récupérer mes boutiques (vendeur uniquement) - retourne 0 ou 1 boutique
    */
   async getMyShops() {
-    return apiClient.get<Shop[]>('/api/customers/stores/');
+    return apiClient.get<Shop[]>('/api/shops');
   },
 
   /**
    * Récupérer ma boutique (première de la liste)
    */
   async getMyShop() {
-    const response = await apiClient.get<Shop[]>('/api/customers/stores/');
+    const response = await apiClient.get<Shop[]>('/api/shops');
     if (response.data && response.data.length > 0) {
       return {
         data: response.data[0],
@@ -223,7 +224,7 @@ export const shopsService = {
       ].filter(Boolean).join(', ');
     }
 
-    return apiClient.post<Shop>('/api/customers/stores/', compatibleData);
+    return apiClient.post<Shop>('/api/shops', compatibleData);
   },
 
   /**
@@ -249,14 +250,14 @@ export const shopsService = {
       ].filter(Boolean).join(', ');
     }
 
-    return apiClient.patch<Shop>(`/api/customers/stores/${id}/`, compatibleData);
+    return apiClient.patch<Shop>(`/api/shops/${id}`, compatibleData);
   },
 
   /**
    * Supprimer une boutique (vendeur uniquement)
    */
   async deleteShop(id: number) {
-    return apiClient.delete(`/api/customers/stores/${id}/`);
+    return apiClient.delete(`/api/shops/${id}`);
   },
 
   // ========== ADMIN ENDPOINTS ==========
@@ -276,34 +277,34 @@ export const shopsService = {
       if (params?.search) queryParams.append('search', params.search);
       if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
 
-      const endpoint = `/api/customers/stores/${queryParams.toString() ? `?${queryParams}` : ''}`;
+      const endpoint = `/api/shops${queryParams.toString() ? `?${queryParams}` : ''}`;
       const response = await apiClient.get<ShopsListResponse | Shop[]>(endpoint);
-      
+
       // Gérer les erreurs d'authentification silencieusement
       if (response.error || response.status === 401 || response.status === 403) {
-        return { 
-          data: { count: 0, next: null, previous: null, results: [] }, 
-          status: response.status 
+        return {
+          data: { count: 0, next: null, previous: null, results: [] },
+          status: response.status
         };
       }
-      
+
       if (Array.isArray(response.data)) {
-        return { 
-          data: { 
-            count: response.data.length, 
-            next: null, 
-            previous: null, 
-            results: response.data 
-          }, 
-          status: response.status 
+        return {
+          data: {
+            count: response.data.length,
+            next: null,
+            previous: null,
+            results: response.data
+          },
+          status: response.status
         };
       }
       return { data: response.data, status: response.status };
     } catch (error: any) {
       console.error('Erreur getAllShopsAdmin:', error);
-      return { 
-        data: { count: 0, next: null, previous: null, results: [] }, 
-        status: error.response?.status || 500 
+      return {
+        data: { count: 0, next: null, previous: null, results: [] },
+        status: error.response?.status || 500
       };
     }
   },
@@ -313,7 +314,7 @@ export const shopsService = {
    */
   async validateShop(id: number) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/customers/stores/${id}/`, { is_active: true });
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { is_active: true });
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la validation de la boutique');
@@ -325,7 +326,7 @@ export const shopsService = {
    */
   async deactivateShop(id: number) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/customers/stores/${id}/`, { is_active: false });
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { is_active: false });
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la désactivation de la boutique');
@@ -337,7 +338,7 @@ export const shopsService = {
    */
   async deleteShopAdmin(id: number) {
     try {
-      const response = await apiClient.delete(`/api/customers/stores/${id}/`);
+      const response = await apiClient.delete(`/api/shops/${id}`);
       return { status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la suppression de la boutique');

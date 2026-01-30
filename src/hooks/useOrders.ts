@@ -5,18 +5,30 @@
 import { useState, useEffect } from 'react';
 import { ordersService, type Order } from '../lib/api';
 
+import { apiClient } from '../lib/api/apiClient';
+
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadOrders();
+    if (apiClient.isAuthenticated()) {
+      loadOrders();
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   const loadOrders = async () => {
     setIsLoading(true);
     setError(null);
+
+    // Double sécurité au cas où l'appel est manuel
+    if (!apiClient.isAuthenticated()) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await ordersService.getOrders();
@@ -99,7 +111,7 @@ export function useVendorOrders() {
     setError(null);
 
     try {
-      const response = await ordersService.getVendorOrders();
+      const response = await ordersService.getOrders();
 
       if (response.error) {
         setError(response.error);

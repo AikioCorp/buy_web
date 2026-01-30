@@ -43,7 +43,7 @@ export interface OrderItem {
   unit_price: string;
 }
 
-export type OrderStatus = 
+export type OrderStatus =
   | 'pending'
   | 'confirmed'
   | 'processing'
@@ -82,25 +82,25 @@ export interface OrdersListResponse {
 
 export const ordersService = {
   /**
-   * Récupérer les commandes du vendeur connecté (ses propres commandes de boutique)
+   * Récupérer les commandes (endpoint principal)
+   * Le backend filtre automatiquement selon l'utilisateur connecté
    */
   async getOrders() {
-    // Endpoint pour le vendeur - retourne uniquement les commandes de sa boutique
-    return apiClient.get<Order[]>('/api/orders/vendor/');
+    return apiClient.get<Order[]>('/api/orders');
   },
 
   /**
    * Récupérer les commandes du client connecté
    */
   async getMyOrders() {
-    return apiClient.get<Order[]>('/api/orders/');
+    return apiClient.get<Order[]>('/api/orders');
   },
 
   /**
    * Récupérer une commande par ID
    */
   async getOrder(id: number) {
-    return apiClient.get<Order>(`/api/orders/${id}/`);
+    return apiClient.get<Order>(`/api/orders/${id}`);
   },
 
   /**
@@ -112,7 +112,7 @@ export const ordersService = {
 
     // Si on a des données d'adresse, créer d'abord l'adresse
     if (data.shipping_address && !shippingAddressId) {
-      const addressResponse = await apiClient.post<{ id: number }>('/api/customers/addresses/', {
+      const addressResponse = await apiClient.post<{ id: number }>('/api/customers/addresses', {
         full_name: data.shipping_address.full_name,
         phone: data.shipping_address.phone,
         email: data.shipping_address.email || '',
@@ -144,14 +144,15 @@ export const ordersService = {
       shipping_address_id: shippingAddressId,
     };
 
-    return apiClient.post<Order>('/api/orders/', orderData);
+    return apiClient.post<Order>('/api/orders', orderData);
   },
 
   // ========== ADMIN ENDPOINTS ==========
 
   /**
    * Récupérer toutes les commandes (Admin/SuperAdmin)
-   * Permet de rechercher par numéro de commande, boutique, produit
+   * Note: Le backend actuel filtre par utilisateur, donc les admins voient leurs propres commandes
+   * TODO: Le backend doit être modifié pour permettre aux admins de voir toutes les commandes
    */
   async getAllOrdersAdmin(params?: {
     page?: number;
@@ -165,56 +166,30 @@ export const ordersService = {
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.status) queryParams.append('status', params.status);
       if (params?.search) queryParams.append('search', params.search);
-      if (params?.store_id) queryParams.append('store', params.store_id.toString());
-      if (params?.product_id) queryParams.append('product', params.product_id.toString());
 
-      // Endpoint admin pour voir toutes les commandes
-      const endpoint = `/api/orders/admin/${queryParams.toString() ? `?${queryParams}` : ''}`;
+      // Utiliser l'endpoint standard - le backend doit être modifié pour les admins
+      const endpoint = `/api/orders/${queryParams.toString() ? `?${queryParams}` : ''}`;
       const response = await apiClient.get<OrdersListResponse | Order[]>(endpoint);
-      
+
       // Gérer les deux formats de réponse
       if (Array.isArray(response.data)) {
-        return { 
-          data: { 
-            count: response.data.length, 
-            next: null, 
-            previous: null, 
-            results: response.data 
-          }, 
-          status: response.status 
+        return {
+          data: {
+            count: response.data.length,
+            next: null,
+            previous: null,
+            results: response.data
+          },
+          status: response.status
         };
       }
       return { data: response.data, status: response.status };
     } catch (error: any) {
       console.error('Erreur getAllOrdersAdmin:', error);
-      // Fallback sur l'endpoint standard si l'endpoint admin n'existe pas
-      try {
-        const queryParams = new URLSearchParams();
-        if (params?.page) queryParams.append('page', params.page.toString());
-        if (params?.status) queryParams.append('status', params.status);
-        if (params?.search) queryParams.append('search', params.search);
-        
-        const fallbackEndpoint = `/api/orders/${queryParams.toString() ? `?${queryParams}` : ''}`;
-        const fallbackResponse = await apiClient.get<OrdersListResponse | Order[]>(fallbackEndpoint);
-        
-        if (Array.isArray(fallbackResponse.data)) {
-          return { 
-            data: { 
-              count: fallbackResponse.data.length, 
-              next: null, 
-              previous: null, 
-              results: fallbackResponse.data 
-            }, 
-            status: fallbackResponse.status 
-          };
-        }
-        return { data: fallbackResponse.data, status: fallbackResponse.status };
-      } catch {
-        return { 
-          data: { count: 0, next: null, previous: null, results: [] }, 
-          status: error.response?.status || 500 
-        };
-      }
+      return {
+        data: { count: 0, next: null, previous: null, results: [] },
+        status: error.response?.status || 500
+      };
     }
   },
 
@@ -223,7 +198,7 @@ export const ordersService = {
    */
   async transferOrder(orderId: number, newStoreId: number, reason: string) {
     try {
-      const response = await apiClient.post<Order>(`/api/orders/${orderId}/transfer/`, {
+      const response = await apiClient.post<Order>(`/api/orders/${orderId}/transfer`, {
         new_store_id: newStoreId,
         reason: reason
       });
@@ -262,7 +237,7 @@ export const ordersService = {
    */
   async cancelOrder(id: number) {
     try {
-      const response = await apiClient.patch<Order>(`/api/orders/${id}/`, { status: 'cancelled' });
+      const response = await apiClient.patch<Order>(`/api/orders/${id}`, { status: 'cancelled' });
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de l\'annulation de la commande');

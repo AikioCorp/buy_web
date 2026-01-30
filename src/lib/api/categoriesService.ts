@@ -26,21 +26,21 @@ export const categoriesService = {
    * Récupérer toutes les catégories (Public)
    */
   async getCategories() {
-    return apiClient.get<Category[]>('/api/categories/');
+    return apiClient.get<Category[]>('/api/categories');
   },
 
   /**
    * Récupérer une catégorie par ID
    */
   async getCategory(id: number) {
-    return apiClient.get<Category>(`/api/categories/${id}/`);
+    return apiClient.get<Category>(`/api/categories/${id}`);
   },
 
   /**
    * Récupérer une catégorie par slug
    */
   async getCategoryBySlug(slug: string) {
-    return apiClient.get<Category>(`/api/categories/${slug}/`);
+    return apiClient.get<Category>(`/api/categories/${slug}`);
   },
 
   // ========== ADMIN ENDPOINTS ==========
@@ -50,10 +50,10 @@ export const categoriesService = {
    */
   async getAllCategoriesAdmin() {
     try {
-      const response = await apiClient.get<Category[]>('/api/admin/catalog/categories/');
+      const response = await apiClient.get<Category[]>('/api/categories');
       if (response.error) {
         // Fallback to public endpoint
-        const publicResponse = await apiClient.get<Category[]>('/api/categories/');
+        const publicResponse = await apiClient.get<Category[]>('/api/categories');
         return { data: publicResponse.data || [], status: publicResponse.status };
       }
       return { data: response.data || [], status: response.status };
@@ -67,7 +67,7 @@ export const categoriesService = {
    * Créer une catégorie (Admin)
    */
   async createCategory(data: CreateCategoryData) {
-    const response = await apiClient.post<Category>('/api/admin/catalog/categories/', data);
+    const response = await apiClient.post<Category>('/api/categories', data);
     if (response.error) {
       throw new Error(response.error);
     }
@@ -78,7 +78,7 @@ export const categoriesService = {
    * Modifier une catégorie (Admin)
    */
   async updateCategory(slug: string, data: Partial<CreateCategoryData>) {
-    const response = await apiClient.patch<Category>(`/api/admin/catalog/categories/${slug}/`, data);
+    const response = await apiClient.patch<Category>(`/api/categories/${slug}`, data);
     if (response.error) {
       throw new Error(response.error);
     }
@@ -89,7 +89,7 @@ export const categoriesService = {
    * Supprimer une catégorie (Admin)
    */
   async deleteCategory(slug: string) {
-    const response = await apiClient.delete(`/api/admin/catalog/categories/${slug}/`);
+    const response = await apiClient.delete(`/api/categories/${slug}`);
     if (response.error) {
       throw new Error(response.error);
     }

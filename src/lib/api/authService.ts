@@ -22,7 +22,7 @@ export interface RegisterData {
 }
 
 export interface AuthResponse {
-  token: string;
+  access_token: string;
   user_id: number;
   customer_id: number;
   username: string;
@@ -59,12 +59,26 @@ export const authService = {
    * Connexion avec email et mot de passe
    */
   async login(credentials: LoginCredentials) {
-    const response = await apiClient.post<AuthResponse>('/api/auth/login/', credentials);
-    
-    if (response.data?.token) {
-      apiClient.setToken(response.data.token);
+    const response = await apiClient.post<any>('/api/auth/login', credentials);
+
+    // Support des deux formats de token (Node.js API vs Standard)
+    const token = response.data?.access_token || response.data?.token;
+
+    if (token) {
+      apiClient.setToken(token);
     }
-    
+
+    // Si la réponse contient un objet 'user' imbriqué (format Node.js probable), on normalise
+    if (response.data?.user) {
+      // On retourne une structure hybride pour compatibilité
+      response.data = {
+        ...response.data,
+        ...response.data.user, // Étale les propriétés de user à la racine
+        access_token: token,
+        user_id: response.data.user.id, // Assure la compatibilité avec le code existant qui cherche user_id
+      };
+    }
+
     return response;
   },
 
@@ -72,12 +86,24 @@ export const authService = {
    * Inscription
    */
   async register(data: RegisterData) {
-    const response = await apiClient.post<AuthResponse>('/api/auth/register/', data);
-    
-    if (response.data?.token) {
-      apiClient.setToken(response.data.token);
+    const response = await apiClient.post<any>('/api/auth/register', data);
+
+    const token = response.data?.access_token || response.data?.token;
+
+    if (token) {
+      apiClient.setToken(token);
     }
-    
+
+    // Normalisation identique au login
+    if (response.data?.user) {
+      response.data = {
+        ...response.data,
+        ...response.data.user,
+        access_token: token,
+        user_id: response.data.user.id,
+      };
+    }
+
     return response;
   },
 
@@ -92,54 +118,43 @@ export const authService = {
    * Obtenir les informations de l'utilisateur connecté
    */
   async getCurrentUser() {
-    // Essayer une liste d'endpoints communs pour récupérer l'utilisateur courant
-    const candidates = [
-      '/api/auth/me/',
-      '/api/auth/user/',
-      '/dj-rest-auth/user/',
-      '/api/users/me/',
-    ]
+    const response = await apiClient.get<any>('/api/auth/me');
 
-    for (const endpoint of candidates) {
-      const response = await apiClient.get<any>(endpoint)
-      if (response.data) {
-        const d = response.data as any
-        return {
-          data: {
-            id: d.id ?? d.user?.id,
-            username: d.username ?? d.user?.username ?? '',
-            email: d.email ?? d.user?.email ?? '',
-            first_name: d.first_name,
-            last_name: d.last_name,
-            phone: d.phone,
-            is_seller: d.is_seller,
-            is_superuser: d.is_superuser,
-            is_staff: d.is_staff,
-            role: d.role || (d.is_superuser ? 'super_admin' : d.is_staff ? 'admin' : d.is_seller ? 'vendor' : undefined),
-          } as User,
-          status: response.status,
-        }
+    if (response.data) {
+      const d = response.data;
+      console.log('API /auth/me response:', d); // DEBUG: Voir la structure exacte
+
+      // Détection de rôle plus robuste
+      let role: UserRole = 'client';
+
+      const rawRole = (d.role || '').toString().toLowerCase();
+
+      if (d.is_superuser || d.isAdmin || d.is_admin || rawRole === 'super_admin' || rawRole === 'admin') {
+        role = 'super_admin'; // On considère admin comme super_admin pour simplifier l'accès
+      } else if (d.is_staff || rawRole === 'staff' || rawRole === 'manager') {
+        role = 'admin';
+      } else if (d.is_seller || d.isSeller || rawRole === 'vendor' || rawRole === 'seller') {
+        role = 'vendor';
       }
-    }
 
-    // Fallback: profil client (ne contient pas les rôles)
-    const response = await apiClient.get<any[]>('/api/customers/profiles/')
-    if (response.data && response.data.length > 0) {
-      const profile = response.data[0]
       return {
         data: {
-          id: profile.user,
-          username: profile.user?.username || '',
-          email: profile.user?.email || '',
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          phone: profile.phone,
+          id: d.id ?? d.user?.id,
+          username: d.username ?? d.user?.username ?? '',
+          email: d.email ?? d.user?.email ?? '',
+          first_name: d.first_name,
+          last_name: d.last_name,
+          phone: d.phone,
+          is_seller: d.is_seller || d.isSeller || role === 'vendor',
+          is_superuser: d.is_superuser || d.isAdmin || d.is_admin || role === 'super_admin',
+          is_staff: d.is_staff || role === 'admin',
+          role: role,
         } as User,
         status: response.status,
-      }
+      };
     }
 
-    return { error: 'Profil non trouvé', status: 404 }
+    return { error: response.error || 'Profil non trouvé', status: response.status || 404 };
   },
 
   /**

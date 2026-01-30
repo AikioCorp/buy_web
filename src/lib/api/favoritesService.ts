@@ -20,15 +20,15 @@ export interface FavoritesResponse {
 
 class FavoritesService {
   async getFavorites() {
-    return apiClient.get<FavoritesResponse>('/customers/favorites/');
+    return apiClient.get<FavoritesResponse>('/api/customers/favorites');
   }
 
   async addFavorite(productId: number) {
-    return apiClient.post('/customers/favorites/', { product: productId });
+    return apiClient.post('/api/customers/favorites', { product_id: productId });
   }
 
   async removeFavorite(favoriteId: number) {
-    return apiClient.delete(`/customers/favorites/${favoriteId}/`);
+    return apiClient.delete(`/api/customers/favorites/${favoriteId}`);
   }
 
   async isFavorite(productId: number) {

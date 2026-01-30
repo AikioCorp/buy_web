@@ -47,7 +47,7 @@ export const profileService = {
    * Récupérer le profil client
    */
   async getProfile() {
-    const response = await apiClient.get<CustomerProfile[]>('/api/customers/profiles/');
+    const response = await apiClient.get<CustomerProfile[]>('/api/customers/profiles');
     return {
       ...response,
       data: response.data?.[0], // Retourner le premier profil
@@ -58,34 +58,34 @@ export const profileService = {
    * Mettre à jour le profil client
    */
   async updateProfile(id: number, data: UpdateProfileData) {
-    return apiClient.patch<CustomerProfile>(`/api/customers/profiles/${id}/`, data);
+    return apiClient.patch<CustomerProfile>(`/api/customers/profiles/${id}`, data);
   },
 
   /**
    * Récupérer les adresses
    */
   async getAddresses() {
-    return apiClient.get<Address[]>('/api/customers/addresses/');
+    return apiClient.get<Address[]>('/api/customers/addresses');
   },
 
   /**
    * Créer une nouvelle adresse
    */
   async createAddress(data: CreateAddressData) {
-    return apiClient.post<Address>('/api/customers/addresses/', data);
+    return apiClient.post<Address>('/api/customers/addresses', data);
   },
 
   /**
    * Mettre à jour une adresse
    */
   async updateAddress(id: number, data: Partial<CreateAddressData>) {
-    return apiClient.patch<Address>(`/api/customers/addresses/${id}/`, data);
+    return apiClient.patch<Address>(`/api/customers/addresses/${id}`, data);
   },
 
   /**
    * Supprimer une adresse
    */
   async deleteAddress(id: number) {
-    return apiClient.delete(`/api/customers/addresses/${id}/`);
+    return apiClient.delete(`/api/customers/addresses/${id}`);
   },
 };

@@ -8,65 +8,6 @@ import { LoginPopup } from '@/components/LoginPopup'
 import { Button } from '@/components/Button'
 import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight, Star, Truck, Shield, RefreshCw, Check, MessageCircle } from 'lucide-react'
 
-// Produits fictifs (fallback) avec plusieurs images
-const mockProductsData: Record<number, any> = {
-  101: { id: 101, name: 'iPhone 15 Pro Max', description: 'Le dernier iPhone avec puce A17 Pro, écran Super Retina XDR 6.7 pouces, système de caméra pro avec zoom optique 5x. Design en titane, bouton Action personnalisable, USB-C avec USB 3.', base_price: '850000', stock: 15, category: { name: 'Électronique' }, store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=800&h=800&fit=crop' },
-    { image_url: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&h=800&fit=crop' },
-    { image_url: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=800&h=800&fit=crop' },
-  ]},
-  102: { id: 102, name: 'AirPods Pro 2ème génération', description: 'Écouteurs sans fil avec réduction active du bruit, mode Transparence adaptatif, Audio spatial personnalisé. Boîtier de charge MagSafe avec haut-parleur intégré.', base_price: '175000', stock: 25, category: { name: 'Électronique' }, store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=800&h=800&fit=crop' },
-  ]},
-  103: { id: 103, name: 'Robe Africaine Wax Premium', description: 'Magnifique robe en tissu wax authentique, coupe moderne et élégante. Fabrication artisanale malienne. Disponible en plusieurs tailles.', base_price: '35000', stock: 10, category: { name: 'Mode' }, store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&h=800&fit=crop' },
-  ]},
-  104: { id: 104, name: 'Nike Air Max 270', description: 'Chaussures de sport légères et confortables avec amorti Air Max. Idéales pour la course et le style urbain. Semelle extérieure en caoutchouc durable.', base_price: '95000', stock: 20, category: { name: 'Sport' }, store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=800&fit=crop' },
-    { image_url: 'https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=800&h=800&fit=crop' },
-  ]},
-  105: { id: 105, name: 'Apple Watch Series 9', description: 'Montre connectée avec écran Retina toujours actif, suivi de santé avancé, GPS + Cellular. Puce S9 SiP ultra-performante.', base_price: '350000', stock: 12, category: { name: 'Électronique' }, store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=800&h=800&fit=crop' },
-  ]},
-  106: { id: 106, name: 'Parfum Homme Dior Sauvage', description: 'Eau de parfum intense et magnétique. Notes de bergamote de Calabre, poivre de Sichuan et bois de santal. 100ml. Flacon élégant.', base_price: '145000', stock: 8, category: { name: 'Parfumerie' }, store: { id: 11, name: 'Dicarlo', slug: 'dicarlo' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&h=800&fit=crop' },
-  ]},
-  107: { id: 107, name: 'Set de Casseroles Inox 5 Pièces', description: 'Ensemble de casseroles en acier inoxydable 18/10. Compatible tous feux dont induction, poignées ergonomiques anti-chaleur.', base_price: '65000', stock: 15, category: { name: 'Cuisine' }, store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=800&fit=crop', is_primary: true }] },
-  108: { id: 108, name: 'Riz Parfumé Thaï 5kg', description: 'Riz jasmin premium importé de Thaïlande. Grains longs, parfum délicat. Idéal pour accompagner vos plats.', base_price: '12500', stock: 50, category: { name: 'Alimentaire' }, store: { id: 9, name: 'Shopreate', slug: 'shopreate' }, media: [{ image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&h=800&fit=crop', is_primary: true }] },
-  109: { id: 109, name: 'MacBook Air M3', description: 'Ordinateur portable ultra-fin avec puce M3, écran Liquid Retina 13.6", jusqu\'à 18h d\'autonomie. 8Go RAM, 256Go SSD.', base_price: '1200000', stock: 5, category: { name: 'Électronique' }, store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=800&h=800&fit=crop' },
-  ]},
-  110: { id: 110, name: 'Boubou Homme Bazin Riche', description: 'Boubou traditionnel en bazin riche de qualité supérieure. Broderie fine fait main. Tenue complète avec pantalon.', base_price: '75000', stock: 8, category: { name: 'Mode' }, store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&h=800&fit=crop', is_primary: true }] },
-  111: { id: 111, name: 'Samsung Galaxy S24 Ultra', description: 'Smartphone premium avec S Pen intégré, écran Dynamic AMOLED 6.8", caméra 200MP. Intelligence artificielle Galaxy AI.', base_price: '950000', stock: 10, category: { name: 'Électronique' }, store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [
-    { image_url: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=800&h=800&fit=crop', is_primary: true },
-    { image_url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=800&fit=crop' },
-  ]},
-  112: { id: 112, name: 'Télévision Samsung 55" 4K', description: 'Smart TV Samsung Crystal UHD 55 pouces. Résolution 4K, HDR10+, Tizen OS. Processeur Crystal 4K.', base_price: '450000', stock: 6, category: { name: 'Électroménager' }, store: { id: 7, name: 'Électro Bamako', slug: 'electro-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&h=800&fit=crop', is_primary: true }] },
-  113: { id: 113, name: 'Climatiseur Split 12000 BTU', description: 'Climatiseur inverter économique. Refroidissement rapide, silencieux. Classe énergétique A++.', base_price: '285000', stock: 8, category: { name: 'Électroménager' }, store: { id: 7, name: 'Électro Bamako', slug: 'electro-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=800&h=800&fit=crop', is_primary: true }] },
-  114: { id: 114, name: 'Canapé 3 Places Moderne', description: 'Canapé confortable en tissu de qualité. Design moderne, couleur gris anthracite. Structure en bois massif.', base_price: '350000', stock: 4, category: { name: 'Maison' }, store: { id: 5, name: 'Maison & Déco', slug: 'maison-deco' }, media: [{ image_url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&h=800&fit=crop', is_primary: true }] },
-  115: { id: 115, name: 'Miel Pur du Pays Dogon 1kg', description: 'Miel naturel récolté traditionnellement au Pays Dogon. Saveur unique et bienfaits santé. 100% pur.', base_price: '15000', stock: 30, category: { name: 'Alimentaire' }, store: { id: 6, name: 'Saveurs du Mali', slug: 'saveurs-du-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=800&h=800&fit=crop', is_primary: true }] },
-  116: { id: 116, name: 'Ballon de Football Adidas Pro', description: 'Ballon officiel de match. Coutures thermosoudées, revêtement premium. Taille 5.', base_price: '35000', stock: 20, category: { name: 'Sport' }, store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1614632537190-23e4146777db?w=800&h=800&fit=crop', is_primary: true }] },
-  117: { id: 117, name: 'Parfum Femme Chanel N°5', description: 'Eau de parfum légendaire. Notes florales et aldéhydées intemporelles. 100ml. Icône de la parfumerie.', base_price: '185000', stock: 6, category: { name: 'Parfumerie' }, store: { id: 4, name: 'Beauté Plus', slug: 'beaute-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=800&h=800&fit=crop', is_primary: true }] },
-  118: { id: 118, name: 'Robot Cuisine Multifonction', description: 'Robot de cuisine 1000W avec 10 accessoires. Mixeur, hachoir, pétrin, râpe. Bol inox 5L.', base_price: '125000', stock: 10, category: { name: 'Cuisine' }, store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=800&h=800&fit=crop', is_primary: true }] },
-  119: { id: 119, name: 'Chemise Homme Bogolan', description: 'Chemise élégante en tissu bogolan authentique. Coupe moderne, fait main au Mali. 100% coton.', base_price: '28000', stock: 15, category: { name: 'Mode' }, store: { id: 8, name: 'Tendance Afrique', slug: 'tendance-afrique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&h=800&fit=crop', is_primary: true }] },
-  120: { id: 120, name: 'JBL Flip 6 Enceinte Bluetooth', description: 'Enceinte portable étanche IP67 avec son JBL Original Pro. Jusqu\'à 12h d\'autonomie. PartyBoost.', base_price: '85000', stock: 12, category: { name: 'Électronique' }, store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=800&h=800&fit=crop', is_primary: true }] },
-}
-
-// Produits similaires (pour suggestions)
-const relatedProducts = [
-  { id: 102, name: 'AirPods Pro 2', base_price: '175000', media: [{ image_url: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=400&h=400&fit=crop' }] },
-  { id: 105, name: 'Apple Watch Series 9', base_price: '350000', media: [{ image_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400&h=400&fit=crop' }] },
-  { id: 109, name: 'MacBook Air M3', base_price: '1200000', media: [{ image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop' }] },
-  { id: 120, name: 'JBL Flip 6', base_price: '85000', media: [{ image_url: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop' }] },
-]
-
 // Helper to format price
 const formatPrice = (price: number | string, currency: string = 'XOF') => {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price
@@ -121,23 +62,11 @@ export function ProductDetailPage() {
   const loadProduct = async () => {
     try {
       setLoading(true)
-      const numId = Number(id)
       
-      // Essayer d'abord l'API
-      try {
-        const response = await productsService.getProduct(numId)
-        if (response.data) {
-          setProduct(response.data)
-          return
-        }
-      } catch {
-        // API a échoué, continuer avec le fallback
-      }
-      
-      // Fallback sur les données fictives
-      const mockProduct = mockProductsData[numId]
-      if (mockProduct) {
-        setProduct(mockProduct as Product)
+      // Utiliser l'ID ou le slug directement (le backend supporte les deux)
+      const response = await productsService.getProduct(id!)
+      if (response.data) {
+        setProduct(response.data)
       }
     } catch (error) {
       console.error('Error loading product:', error)
@@ -703,36 +632,33 @@ export function ProductDetailPage() {
           )}
         </div>
 
-        {/* Related Products */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Produits similaires</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {relatedProducts.filter(p => p.id !== product.id).map((relProduct) => (
-              <Link
-                key={relProduct.id}
-                to={`/products/${relProduct.id}`}
-                className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all"
-              >
-                <div className="aspect-square bg-gray-100 overflow-hidden">
-                  <img 
-                    src={relProduct.media[0]?.image_url} 
-                    alt={relProduct.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-3">
-                  <h3 className="font-medium text-gray-900 text-sm line-clamp-2 group-hover:text-green-600 transition-colors">{relProduct.name}</h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
-                    ))}
+        {/* Related Products - À implémenter avec l'API */}
+        {product.related_products && product.related_products.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Produits similaires</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {product.related_products.map((relProduct: any) => (
+                <Link
+                  key={relProduct.id}
+                  to={`/products/${relProduct.slug || relProduct.id}`}
+                  className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all"
+                >
+                  <div className="aspect-square bg-gray-100 overflow-hidden">
+                    <img 
+                      src={relProduct.media?.[0]?.image_url || '/placeholder-product.png'} 
+                      alt={relProduct.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
                   </div>
-                  <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(relProduct.base_price)}</p>
-                </div>
-              </Link>
-            ))}
+                  <div className="p-3">
+                    <h3 className="font-medium text-gray-900 text-sm line-clamp-2 group-hover:text-green-600 transition-colors">{relProduct.name}</h3>
+                    <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(relProduct.base_price)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Login Popup */}

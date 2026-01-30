@@ -11,4 +11,13 @@ export default defineConfig({
       '@buymore/api-client': path.resolve(__dirname, './src/lib/api-client'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://buymore-api-production.up.railway.app',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })

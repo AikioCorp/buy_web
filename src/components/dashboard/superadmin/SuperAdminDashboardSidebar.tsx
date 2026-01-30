@@ -73,7 +73,7 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
       className={`
         bg-white border-r border-gray-200 transition-all duration-300 z-30
         ${isOpen ? 'w-72' : 'w-0 lg:w-20'} 
-        fixed h-full lg:relative overflow-hidden flex flex-col
+        h-full overflow-hidden flex flex-col flex-shrink-0
       `}
     >
       {/* Logo - Cliquable vers la page d'accueil */}

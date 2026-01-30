@@ -35,27 +35,27 @@ export interface CreateAddressData {
 
 class AddressesService {
   async getAddresses() {
-    return apiClient.get<Address[]>('/customers/addresses/');
+    return apiClient.get<Address[]>('/api/customers/addresses');
   }
 
   async getAddress(id: number) {
-    return apiClient.get<Address>(`/customers/addresses/${id}/`);
+    return apiClient.get<Address>(`/api/customers/addresses/${id}`);
   }
 
   async createAddress(data: CreateAddressData) {
-    return apiClient.post<Address>('/customers/addresses/', data);
+    return apiClient.post<Address>('/api/customers/addresses', data);
   }
 
   async updateAddress(id: number, data: Partial<CreateAddressData>) {
-    return apiClient.put<Address>(`/customers/addresses/${id}/`, data);
+    return apiClient.put<Address>(`/api/customers/addresses/${id}`, data);
   }
 
   async deleteAddress(id: number) {
-    return apiClient.delete(`/customers/addresses/${id}/`);
+    return apiClient.delete(`/api/customers/addresses/${id}`);
   }
 
   async setDefaultAddress(id: number) {
-    return apiClient.post(`/customers/addresses/${id}/set_default/`);
+    return apiClient.post(`/api/customers/addresses/${id}/set_default`);
   }
 }
 

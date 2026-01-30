@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authService, type User, type UserRole } from '../lib/api';
+import { authService, apiClient, type User, type UserRole } from '../lib/api';
 
 interface AuthState {
   user: User | null;
@@ -28,23 +28,31 @@ interface AuthState {
 
 // Déterminer le rôle basé sur les données de l'utilisateur
 const determineRole = (user: User | any): UserRole => {
-  // Si user.role est défini, l'utiliser
+  // Logs pour debug
+  console.log('Determining role for user:', user);
+
+  // Si user.role est défini, l'utiliser avec normalisation
   if (user.role) {
-    return user.role;
+    const rawRole = user.role.toString().toLowerCase();
+    if (rawRole === 'super_admin' || rawRole === 'admin' || rawRole === 'superuser') return 'super_admin'; // Simplification: tout admin est super_admin pour l'instant
+    if (rawRole === 'vendor' || rawRole === 'seller' || rawRole === 'shop') return 'vendor';
+    if (rawRole === 'client' || rawRole === 'customer') return 'client';
+    // Si role est déjà un UserRole valide, le retourner
+    if (['client', 'vendor', 'admin', 'super_admin'].includes(rawRole)) return rawRole as UserRole;
   }
 
-  // Vérifier is_superuser pour super admin
-  if (user.is_superuser) {
+  // Vérifier is_superuser, isAdmin, etc.
+  if (user.is_superuser || user.isAdmin || user.is_admin) {
     return 'super_admin';
   }
 
   // Vérifier is_staff pour admin
-  if (user.is_staff) {
+  if (user.is_staff || user.isStaff) {
     return 'admin';
   }
 
   // Sinon, déduire du statut is_seller
-  if (user.is_seller) {
+  if (user.is_seller || user.isSeller) {
     return 'vendor';
   }
 
@@ -65,8 +73,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // L'API attend 'email' et 'password'
           const response = await authService.login({ email, password });
+          console.log('Login Response:', response);
 
           if (response.error) {
             set({ error: response.error, isLoading: false });
@@ -74,45 +82,46 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (response.data) {
-            // Après connexion, tenter de récupérer l'utilisateur courant (avec rôle) depuis l'API
-            const me = await authService.getCurrentUser()
+            const responseData = response.data as any;
 
-            if (me.data) {
-              const role = determineRole(me.data)
+            // 1. Extraire et stocker le token
+            const token = responseData.token || responseData.access_token || responseData.key;
+            if (token) {
+              apiClient.setToken(token);
+            } else {
+              console.error('No token found in login response', responseData);
+            }
+
+            // 2. Traiter l'utilisateur
+            let user = responseData.user;
+
+            // Si user incomplet, tenter de récupérer via /me
+            if (!user || (!user.role && !user.is_superuser)) {
+              try {
+                const meResponse = await authService.getCurrentUser();
+                if (meResponse.data) user = meResponse.data;
+              } catch (e) { console.warn('Failed to fetch /me after login', e); }
+            }
+
+            if (user) {
+              if (!user.id && user.user_id) user.id = user.user_id;
+              const role = determineRole(user);
+
               set({
-                user: me.data,
+                user: { ...user, role } as User,
                 role,
                 isAuthenticated: true,
                 isLoading: false,
                 error: null,
-              })
-              return true
+              });
+              return true;
             }
-
-            // Fallback: si l'endpoint /me n'est pas dispo, dériver depuis la réponse de login
-            const userData = {
-              id: response.data.user_id,
-              username: response.data.username,
-              email: response.data.email,
-              is_seller: response.data.is_seller,
-              is_superuser: (response.data as any).is_superuser,
-              is_staff: (response.data as any).is_staff,
-              role: (response.data as any).role,
-            }
-
-            const role = determineRole(userData)
-            set({
-              user: { ...userData, role } as User,
-              role,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null,
-            })
-            return true
           }
 
+          set({ error: 'Réponse de connexion invalide', isLoading: false });
           return false;
         } catch (error) {
+          console.error('Login error:', error);
           set({
             error: error instanceof Error ? error.message : 'Erreur de connexion',
             isLoading: false,
@@ -123,50 +132,29 @@ export const useAuthStore = create<AuthState>()(
 
       register: async (data: any) => {
         set({ isLoading: true, error: null });
-
         try {
           const response = await authService.register(data);
-
           if (response.error) {
             set({ error: response.error, isLoading: false });
             return false;
           }
-
           if (response.data) {
-            // Créer un objet User à partir de la réponse avec tous les champs
-            const userData = {
+            // Au cas où le register renvoie aussi un token (auto-login)
+            const responseData = response.data as any;
+            const token = responseData.token || responseData.access_token;
+            if (token) apiClient.setToken(token);
+
+            const userData: any = {
+              ...response.data,
               id: response.data.user_id,
-              username: response.data.username,
-              email: response.data.email,
-              is_seller: response.data.is_seller,
-              is_superuser: response.data.is_superuser,
-              is_staff: response.data.is_staff,
-              role: response.data.role,
             };
-
             const role = determineRole(userData);
-            
-            const user: User = {
-              ...userData,
-              role,
-            };
-
-            set({
-              user,
-              role,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null,
-            });
+            set({ user: { ...userData, role } as User, role, isAuthenticated: true, isLoading: false, error: null });
             return true;
           }
-
           return false;
         } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Erreur d\'inscription',
-            isLoading: false,
-          });
+          set({ error: error instanceof Error ? error.message : "Erreur", isLoading: false });
           return false;
         }
       },
@@ -183,6 +171,7 @@ export const useAuthStore = create<AuthState>()(
             role: null,
             error: null,
           });
+          localStorage.removeItem('auth-storage'); // Nettoyer aussi le persist zustand si nécessaire
         }
       },
 
@@ -196,6 +185,13 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const response = await authService.getCurrentUser();
+
+          // Si 401 Unauthorized, le token est invalide -> Logout
+          if (response.status === 401) {
+            console.warn('Token invalide (401), déconnexion forcée.');
+            await get().logout();
+            return;
+          }
 
           if (response.data) {
             // Si l'API ne retourne pas explicitement le rôle/flags, conserver ceux déjà stockés
@@ -214,12 +210,14 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
             })
           } else {
-            // Échec silencieux: conserver l'état existant si le token est présent
-            set({ isLoading: false, isAuthenticated: true })
+            // Si erreur autre que 401, mais on a un token
+            // On garde l'état actuel mais on arrête le loading
+            set({ isLoading: false });
           }
         } catch (error) {
-          // Ne pas déconnecter brutalement si l'endpoint /me n'existe pas
-          set({ isLoading: false, isAuthenticated: true })
+          // Erreur réseau ou autre
+          console.error('Erreur loadUser:', error);
+          set({ isLoading: false });
         }
       },
 

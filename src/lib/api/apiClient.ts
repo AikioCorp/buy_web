@@ -1,9 +1,9 @@
 /**
  * API Client pour BuyMore Web
- * Remplace Supabase par Django REST API
+ * Connecté à l'API Node.js + Supabase
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 interface ApiResponse<T> {
   data?: T;
@@ -54,7 +54,7 @@ class ApiClient {
     };
 
     if (this.token) {
-      headers['Authorization'] = `Token ${this.token}`;
+      headers['Authorization'] = `Bearer ${this.token}`;
     }
 
     return headers;
@@ -92,8 +92,8 @@ class ApiClient {
           } else if (data.error) {
             errorMessage = data.error;
           } else if (data.non_field_errors) {
-            errorMessage = Array.isArray(data.non_field_errors) 
-              ? data.non_field_errors.join(', ') 
+            errorMessage = Array.isArray(data.non_field_errors)
+              ? data.non_field_errors.join(', ')
               : data.non_field_errors;
           } else {
             // Extraire les erreurs de champs spécifiques
@@ -183,7 +183,7 @@ class ApiClient {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': this.token ? `Token ${this.token}` : '',
+          'Authorization': this.token ? `Bearer ${this.token}` : '',
         },
         body: formData,
       });
@@ -218,7 +218,7 @@ class ApiClient {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': this.token ? `Token ${this.token}` : '',
+          'Authorization': this.token ? `Bearer ${this.token}` : '',
         },
         body: formData,
       });
