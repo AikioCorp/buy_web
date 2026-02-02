@@ -50,7 +50,7 @@ class UsersService {
     }
   }
 
-  async getAllUsers(page: number = 1, pageSize: number = 20) {
+  async getAllUsers(page: number = 1, _pageSize: number = 20) {
     try {
       const response = await apiClient.get<UsersListResponse>(
         `/api/admin/users/?page=${page}`
@@ -99,7 +99,7 @@ class UsersService {
     }
   }
 
-  async searchUsers(query: string, page: number = 1, pageSize: number = 20) {
+  async searchUsers(query: string, page: number = 1, _pageSize: number = 20) {
     try {
       const response = await apiClient.get<UsersListResponse>(
         `/api/admin/users/?search=${encodeURIComponent(query)}&page=${page}`

@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { categoriesService, type Category } from '../lib/api';
+import { categoriesService, Category } from '../lib/api/categoriesService';
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);

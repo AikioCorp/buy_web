@@ -9,9 +9,9 @@ export interface Category {
   name: string;
   slug: string;
   icon?: string;
-  parent?: number | null;
+  parent: number | null;
   en_vedette?: boolean;
-  children?: Category[];
+  children: Category[];
 }
 
 export interface CreateCategoryData {

@@ -64,7 +64,7 @@ export const profileService = {
   /**
    * Mettre à jour le profil client
    */
-  async updateProfile(id: string, data: UpdateProfileData) {
+  async updateProfile(_id: string, data: UpdateProfileData) {
     return apiClient.patch<CustomerProfile>('/api/customers/profile', data);
   },
 

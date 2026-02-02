@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { profileService, type CustomerProfile, type Address } from '../lib/api';
+import { profileService, CustomerProfile, Address } from '../lib/api/profileService';
 
 export function useProfile() {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);

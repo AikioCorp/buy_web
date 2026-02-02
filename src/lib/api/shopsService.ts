@@ -58,8 +58,8 @@ export interface CreateShopData {
   description?: string;
   is_active?: boolean;
   // Images
-  logo_url?: string;
-  banner_url?: string;
+  logo_url?: string | null;
+  banner_url?: string | null;
   // Adresse de la boutique
   address_commune?: string;
   address_quartier?: string;
@@ -113,12 +113,12 @@ export const shopsService = {
           status: response.status
         };
       }
-      
+
       // Format paginé avec results
       if (response.data?.results) {
         console.log('getPublicShops: Paginated format, count:', response.data.results.length);
       }
-      
+
       return {
         data: response.data,
         status: response.status,
@@ -366,10 +366,10 @@ export const shopsService = {
    */
   async approveShop(id: number, notes?: string) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { 
-        status: 'approved', 
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, {
+        status: 'approved',
         is_active: true,
-        admin_notes: notes 
+        admin_notes: notes
       });
       return { data: response.data, status: response.status };
     } catch (error: any) {
@@ -382,10 +382,10 @@ export const shopsService = {
    */
   async rejectShop(id: number, reason: string) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { 
-        status: 'rejected', 
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, {
+        status: 'rejected',
         is_active: false,
-        rejection_reason: reason 
+        rejection_reason: reason
       });
       return { data: response.data, status: response.status };
     } catch (error: any) {
@@ -398,10 +398,10 @@ export const shopsService = {
    */
   async suspendShop(id: number, reason: string) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { 
-        status: 'suspended', 
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, {
+        status: 'suspended',
         is_active: false,
-        admin_notes: reason 
+        admin_notes: reason
       });
       return { data: response.data, status: response.status };
     } catch (error: any) {

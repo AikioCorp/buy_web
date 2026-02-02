@@ -110,9 +110,8 @@ const NotificationsPage: React.FC = () => {
           {notifications.map((notification) => (
             <div
               key={notification.id}
-              className={`bg-white rounded-lg shadow p-4 flex items-start gap-4 ${
-                !notification.is_read ? 'border-l-4 border-green-600' : ''
-              }`}
+              className={`bg-white rounded-lg shadow p-4 flex items-start gap-4 ${!notification.is_read ? 'border-l-4 border-green-600' : ''
+                }`}
             >
               <div className={`p-3 rounded-lg ${getNotificationColor(notification.type)}`}>
                 {getNotificationIcon(notification.type)}
@@ -128,7 +127,7 @@ const NotificationsPage: React.FC = () => {
                   </span>
                 </div>
                 <p className={`text-sm ${!notification.is_read ? 'text-gray-700' : 'text-gray-600'}`}>
-                  {notification.message}
+                  {notification.content}
                 </p>
 
                 <div className="flex gap-2 mt-3">
