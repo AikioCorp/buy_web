@@ -14,8 +14,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        //target: 'https://buymore-api-production.up.railway.app', // Production
-        target: 'http://localhost:3000', // Local backend (uncomment for local dev)
+        target: 'https://buymore-api-production.up.railway.app', // Production
+        //target: 'http://localhost:3000', // Local backend (uncomment for local dev)
         changeOrigin: true,
         secure: false,
       },
