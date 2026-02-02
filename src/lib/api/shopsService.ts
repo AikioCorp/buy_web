@@ -4,6 +4,8 @@
 
 import { apiClient } from './apiClient';
 
+export type ShopStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+
 export interface Shop {
   id: number;
   name: string;
@@ -18,6 +20,14 @@ export interface Shop {
   rating?: number;
   products_count?: number;
   is_active: boolean;
+  // Approval status
+  status?: ShopStatus;
+  admin_notes?: string;
+  rejection_reason?: string;
+  // Owner info
+  owner_id?: string;
+  owner_name?: string;
+  owner_email?: string;
   // Adresse de la boutique
   address_commune?: string;
   address_quartier?: string;
@@ -27,7 +37,11 @@ export interface Shop {
   email?: string;
   // Configuration de livraison
   delivery_base_fee?: number;
+  delivery_available?: boolean;
   delivery_zones?: ShopDeliveryZone[];
+  // Timestamps
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ShopDeliveryZone {
@@ -43,15 +57,20 @@ export interface CreateShopData {
   slug: string;
   description?: string;
   is_active?: boolean;
+  // Images
+  logo_url?: string;
+  banner_url?: string;
   // Adresse de la boutique
   address_commune?: string;
   address_quartier?: string;
   address_details?: string;
+  city?: string;
   phone?: string;
   whatsapp?: string;
   email?: string;
   // Configuration de livraison
   delivery_base_fee?: number;
+  delivery_available?: boolean;
 }
 
 export interface ShopsListResponse {
@@ -71,7 +90,10 @@ export const shopsService = {
         `/api/shops?page=${page}&page_size=${pageSize}`
       );
 
+      console.log('getPublicShops API response:', response);
+
       if (response.error) {
+        console.warn('getPublicShops error:', response.error);
         return {
           data: { count: 0, next: null, previous: null, results: [] },
           status: response.status || 200,
@@ -80,6 +102,7 @@ export const shopsService = {
 
       // Gérer les deux formats de réponse possibles
       if (Array.isArray(response.data)) {
+        console.log('getPublicShops: Array format, count:', response.data.length);
         return {
           data: {
             count: response.data.length,
@@ -90,6 +113,12 @@ export const shopsService = {
           status: response.status
         };
       }
+      
+      // Format paginé avec results
+      if (response.data?.results) {
+        console.log('getPublicShops: Paginated format, count:', response.data.results.length);
+      }
+      
       return {
         data: response.data,
         status: response.status,
@@ -203,54 +232,52 @@ export const shopsService = {
 
   /**
    * Créer une nouvelle boutique (vendeur uniquement)
-   * Note: Envoie uniquement les champs compatibles avec le backend actuel
    */
   async createShop(data: CreateShopData) {
-    // Champs compatibles avec l'ancien backend
-    const compatibleData: any = {
+    const storeData: any = {
       name: data.name,
       slug: data.slug,
       description: data.description || '',
+      logo_url: data.logo_url || '',
+      banner_url: data.banner_url || '',
+      address_commune: data.address_commune || '',
+      address_quartier: data.address_quartier || '',
+      address_details: data.address_details || '',
+      city: data.city || 'Bamako',
+      phone: data.phone || '',
+      whatsapp: data.whatsapp || '',
       email: data.email || '',
+      delivery_base_fee: data.delivery_base_fee || 1000,
+      delivery_available: data.delivery_available !== false,
       is_active: data.is_active !== undefined ? data.is_active : true,
     };
 
-    // Construire l'adresse au format ancien si les nouveaux champs sont fournis
-    if (data.address_commune || data.address_quartier) {
-      compatibleData.address = [
-        data.address_quartier,
-        data.address_commune,
-        data.address_details
-      ].filter(Boolean).join(', ');
-    }
-
-    return apiClient.post<Shop>('/api/shops', compatibleData);
+    return apiClient.post<Shop>('/api/shops', storeData);
   },
 
   /**
    * Mettre à jour une boutique (vendeur uniquement)
-   * Note: Envoie uniquement les champs compatibles avec le backend actuel
    */
   async updateShop(id: number, data: Partial<CreateShopData>) {
-    // Champs compatibles avec l'ancien backend
-    const compatibleData: any = {};
+    const storeData: any = {};
 
-    if (data.name !== undefined) compatibleData.name = data.name;
-    if (data.slug !== undefined) compatibleData.slug = data.slug;
-    if (data.description !== undefined) compatibleData.description = data.description;
-    if (data.email !== undefined) compatibleData.email = data.email;
-    if (data.is_active !== undefined) compatibleData.is_active = data.is_active;
+    if (data.name !== undefined) storeData.name = data.name;
+    if (data.slug !== undefined) storeData.slug = data.slug;
+    if (data.description !== undefined) storeData.description = data.description;
+    if (data.logo_url !== undefined) storeData.logo_url = data.logo_url;
+    if (data.banner_url !== undefined) storeData.banner_url = data.banner_url;
+    if (data.address_commune !== undefined) storeData.address_commune = data.address_commune;
+    if (data.address_quartier !== undefined) storeData.address_quartier = data.address_quartier;
+    if (data.address_details !== undefined) storeData.address_details = data.address_details;
+    if (data.city !== undefined) storeData.city = data.city;
+    if (data.phone !== undefined) storeData.phone = data.phone;
+    if (data.whatsapp !== undefined) storeData.whatsapp = data.whatsapp;
+    if (data.email !== undefined) storeData.email = data.email;
+    if (data.delivery_base_fee !== undefined) storeData.delivery_base_fee = data.delivery_base_fee;
+    if (data.delivery_available !== undefined) storeData.delivery_available = data.delivery_available;
+    if (data.is_active !== undefined) storeData.is_active = data.is_active;
 
-    // Construire l'adresse au format ancien si les nouveaux champs sont fournis
-    if (data.address_commune || data.address_quartier || data.address_details) {
-      compatibleData.address = [
-        data.address_quartier,
-        data.address_commune,
-        data.address_details
-      ].filter(Boolean).join(', ');
-    }
-
-    return apiClient.patch<Shop>(`/api/shops/${id}`, compatibleData);
+    return apiClient.patch<Shop>(`/api/shops/${id}`, storeData);
   },
 
   /**
@@ -264,7 +291,7 @@ export const shopsService = {
 
   /**
    * Récupérer toutes les boutiques (Admin) - avec pagination
-   * Utilise l'endpoint admin /api/customers/admin/stores/
+   * Inclut les boutiques inactives pour la gestion admin
    */
   async getAllShopsAdmin(params?: {
     page?: number;
@@ -273,11 +300,12 @@ export const shopsService = {
   }) {
     try {
       const queryParams = new URLSearchParams();
+      queryParams.append('include_inactive', 'true'); // Admin sees all shops
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.search) queryParams.append('search', params.search);
       if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
 
-      const endpoint = `/api/shops${queryParams.toString() ? `?${queryParams}` : ''}`;
+      const endpoint = `/api/shops?${queryParams.toString()}`;
       const response = await apiClient.get<ShopsListResponse | Shop[]>(endpoint);
 
       // Gérer les erreurs d'authentification silencieusement
@@ -314,7 +342,7 @@ export const shopsService = {
    */
   async validateShop(id: number) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { is_active: true });
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { is_active: true, status: 'approved' });
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la validation de la boutique');
@@ -330,6 +358,66 @@ export const shopsService = {
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la désactivation de la boutique');
+    }
+  },
+
+  /**
+   * Approuver une boutique (Admin)
+   */
+  async approveShop(id: number, notes?: string) {
+    try {
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { 
+        status: 'approved', 
+        is_active: true,
+        admin_notes: notes 
+      });
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de l\'approbation de la boutique');
+    }
+  },
+
+  /**
+   * Rejeter une boutique (Admin)
+   */
+  async rejectShop(id: number, reason: string) {
+    try {
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { 
+        status: 'rejected', 
+        is_active: false,
+        rejection_reason: reason 
+      });
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du rejet de la boutique');
+    }
+  },
+
+  /**
+   * Suspendre une boutique (Admin)
+   */
+  async suspendShop(id: number, reason: string) {
+    try {
+      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { 
+        status: 'suspended', 
+        is_active: false,
+        admin_notes: reason 
+      });
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la suspension de la boutique');
+    }
+  },
+
+  /**
+   * Envoyer un message à une boutique (Admin)
+   */
+  async sendMessageToShop(id: number, message: string) {
+    try {
+      const response = await apiClient.post(`/api/shops/${id}/messages`, { message });
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de l\'envoi du message');
     }
   },
 

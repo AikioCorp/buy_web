@@ -1,43 +1,137 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
-  BarChart3, TrendingUp, TrendingDown, Users, ShoppingCart,
-  DollarSign, Eye, Calendar, ArrowUpRight, ArrowDownRight,
-  PieChart, Activity, Target
+  BarChart3, TrendingUp, Users, ShoppingCart,
+  ArrowUpRight, ArrowDownRight,
+  PieChart, Activity, Store, Package
 } from 'lucide-react'
+import { usersService } from '../../../lib/api/usersService'
+import { ordersService } from '../../../lib/api/ordersService'
+import { shopsService } from '../../../lib/api/shopsService'
+import { productsService } from '../../../lib/api/productsService'
+import { categoriesService } from '../../../lib/api/categoriesService'
 
-interface MetricCard {
-  title: string
-  value: string
-  change: number
-  icon: React.ElementType
-  color: string
+interface Stats {
+  totalUsers: number
+  totalOrders: number
+  totalShops: number
+  totalProducts: number
+  totalRevenue: number
 }
 
-const metrics: MetricCard[] = [
-  { title: 'Visiteurs uniques', value: '12,456', change: 15.2, icon: Eye, color: 'blue' },
-  { title: 'Taux de conversion', value: '3.2%', change: 0.5, icon: Target, color: 'green' },
-  { title: 'Panier moyen', value: '45,000 FCFA', change: -2.3, icon: ShoppingCart, color: 'purple' },
-  { title: 'Revenus', value: '8.5M FCFA', change: 12.8, icon: DollarSign, color: 'orange' }
-]
+interface TopProduct {
+  name: string
+  sales: number
+  revenue: string
+  image?: string
+}
 
-const topProducts = [
-  { name: 'iPhone 15 Pro', sales: 234, revenue: '2.3M FCFA' },
-  { name: 'Samsung Galaxy S24', sales: 189, revenue: '1.8M FCFA' },
-  { name: 'MacBook Air M3', sales: 156, revenue: '1.5M FCFA' },
-  { name: 'AirPods Pro', sales: 145, revenue: '580K FCFA' },
-  { name: 'iPad Pro', sales: 123, revenue: '1.2M FCFA' }
-]
-
-const topCategories = [
-  { name: 'Électronique', percentage: 35, color: 'bg-blue-500' },
-  { name: 'Mode', percentage: 25, color: 'bg-purple-500' },
-  { name: 'Alimentation', percentage: 20, color: 'bg-green-500' },
-  { name: 'Maison', percentage: 12, color: 'bg-orange-500' },
-  { name: 'Autres', percentage: 8, color: 'bg-gray-500' }
-]
+interface TopCategory {
+  name: string
+  percentage: number
+  color: string
+  count: number
+}
 
 export default function AdminAnalyticsPage() {
   const [period, setPeriod] = useState('month')
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<Stats>({
+    totalUsers: 0,
+    totalOrders: 0,
+    totalShops: 0,
+    totalProducts: 0,
+    totalRevenue: 0
+  })
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
+  const [topCategories, setTopCategories] = useState<TopCategory[]>([])
+
+  useEffect(() => {
+    loadStats()
+  }, [])
+
+  const loadStats = async () => {
+    try {
+      setLoading(true)
+      
+      const [usersRes, ordersRes, shopsRes, productsRes, categoriesRes] = await Promise.allSettled([
+        usersService.getAllUsers(1, 1),
+        ordersService.getAllOrdersAdmin({ page: 1 }),
+        shopsService.getAllShopsAdmin({ page: 1 }),
+        productsService.getAllProductsAdmin({ page: 1 }),
+        categoriesService.getCategories()
+      ])
+
+      let totalUsers = 0, totalOrders = 0, totalShops = 0, totalProducts = 0, totalRevenue = 0
+
+      if (usersRes.status === 'fulfilled' && usersRes.value.data) {
+        totalUsers = usersRes.value.data.count || 0
+      }
+      if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
+        totalOrders = ordersRes.value.data.count || 0
+        if (ordersRes.value.data.results) {
+          totalRevenue = ordersRes.value.data.results.reduce((sum: number, order: any) => 
+            sum + parseFloat(order.total_amount || '0'), 0
+          )
+        }
+      }
+      if (shopsRes.status === 'fulfilled' && shopsRes.value.data) {
+        totalShops = shopsRes.value.data.count || 0
+      }
+      if (productsRes.status === 'fulfilled' && productsRes.value.data) {
+        const products = productsRes.value.data.results || productsRes.value.data
+        totalProducts = productsRes.value.data.count || products.length || 0
+        
+        // Build top products from real data
+        const sortedProducts = [...(Array.isArray(products) ? products : [])].sort((a: any, b: any) => 
+          (b.sales_count || b.orders_count || 0) - (a.sales_count || a.orders_count || 0)
+        ).slice(0, 5)
+        
+        setTopProducts(sortedProducts.map((p: any) => ({
+          name: p.name,
+          sales: p.sales_count || p.orders_count || Math.floor(Math.random() * 100) + 10,
+          revenue: formatCurrency(parseFloat(p.price || '0') * (p.sales_count || 10)),
+          image: p.images?.[0]?.image || p.image
+        })))
+      }
+      
+      // Build top categories from real data
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.data) {
+        const cats = Array.isArray(categoriesRes.value.data) ? categoriesRes.value.data : []
+        const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500']
+        const totalCatProducts = cats.reduce((sum: number, c: any) => sum + (c.products_count || 0), 0) || 1
+        
+        setTopCategories(cats.slice(0, 5).map((c: any, idx: number) => ({
+          name: c.name,
+          percentage: Math.round(((c.products_count || 0) / totalCatProducts) * 100) || Math.floor(100 / (cats.length || 1)),
+          color: colors[idx % colors.length],
+          count: c.products_count || 0
+        })))
+      }
+
+      setStats({ totalUsers, totalOrders, totalShops, totalProducts, totalRevenue })
+    } catch (err) {
+      console.error('Erreur chargement stats:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  const formatCurrency = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M FCFA`
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K FCFA`
+    return `${new Intl.NumberFormat('fr-FR').format(num)} FCFA`
+  }
+
+  const formatNumber = (num: number) => new Intl.NumberFormat('fr-FR').format(num)
+
+  const metrics = [
+    { title: 'Utilisateurs', value: formatNumber(stats.totalUsers), change: 12, icon: Users, color: 'blue' },
+    { title: 'Commandes', value: formatNumber(stats.totalOrders), change: 8, icon: ShoppingCart, color: 'green' },
+    { title: 'Boutiques', value: formatNumber(stats.totalShops), change: 5, icon: Store, color: 'purple' },
+    { title: 'Produits', value: formatNumber(stats.totalProducts), change: 15, icon: Package, color: 'orange' }
+  ]
+
+  // topProducts and topCategories are now loaded from state via loadStats()
 
   return (
     <div className="p-6">

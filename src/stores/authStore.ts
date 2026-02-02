@@ -27,36 +27,57 @@ interface AuthState {
 }
 
 // Déterminer le rôle basé sur les données de l'utilisateur
+// Hiérarchie: super_admin > admin > vendor > client
 const determineRole = (user: User | any): UserRole => {
   // Logs pour debug
   console.log('Determining role for user:', user);
 
-  // Si user.role est défini, l'utiliser avec normalisation
-  if (user.role) {
-    const rawRole = user.role.toString().toLowerCase();
-    if (rawRole === 'super_admin' || rawRole === 'admin' || rawRole === 'superuser') return 'super_admin'; // Simplification: tout admin est super_admin pour l'instant
-    if (rawRole === 'vendor' || rawRole === 'seller' || rawRole === 'shop') return 'vendor';
-    if (rawRole === 'client' || rawRole === 'customer') return 'client';
-    // Si role est déjà un UserRole valide, le retourner
-    if (['client', 'vendor', 'admin', 'super_admin'].includes(rawRole)) return rawRole as UserRole;
-  }
-
-  // Vérifier is_superuser, isAdmin, etc.
-  if (user.is_superuser || user.isAdmin || user.is_admin) {
+  // PRIORITÉ 1: Vérifier is_superuser en premier (le plus haut niveau)
+  // Seuls les super admins ont is_superuser = true
+  if (user.is_superuser === true) {
+    console.log('User is SUPER_ADMIN (is_superuser=true)');
     return 'super_admin';
   }
 
-  // Vérifier is_staff pour admin
-  if (user.is_staff || user.isStaff) {
+  // PRIORITÉ 2: Vérifier is_staff pour les admins simples
+  // Les admins ont is_staff = true mais is_superuser = false
+  if (user.is_staff === true) {
+    console.log('User is ADMIN (is_staff=true, is_superuser=false)');
     return 'admin';
   }
 
-  // Sinon, déduire du statut is_seller
-  if (user.is_seller || user.isSeller) {
+  // PRIORITÉ 3: Vérifier is_seller pour les vendeurs
+  if (user.is_seller === true) {
+    console.log('User is VENDOR (is_seller=true)');
     return 'vendor';
   }
 
+  // Si user.role est défini explicitement, l'utiliser avec normalisation
+  if (user.role) {
+    const rawRole = user.role.toString().toLowerCase();
+    console.log('User has explicit role:', rawRole);
+    
+    // Mapper les différentes valeurs possibles
+    if (rawRole === 'super_admin' || rawRole === 'superuser' || rawRole === 'superadmin') {
+      return 'super_admin';
+    }
+    if (rawRole === 'admin' || rawRole === 'staff') {
+      return 'admin';
+    }
+    if (rawRole === 'vendor' || rawRole === 'seller' || rawRole === 'shop') {
+      return 'vendor';
+    }
+    if (rawRole === 'client' || rawRole === 'customer' || rawRole === 'user') {
+      return 'client';
+    }
+    // Si role est déjà un UserRole valide, le retourner
+    if (['client', 'vendor', 'admin', 'super_admin'].includes(rawRole)) {
+      return rawRole as UserRole;
+    }
+  }
+
   // Par défaut, c'est un client
+  console.log('User is CLIENT (default)');
   return 'client';
 };
 
@@ -77,7 +98,11 @@ export const useAuthStore = create<AuthState>()(
           console.log('Login Response:', response);
 
           if (response.error) {
-            set({ error: response.error, isLoading: false });
+            let errorMsg = response.error;
+            if (typeof response.error === 'object' && response.error !== null) {
+              errorMsg = (response.error as any).message || (response.error as any).error || JSON.stringify(response.error);
+            }
+            set({ error: String(errorMsg), isLoading: false });
             return false;
           }
 
@@ -120,10 +145,22 @@ export const useAuthStore = create<AuthState>()(
 
           set({ error: 'Réponse de connexion invalide', isLoading: false });
           return false;
-        } catch (error) {
+        } catch (error: any) {
           console.error('Login error:', error);
+
+          // Ensure error is a string
+          let errorMessage = 'Erreur de connexion';
+          if (typeof error === 'string') {
+            errorMessage = error;
+          } else if (error instanceof Error) {
+            errorMessage = error.message;
+          } else if (error && typeof error === 'object') {
+            // Handle { message, code } objects
+            errorMessage = error.message || error.error || JSON.stringify(error);
+          }
+
           set({
-            error: error instanceof Error ? error.message : 'Erreur de connexion',
+            error: errorMessage,
             isLoading: false,
           });
           return false;
@@ -135,7 +172,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authService.register(data);
           if (response.error) {
-            set({ error: response.error, isLoading: false });
+            let errorMsg = response.error;
+            if (typeof response.error === 'object' && response.error !== null) {
+              errorMsg = (response.error as any).message || (response.error as any).error || JSON.stringify(response.error);
+            }
+            set({ error: String(errorMsg), isLoading: false });
             return false;
           }
           if (response.data) {
@@ -153,8 +194,13 @@ export const useAuthStore = create<AuthState>()(
             return true;
           }
           return false;
-        } catch (error) {
-          set({ error: error instanceof Error ? error.message : "Erreur", isLoading: false });
+        } catch (error: any) {
+          let errorMessage = "Erreur";
+          if (typeof error === 'string') errorMessage = error;
+          else if (error instanceof Error) errorMessage = error.message;
+          else if (error && typeof error === 'object') errorMessage = (error as any).message || JSON.stringify(error);
+
+          set({ error: errorMessage, isLoading: false });
           return false;
         }
       },
@@ -200,9 +246,11 @@ export const useAuthStore = create<AuthState>()(
               is_superuser: (response.data as any).is_superuser ?? (get().user as any)?.is_superuser,
               is_staff: (response.data as any).is_staff ?? (get().user as any)?.is_staff,
               is_seller: (response.data as any).is_seller ?? (get().user as any)?.is_seller,
+              permissions: (response.data as any).permissions ?? (get().user as any)?.permissions ?? [],
               role: (response.data as any).role ?? get().role,
             }
             const role = determineRole(mergedUser)
+            console.log('User permissions loaded:', mergedUser.permissions)
             set({
               user: { ...mergedUser, role } as User,
               role,

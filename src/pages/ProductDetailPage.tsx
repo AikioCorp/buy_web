@@ -29,13 +29,6 @@ interface Review {
   helpful: number
 }
 
-// Avis fictifs
-const mockReviews: Review[] = [
-  { id: 1, user: 'Amadou K.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop', rating: 5, comment: 'Excellent produit ! La qualité est au rendez-vous. Livraison rapide et emballage soigné. Je recommande vivement.', date: '2024-01-15', helpful: 12 },
-  { id: 2, user: 'Fatou D.', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop', rating: 4, comment: 'Très bon rapport qualité-prix. Le produit correspond à la description. Seul bémol, le délai de livraison un peu long.', date: '2024-01-10', helpful: 8 },
-  { id: 3, user: 'Ibrahim S.', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop', rating: 5, comment: 'Parfait ! Exactement ce que je cherchais. Le vendeur est très réactif et professionnel.', date: '2024-01-05', helpful: 15 },
-  { id: 4, user: 'Mariam T.', rating: 3, comment: 'Produit correct mais je m\'attendais à mieux pour ce prix. La qualité est moyenne.', date: '2023-12-28', helpful: 3 },
-]
 
 export function ProductDetailPage() {
   const { id } = useParams()
@@ -45,9 +38,10 @@ export function ProductDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [isLiked, setIsLiked] = useState(false)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
-  const [reviews, setReviews] = useState<Review[]>(mockReviews)
+  const [reviews, setReviews] = useState<Review[]>([])
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' })
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([])
   const addItem = useCartStore((state) => state.addItem)
   const user = useAuthStore((state) => state.user)
   const { showToast } = useToast()
@@ -67,6 +61,8 @@ export function ProductDetailPage() {
       const response = await productsService.getProduct(id!)
       if (response.data) {
         setProduct(response.data)
+        // Load similar products based on category
+        loadSimilarProducts(response.data)
       }
     } catch (error) {
       console.error('Error loading product:', error)
@@ -75,13 +71,33 @@ export function ProductDetailPage() {
     }
   }
 
-  // Get product images from media array
+  const loadSimilarProducts = async (currentProduct: Product) => {
+    try {
+      const categoryId = currentProduct.category?.id || (currentProduct as any).category_id
+      if (categoryId) {
+        const response = await productsService.getProducts({ 
+          category_id: categoryId, 
+          page_size: 5 
+        })
+        if (response.data?.results) {
+          // Filter out the current product
+          const filtered = response.data.results.filter((p: Product) => p.id !== currentProduct.id)
+          setSimilarProducts(filtered.slice(0, 4))
+        }
+      }
+    } catch (error) {
+      console.error('Error loading similar products:', error)
+    }
+  }
+
+  // Get product images from media array (backend returns 'images' from product_media)
   const getImages = () => {
-    if (!product?.media || product.media.length === 0) {
+    const mediaArray = product?.media || (product as any)?.images || []
+    if (!mediaArray || mediaArray.length === 0) {
       return []
     }
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
-    return product.media.map(m => {
+    return mediaArray.map((m: any) => {
       let url = m.image_url || m.file
       if (!url) return null
       // Convertir http:// en https:// pour éviter le blocage mixed content
@@ -239,7 +255,7 @@ export function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Images Section */}
           <div>
-            <div className="aspect-square bg-white rounded-2xl overflow-hidden shadow-lg relative group">
+            <div className="aspect-[4/3] max-h-[400px] bg-white rounded-2xl overflow-hidden shadow-lg relative group">
               {currentImage ? (
                 <img
                   src={currentImage}
@@ -272,8 +288,14 @@ export function ProductDetailPage() {
 
               {/* Badges */}
               <div className="absolute top-4 left-4 flex flex-col gap-2">
-                <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full">-15%</span>
-                <span className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">En stock</span>
+                {(product as any).compare_at_price && parseFloat((product as any).compare_at_price) > getPrice() && (
+                  <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                    -{Math.round((1 - getPrice() / parseFloat((product as any).compare_at_price)) * 100)}%
+                  </span>
+                )}
+                {(product.stock ?? 0) > 0 && (
+                  <span className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">En stock</span>
+                )}
               </div>
             </div>
             
@@ -311,15 +333,16 @@ export function ProductDetailPage() {
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{product.name}</h1>
             
             {/* Rating */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className={`w-5 h-5 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
-                ))}
+            {reviews.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className={`w-5 h-5 ${i < Math.round(parseFloat(averageRating)) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-500">({reviews.length} avis)</span>
               </div>
-              <span className="text-sm text-gray-500">(24 avis)</span>
-              <span className="text-sm text-green-600 font-medium">✓ 156 vendus</span>
-            </div>
+            )}
 
             {/* Store link */}
             {product.store && (
@@ -338,10 +361,16 @@ export function ProductDetailPage() {
               <span className="text-3xl font-black text-[#0f4c2b]">
                 {formatPrice(getPrice())}
               </span>
-              <span className="text-lg text-gray-400 line-through">
-                {formatPrice(getPrice() * 1.15)}
-              </span>
-              <span className="px-2 py-1 bg-red-100 text-red-600 text-sm font-bold rounded">-15%</span>
+              {(product as any).compare_at_price && parseFloat((product as any).compare_at_price) > getPrice() && (
+                <>
+                  <span className="text-lg text-gray-400 line-through">
+                    {formatPrice(parseFloat((product as any).compare_at_price))}
+                  </span>
+                  <span className="px-2 py-1 bg-red-100 text-red-600 text-sm font-bold rounded">
+                    -{Math.round((1 - getPrice() / parseFloat((product as any).compare_at_price)) * 100)}%
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Description */}
@@ -352,23 +381,88 @@ export function ProductDetailPage() {
               </p>
             </div>
 
-            {/* Features */}
+            {/* Product Features/Characteristics */}
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: Truck, text: 'Livraison rapide', sub: 'Sous 24-48h' },
-                { icon: Shield, text: 'Garantie', sub: '12 mois' },
-                { icon: RefreshCw, text: 'Retour facile', sub: 'Sous 7 jours' },
-                { icon: Check, text: 'Authentique', sub: '100% original' },
-              ].map((feature, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                  <feature.icon className="w-5 h-5 text-green-600" />
+              {(product as any).delivery_time && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <Truck className="w-5 h-5 text-green-600" />
                   <div>
-                    <p className="text-xs font-medium text-gray-900">{feature.text}</p>
-                    <p className="text-xs text-gray-500">{feature.sub}</p>
+                    <p className="text-xs font-medium text-gray-900">Livraison rapide</p>
+                    <p className="text-xs text-gray-500">Sous {(product as any).delivery_time}</p>
                   </div>
                 </div>
-              ))}
+              )}
+              {(product as any).warranty_duration && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <Shield className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-900">Garantie</p>
+                    <p className="text-xs text-gray-500">{(product as any).warranty_duration}</p>
+                  </div>
+                </div>
+              )}
+              {(product as any).return_policy && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <RefreshCw className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-900">Retour facile</p>
+                    <p className="text-xs text-gray-500">Sous {(product as any).return_policy}</p>
+                  </div>
+                </div>
+              )}
+              {(product as any).is_authentic && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-900">Authentique</p>
+                    <p className="text-xs text-gray-500">100% original</p>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Product Variants */}
+            {(product as any).variants && (product as any).variants.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-900 text-sm">Variantes disponibles</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(product as any).variants.map((variant: any) => (
+                    <button
+                      key={variant.id}
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm hover:border-[#0f4c2b] transition-colors"
+                    >
+                      <span className="font-medium">{variant.name || variant.sku}</span>
+                      {variant.price && (
+                        <span className="ml-2 text-[#0f4c2b] font-bold">
+                          {formatPrice(parseFloat(variant.price))}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Product Options */}
+            {(product as any).options && (product as any).options.length > 0 && (
+              <div className="space-y-3">
+                {(product as any).options.map((option: any) => (
+                  <div key={option.id}>
+                    <h3 className="font-semibold text-gray-900 text-sm mb-2">{option.name}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {option.values && option.values.map((value: string, idx: number) => (
+                        <button
+                          key={idx}
+                          className="px-3 py-1.5 border-2 border-gray-200 rounded-lg text-sm hover:border-[#0f4c2b] transition-colors"
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Stock info */}
             <div className="flex items-center gap-2">
@@ -632,30 +726,43 @@ export function ProductDetailPage() {
           )}
         </div>
 
-        {/* Related Products - À implémenter avec l'API */}
-        {product.related_products && product.related_products.length > 0 && (
+        {/* Similar Products */}
+        {similarProducts.length > 0 && (
           <div className="mt-16">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Produits similaires</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {product.related_products.map((relProduct: any) => (
-                <Link
-                  key={relProduct.id}
-                  to={`/products/${relProduct.slug || relProduct.id}`}
-                  className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all"
-                >
-                  <div className="aspect-square bg-gray-100 overflow-hidden">
-                    <img 
-                      src={relProduct.media?.[0]?.image_url || '/placeholder-product.png'} 
-                      alt={relProduct.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-medium text-gray-900 text-sm line-clamp-2 group-hover:text-green-600 transition-colors">{relProduct.name}</h3>
-                    <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(relProduct.base_price)}</p>
-                  </div>
-                </Link>
-              ))}
+              {similarProducts.map((relProduct) => {
+                const productImages = relProduct.media || (relProduct as any).images || []
+                const imageUrl = productImages[0]?.image_url || productImages[0]?.file
+                const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+                const fullImageUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`) : null
+                
+                return (
+                  <Link
+                    key={relProduct.id}
+                    to={`/products/${relProduct.slug || relProduct.id}`}
+                    className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all"
+                  >
+                    <div className="aspect-square bg-gray-100 overflow-hidden">
+                      {fullImageUrl ? (
+                        <img 
+                          src={fullImageUrl} 
+                          alt={relProduct.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-12 h-12 text-gray-300" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <h3 className="font-medium text-gray-900 text-sm line-clamp-2 group-hover:text-green-600 transition-colors">{relProduct.name}</h3>
+                      <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(relProduct.base_price)}</p>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         )}

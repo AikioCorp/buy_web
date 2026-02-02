@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { 
-  Menu, Bell, Search, ChevronDown, ShoppingCart, 
+  Menu, Search, ChevronDown, ShoppingCart, 
   User, LogOut, Settings, HelpCircle, ExternalLink, Package
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 import { useCartStore } from '../../../store/cartStore'
+import NotificationBell from '../../NotificationBell'
 
 interface ClientDashboardHeaderProps {
   toggleSidebar: () => void
@@ -16,10 +17,8 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
   const { logout, user } = useAuthStore()
   const cartItems = useCartStore((state) => state.items)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isNotifOpen, setIsNotifOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const timeoutRef = useRef<number | null>(null)
-  const notifTimeoutRef = useRef<number | null>(null)
   
   const handleMouseEnter = () => {
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
@@ -28,15 +27,6 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
 
   const handleMouseLeave = () => {
     timeoutRef.current = window.setTimeout(() => setIsDropdownOpen(false), 200)
-  }
-
-  const handleNotifEnter = () => {
-    if (notifTimeoutRef.current) window.clearTimeout(notifTimeoutRef.current)
-    setIsNotifOpen(true)
-  }
-
-  const handleNotifLeave = () => {
-    notifTimeoutRef.current = window.setTimeout(() => setIsNotifOpen(false), 200)
   }
   
   const handleSignOut = async () => {
@@ -58,11 +48,6 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
   const userInitials = user?.first_name && user?.last_name
     ? `${user.first_name[0]}${user.last_name[0]}`
     : displayName.substring(0, 2).toUpperCase()
-
-  // Notifications fictives
-  const notifications = [
-    { id: 1, title: 'Bienvenue sur BuyMore!', message: 'Découvrez nos meilleures offres', time: 'À l\'instant', unread: true },
-  ]
 
   const cartItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -124,50 +109,7 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
         </button>
 
         {/* Notifications */}
-        <div 
-          className="relative"
-          onMouseEnter={handleNotifEnter}
-          onMouseLeave={handleNotifLeave}
-        >
-          <button className="p-2.5 rounded-xl text-gray-600 hover:bg-gray-100 relative transition-colors">
-            <Bell size={20} />
-            {notifications.some(n => n.unread) && (
-              <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-            )}
-          </button>
-
-          {isNotifOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-30">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Notifications</h3>
-                <span className="text-xs text-green-600 font-medium cursor-pointer hover:underline">
-                  Tout marquer comme lu
-                </span>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-gray-500">
-                    <Bell size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Aucune notification</p>
-                  </div>
-                ) : (
-                  notifications.map(notif => (
-                    <div 
-                      key={notif.id} 
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${
-                        notif.unread ? 'border-green-500 bg-green-50/50' : 'border-transparent'
-                      }`}
-                    >
-                      <p className="font-medium text-sm text-gray-900">{notif.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{notif.message}</p>
-                      <p className="text-xs text-gray-400 mt-1">{notif.time}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <NotificationBell />
 
         {/* User Menu */}
         <div 

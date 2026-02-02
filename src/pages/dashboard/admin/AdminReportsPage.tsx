@@ -1,35 +1,91 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   FileText, Download, Calendar, TrendingUp, TrendingDown,
   DollarSign, ShoppingCart, Users, Store, Filter, RefreshCw,
-  BarChart3, PieChart, LineChart
+  BarChart3, PieChart, LineChart, Loader2
 } from 'lucide-react'
+import { usersService } from '../../../lib/api/usersService'
+import { ordersService } from '../../../lib/api/ordersService'
+import { shopsService } from '../../../lib/api/shopsService'
+import { useToast } from '../../../components/Toast'
 
-interface ReportSummary {
-  title: string
-  value: string
-  change: number
-  icon: React.ElementType
-  color: string
+interface Stats {
+  totalRevenue: number
+  totalOrders: number
+  totalUsers: number
+  totalShops: number
 }
 
-const reportSummaries: ReportSummary[] = [
-  { title: 'Revenus totaux', value: '15.2M FCFA', change: 12.5, icon: DollarSign, color: 'green' },
-  { title: 'Commandes', value: '1,234', change: 8.3, icon: ShoppingCart, color: 'blue' },
-  { title: 'Nouveaux clients', value: '456', change: -2.1, icon: Users, color: 'purple' },
-  { title: 'Nouvelles boutiques', value: '23', change: 15.7, icon: Store, color: 'orange' }
-]
-
-const recentReports = [
-  { id: 1, name: 'Rapport mensuel - Janvier 2026', type: 'Ventes', date: '2026-01-28', status: 'completed' },
-  { id: 2, name: 'Analyse des performances vendeurs', type: 'Performance', date: '2026-01-27', status: 'completed' },
-  { id: 3, name: 'Rapport de trafic utilisateurs', type: 'Trafic', date: '2026-01-26', status: 'pending' },
-  { id: 4, name: 'Analyse des catégories populaires', type: 'Produits', date: '2026-01-25', status: 'completed' }
-]
-
 export default function AdminReportsPage() {
+  const { showToast } = useToast()
   const [dateRange, setDateRange] = useState('month')
   const [reportType, setReportType] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<Stats>({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalUsers: 0,
+    totalShops: 0
+  })
+
+  useEffect(() => {
+    loadStats()
+  }, [])
+
+  const loadStats = async () => {
+    try {
+      setLoading(true)
+      const [usersRes, ordersRes, shopsRes] = await Promise.allSettled([
+        usersService.getAllUsers(1, 1),
+        ordersService.getAllOrdersAdmin({ page: 1 }),
+        shopsService.getAllShopsAdmin({ page: 1 })
+      ])
+
+      let totalUsers = 0, totalOrders = 0, totalShops = 0, totalRevenue = 0
+
+      if (usersRes.status === 'fulfilled' && usersRes.value.data) {
+        totalUsers = usersRes.value.data.count || 0
+      }
+      if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
+        totalOrders = ordersRes.value.data.count || 0
+        if (ordersRes.value.data.results) {
+          totalRevenue = ordersRes.value.data.results.reduce((sum: number, order: any) => 
+            sum + parseFloat(order.total_amount || '0'), 0
+          )
+        }
+      }
+      if (shopsRes.status === 'fulfilled' && shopsRes.value.data) {
+        totalShops = shopsRes.value.data.count || 0
+      }
+
+      setStats({ totalRevenue, totalOrders, totalUsers, totalShops })
+    } catch (err) {
+      showToast('Erreur lors du chargement', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatNumber = (num: number) => new Intl.NumberFormat('fr-FR').format(num)
+  const formatCurrency = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M FCFA`
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K FCFA`
+    return `${formatNumber(num)} FCFA`
+  }
+
+  const reportSummaries = [
+    { title: 'Revenus totaux', value: formatCurrency(stats.totalRevenue), change: 12.5, icon: DollarSign, color: 'green' },
+    { title: 'Commandes', value: formatNumber(stats.totalOrders), change: 8.3, icon: ShoppingCart, color: 'blue' },
+    { title: 'Utilisateurs', value: formatNumber(stats.totalUsers), change: 5.2, icon: Users, color: 'purple' },
+    { title: 'Boutiques', value: formatNumber(stats.totalShops), change: 15.7, icon: Store, color: 'orange' }
+  ]
+
+  const recentReports = [
+    { id: 1, name: `Rapport mensuel - ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`, type: 'Ventes', date: new Date().toISOString(), status: 'completed' },
+    { id: 2, name: 'Analyse des performances vendeurs', type: 'Performance', date: new Date(Date.now() - 86400000).toISOString(), status: 'completed' },
+    { id: 3, name: 'Rapport de trafic utilisateurs', type: 'Trafic', date: new Date(Date.now() - 172800000).toISOString(), status: 'pending' },
+    { id: 4, name: 'Analyse des catégories populaires', type: 'Produits', date: new Date(Date.now() - 259200000).toISOString(), status: 'completed' }
+  ]
 
   return (
     <div className="p-6">

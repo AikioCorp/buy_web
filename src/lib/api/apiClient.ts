@@ -109,6 +109,17 @@ class ApiClient {
           }
         }
         console.error('API Error:', response.status, errorMessage, data);
+        
+        // Auto-logout on 401 Unauthorized (token expired or invalid)
+        if (response.status === 401) {
+          this.setToken(null);
+          localStorage.removeItem('auth-storage'); // Clear zustand persisted auth
+          // Redirect to login if not already there
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login?session_expired=true';
+          }
+        }
+        
         return {
           error: errorMessage,
           status: response.status,

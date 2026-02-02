@@ -1,7 +1,7 @@
 import { apiClient } from './apiClient'
 
 export interface UserData {
-  id: number
+  id: string  // UUID from Supabase
   username: string
   email: string
   first_name?: string
@@ -14,6 +14,7 @@ export interface UserData {
   date_joined: string
   last_login?: string
   role?: 'client' | 'vendor' | 'admin' | 'super_admin'
+  permissions?: string[]
 }
 
 export interface UsersListResponse {
@@ -63,7 +64,7 @@ class UsersService {
     }
   }
 
-  async getUserById(userId: number) {
+  async getUserById(userId: string) {
     try {
       const response = await apiClient.get<UserData>(`/api/admin/users/${userId}/`)
       return {
@@ -75,7 +76,7 @@ class UsersService {
     }
   }
 
-  async updateUser(userId: number, data: Partial<UserData>) {
+  async updateUser(userId: string, data: Partial<UserData>) {
     try {
       const response = await apiClient.patch<UserData>(`/api/admin/users/${userId}/`, data)
       return {
@@ -87,7 +88,7 @@ class UsersService {
     }
   }
 
-  async deleteUser(userId: number) {
+  async deleteUser(userId: string) {
     try {
       const response = await apiClient.delete(`/api/admin/users/${userId}/`)
       return {
@@ -115,7 +116,7 @@ class UsersService {
   /**
    * Activer/Désactiver un utilisateur (toggle)
    */
-  async toggleActive(userId: number) {
+  async toggleActive(userId: string) {
     const response = await apiClient.post<{ is_active: boolean }>(`/api/admin/users/${userId}/toggle_active/`)
     if (response.error) {
       throw new Error(response.error)
@@ -129,7 +130,7 @@ class UsersService {
   /**
    * Réinitialiser le mot de passe d'un utilisateur
    */
-  async resetPassword(userId: number, newPassword: string) {
+  async resetPassword(userId: string, newPassword: string) {
     const response = await apiClient.post<{ detail: string }>(`/api/admin/users/${userId}/reset_password/`, {
       new_password: newPassword
     })

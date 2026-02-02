@@ -3,19 +3,30 @@ import { MapPin, Plus, Edit2, Trash2, Check } from 'lucide-react'
 import { useAddresses } from '../../../hooks/useAddresses'
 import type { CreateAddressData } from '../../../lib/api/addressesService'
 
+// Données des communes et quartiers de Bamako
+const BAMAKO_ZONES: Record<string, string[]> = {
+  'Commune I': ['Korofina Nord', 'Korofina Sud', 'Banconi', 'Boulkassoumbougou', 'Djelibougou', 'Sotuba', 'Fadjiguila', 'Sikoroni', 'Doumanzana'],
+  'Commune II': ['Hippodrome', 'Médina Coura', 'Bozola', 'Niarela', 'Quinzambougou', 'Bagadadji', 'TSF', 'Missira', 'Zone Industrielle', 'Bougouba'],
+  'Commune III': ['Bamako Coura', 'Darsalam', 'Ouolofobougou', 'ACI 2000', 'Point G', 'Koulouba', 'N\'Tomikorobougou', 'Samé', 'Badialan I', 'Badialan II', 'Badialan III'],
+  'Commune IV': ['Lafiabougou', 'Hamdallaye', 'Djicoroni Para', 'Sébenikoro', 'Taliko', 'Lassa', 'Sébénikoro', 'Djélibougou'],
+  'Commune V': ['Badalabougou', 'Quartier du Fleuve', 'Torokorobougou', 'Daoudabougou', 'Sabalibougou', 'Kalaban Coura', 'Baco Djicoroni ACI', 'Baco Djicoroni Golf', 'Garantiguibougou'],
+  'Commune VI': ['Sogoniko', 'Faladié', 'Magnambougou', 'Niamakoro', 'Banankabougou', 'Missabougou', 'Sokorodji', 'Yirimadio', 'Dianéguéla', 'Senou']
+}
+
 const AddressesPage: React.FC = () => {
   const { addresses, isLoading, createAddress, updateAddress, deleteAddress, setDefaultAddress } = useAddresses()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState<CreateAddressData>({
-    label: '',
+    label: 'Domicile',
     full_name: '',
     phone: '',
-    address_line1: '',
-    address_line2: '',
-    city: '',
-    state: '',
-    postal_code: '',
+    email: '',
+    commune: '',
+    quartier: '',
+    address_details: '',
+    street: '',
+    city: 'Bamako',
     country: 'Mali',
     is_default: false,
   })
@@ -36,14 +47,15 @@ const AddressesPage: React.FC = () => {
 
   const handleEdit = (address: any) => {
     setFormData({
-      label: address.label,
+      label: address.label || 'Domicile',
       full_name: address.full_name,
       phone: address.phone,
-      address_line1: address.address_line1,
-      address_line2: address.address_line2 || '',
-      city: address.city,
-      state: address.state || '',
-      postal_code: address.postal_code || '',
+      email: address.email || '',
+      commune: address.commune,
+      quartier: address.quartier,
+      address_details: address.address_details || '',
+      street: address.street || '',
+      city: address.city || 'Bamako',
       country: address.country,
       is_default: address.is_default,
     })
@@ -63,14 +75,15 @@ const AddressesPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      label: '',
+      label: 'Domicile',
       full_name: '',
       phone: '',
-      address_line1: '',
-      address_line2: '',
-      city: '',
-      state: '',
-      postal_code: '',
+      email: '',
+      commune: '',
+      quartier: '',
+      address_details: '',
+      street: '',
+      city: 'Bamako',
       country: 'Mali',
       is_default: false,
     })
@@ -160,40 +173,69 @@ const AddressesPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ville *
+                  Email
                 </label>
                 <input
-                  type="text"
-                  required
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Adresse ligne 1 *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.address_line1}
-                onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Commune *
+                </label>
+                <select
+                  required
+                  value={formData.commune}
+                  onChange={(e) => {
+                    setFormData({ ...formData, commune: e.target.value, quartier: '' })
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">Sélectionnez une commune</option>
+                  {Object.keys(BAMAKO_ZONES).map((commune) => (
+                    <option key={commune} value={commune}>
+                      {commune}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quartier *
+                </label>
+                <select
+                  required
+                  value={formData.quartier}
+                  onChange={(e) => setFormData({ ...formData, quartier: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  disabled={!formData.commune}
+                >
+                  <option value="">Sélectionnez un quartier</option>
+                  {formData.commune && BAMAKO_ZONES[formData.commune]?.map((quartier) => (
+                    <option key={quartier} value={quartier}>
+                      {quartier}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Adresse ligne 2
+                Détails de l'adresse
               </label>
-              <input
-                type="text"
-                value={formData.address_line2}
-                onChange={(e) => setFormData({ ...formData, address_line2: e.target.value })}
+              <textarea
+                value={formData.address_details}
+                onChange={(e) => setFormData({ ...formData, address_details: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                rows={2}
+                placeholder="Numéro de porte, bâtiment, étage, etc."
               />
             </div>
 
@@ -262,9 +304,11 @@ const AddressesPage: React.FC = () => {
               <p className="text-gray-700 font-medium">{address.full_name}</p>
               <p className="text-gray-600 text-sm">{address.phone}</p>
               <p className="text-gray-600 text-sm mt-2">
-                {address.address_line1}
-                {address.address_line2 && <>, {address.address_line2}</>}
+                {address.commune}, {address.quartier}
               </p>
+              {address.address_details && (
+                <p className="text-gray-600 text-sm">{address.address_details}</p>
+              )}
               <p className="text-gray-600 text-sm">{address.city}, {address.country}</p>
 
               <div className="flex gap-2 mt-4">

@@ -1,10 +1,12 @@
 import React from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { 
-  LayoutDashboard, Users, Flag, BarChart, Settings, AlertCircle,
-  Shield, LogOut, ChevronRight, ShieldCheck, ExternalLink, Globe
+  LayoutDashboard, Users, Flag, BarChart, AlertCircle,
+  LogOut, ChevronRight, ShieldCheck, ExternalLink, Globe,
+  Store, Package, ShoppingCart, MessageSquare, Star, User, FolderTree, Bell
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
+import { usePermissions } from '../../../hooks/usePermissions'
 
 type SidebarLinkProps = {
   to: string
@@ -47,6 +49,7 @@ type AdminDashboardSidebarProps = {
 
 const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen }) => {
   const { user, logout } = useAuthStore()
+  const { canViewUsers, canViewShops, canViewProducts, canViewOrders } = usePermissions()
 
   const handleLogout = async () => {
     await logout()
@@ -137,20 +140,44 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen })
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/admin/users" icon={<Users size={20} />} label="Utilisateurs" />
+          {canViewUsers() && (
+            <SidebarLink to="/admin/users" icon={<Users size={20} />} label="Utilisateurs" />
+          )}
+          {canViewShops() && (
+            <SidebarLink to="/admin/shops" icon={<Store size={20} />} label="Boutiques" />
+          )}
+          {canViewProducts() && (
+            <SidebarLink to="/admin/products" icon={<Package size={20} />} label="Produits" />
+          )}
+          {canViewProducts() && (
+            <SidebarLink to="/admin/categories" icon={<FolderTree size={20} />} label="Catégories" />
+          )}
+          {canViewOrders() && (
+            <SidebarLink to="/admin/orders" icon={<ShoppingCart size={20} />} label="Commandes" />
+          )}
           <SidebarLink to="/admin/reports" icon={<Flag size={20} />} label="Rapports" />
           <SidebarLink to="/admin/moderation" icon={<AlertCircle size={20} />} label="Modération" />
         </div>
 
         {isOpen && (
           <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Système
+            Modération
+          </p>
+        )}
+        <div className="space-y-1">
+          <SidebarLink to="/admin/reviews" icon={<Star size={20} />} label="Avis" />
+          <SidebarLink to="/admin/messages" icon={<MessageSquare size={20} />} label="Messages" />
+          <SidebarLink to="/admin/notifications" icon={<Bell size={20} />} label="Notifications" />
+        </div>
+
+        {isOpen && (
+          <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Mon compte
           </p>
         )}
         <div className="space-y-1">
           <SidebarLink to="/admin/analytics" icon={<BarChart size={20} />} label="Statistiques" />
-          <SidebarLink to="/admin/security" icon={<Shield size={20} />} label="Sécurité" />
-          <SidebarLink to="/admin/settings" icon={<Settings size={20} />} label="Paramètres" />
+          <SidebarLink to="/admin/profile" icon={<User size={20} />} label="Mon profil" />
         </div>
       </nav>
 

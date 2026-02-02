@@ -17,13 +17,35 @@ export interface Product {
   is_low_stock?: boolean;
   category: Category;
   store: Store;
+  shop?: Store;
   media: ProductMedia[];
-  options?: any[];
+  images?: ProductMedia[];
+  options?: ProductOption[];
+  variants?: ProductVariant[];
   related_products?: Product[];
   average_rating?: number;
   total_reviews?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ProductOption {
+  id: number;
+  product_id: number;
+  name: string;
+  values: string[];
+  sort_order?: number;
+}
+
+export interface ProductVariant {
+  id: number;
+  product_id: number;
+  sku?: string;
+  option_values: Record<string, string>;
+  price_modifier: number;
+  stock: number;
+  image_url?: string;
+  is_active: boolean;
 }
 
 export interface Category {
@@ -59,14 +81,21 @@ export interface ProductsResponse {
 }
 
 export interface CreateProductData {
-  category: number;
   name: string;
   slug: string;
   description: string;
   base_price: string;
+  category?: number;
+  category_id?: number;
+  store_id?: number;
   stock?: number;
   low_stock_threshold?: number;
   is_active?: boolean;
+  // Product features
+  delivery_time?: string;
+  warranty_duration?: string;
+  return_policy?: string;
+  is_authentic?: boolean;
 }
 
 export const productsService = {
@@ -191,7 +220,7 @@ export const productsService = {
   /**
    * Créer un produit (Admin)
    */
-  async createProductAdmin(data: CreateProductData & { store?: number }) {
+  async createProductAdmin(data: CreateProductData) {
     const response = await apiClient.post<Product>('/api/products', data);
     if (response.error) {
       throw new Error(response.error);

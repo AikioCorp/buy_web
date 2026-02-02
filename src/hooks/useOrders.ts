@@ -36,7 +36,11 @@ export function useOrders() {
       if (response.error) {
         setError(response.error);
       } else if (response.data) {
-        setOrders(response.data);
+        // Handle both array and paginated response formats
+        const ordersData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any).results || [];
+        setOrders(ordersData);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des commandes');

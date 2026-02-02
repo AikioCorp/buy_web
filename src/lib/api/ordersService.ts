@@ -142,6 +142,9 @@ export const ordersService = {
     const orderData: any = {
       items: data.items,
       shipping_address_id: shippingAddressId,
+      payment_method: data.payment_method || 'cash_on_delivery',
+      delivery_fee: data.delivery_fee || 1000,
+      notes: data.notes,
     };
 
     return apiClient.post<Order>('/api/orders', orderData);
@@ -237,7 +240,19 @@ export const ordersService = {
    */
   async cancelOrder(id: number) {
     try {
-      const response = await apiClient.patch<Order>(`/api/orders/${id}`, { status: 'cancelled' });
+      const response = await apiClient.post<Order>(`/api/orders/${id}/cancel`, {});
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de l\'annulation de la commande');
+    }
+  },
+
+  /**
+   * Annuler une commande (Client - pour commandes en attente)
+   */
+  async cancelMyOrder(id: number) {
+    try {
+      const response = await apiClient.post<Order>(`/api/orders/${id}/cancel`, {});
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de l\'annulation de la commande');

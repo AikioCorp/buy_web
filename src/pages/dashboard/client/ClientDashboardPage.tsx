@@ -157,7 +157,7 @@ const ClientDashboardPage: React.FC = () => {
         />
         <StatCard
           title="Favoris"
-          value={favoritesLoading ? '...' : favorites.length.toString()}
+          value={favoritesLoading ? '...' : (favorites?.length || 0).toString()}
           icon={<Heart size={24} className="text-white" />}
           color="bg-purple-500"
           trend="Produits sauvegardés"
@@ -185,7 +185,7 @@ const ClientDashboardPage: React.FC = () => {
           }`}
         >
           <Heart size={18} />
-          Liste de souhaits ({favoritesLoading ? '...' : favorites.length})
+          Liste de souhaits ({favoritesLoading ? '...' : favorites?.length || 0})
         </button>
       </div>
 
@@ -215,7 +215,7 @@ const ClientDashboardPage: React.FC = () => {
                     <OrderCard
                       key={order.id}
                       orderId={order.id.toString()}
-                      shopName={order.shop?.name || 'Boutique'}
+                      shopName={order.items?.[0]?.product?.store?.name || 'Boutique'}
                       total={`${parseFloat(order.total_amount).toLocaleString()} FCFA`}
                       date={new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                       status={order.status as any}

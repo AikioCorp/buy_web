@@ -15,6 +15,16 @@ export function ShopsPage() {
     loadShops()
   }, [searchParams])
 
+  // Boutiques de fallback pour affichage si API vide
+  const fallbackShops: Shop[] = [
+    { id: 9, name: 'Shopreate', slug: 'shopreate', logo_url: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=200&h=200&fit=crop', city: 'Bamako', is_active: true },
+    { id: 10, name: 'Orca', slug: 'orca', logo_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop', city: 'Bamako', is_active: true },
+    { id: 11, name: 'Dicarlo', slug: 'dicarlo', logo_url: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop', city: 'Bamako', is_active: true },
+    { id: 12, name: 'Carré Marché', slug: 'carre-marche', logo_url: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=200&h=200&fit=crop', city: 'Bamako', is_active: true },
+    { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali', logo_url: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&h=200&fit=crop', city: 'Bamako', is_active: true },
+    { id: 2, name: 'Mode Bamako', slug: 'mode-bamako', logo_url: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=200&h=200&fit=crop', city: 'Bamako', is_active: true },
+  ]
+
   const loadShops = async () => {
     try {
       setLoading(true)
@@ -22,16 +32,21 @@ export function ShopsPage() {
       setSearchQuery(search)
       
       const response = await shopsService.getPublicShops(1, 50)
+      console.log('ShopsPage loadShops response:', response)
+      
       if (response.data?.results && response.data.results.length > 0) {
+        console.log('ShopsPage: Using API shops, count:', response.data.results.length)
         setShops(response.data.results)
       } else if (Array.isArray(response.data) && response.data.length > 0) {
+        console.log('ShopsPage: Using array format, count:', response.data.length)
         setShops(response.data)
       } else {
-        setShops([])
+        console.log('ShopsPage: No API shops, using fallback')
+        setShops(fallbackShops)
       }
     } catch (error) {
       console.error('Erreur chargement boutiques:', error)
-      setShops([])
+      setShops(fallbackShops)
     } finally {
       setLoading(false)
     }

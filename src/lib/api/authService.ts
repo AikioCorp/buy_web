@@ -52,6 +52,7 @@ export interface User {
   is_superuser?: boolean;
   is_staff?: boolean;
   role?: UserRole;
+  permissions?: string[];
 }
 
 export const authService = {
@@ -124,16 +125,21 @@ export const authService = {
       const d = response.data;
       console.log('API /auth/me response:', d); // DEBUG: Voir la structure exacte
 
-      // Détection de rôle plus robuste
+      // Détection de rôle - IMPORTANT: Respecter la hiérarchie des rôles
       let role: UserRole = 'client';
 
       const rawRole = (d.role || '').toString().toLowerCase();
 
-      if (d.is_superuser || d.isAdmin || d.is_admin || rawRole === 'super_admin' || rawRole === 'admin') {
-        role = 'super_admin'; // On considère admin comme super_admin pour simplifier l'accès
-      } else if (d.is_staff || rawRole === 'staff' || rawRole === 'manager') {
+      // PRIORITÉ 1: Super Admin (is_superuser = true uniquement)
+      if (d.is_superuser === true || rawRole === 'super_admin' || rawRole === 'superadmin') {
+        role = 'super_admin';
+      }
+      // PRIORITÉ 2: Admin (is_staff = true OU role = 'admin')
+      else if (d.is_staff === true || rawRole === 'admin' || rawRole === 'staff' || rawRole === 'manager') {
         role = 'admin';
-      } else if (d.is_seller || d.isSeller || rawRole === 'vendor' || rawRole === 'seller') {
+      }
+      // PRIORITÉ 3: Vendeur
+      else if (d.is_seller || d.isSeller || rawRole === 'vendor' || rawRole === 'seller') {
         role = 'vendor';
       }
 
@@ -146,9 +152,10 @@ export const authService = {
           last_name: d.last_name,
           phone: d.phone,
           is_seller: d.is_seller || d.isSeller || role === 'vendor',
-          is_superuser: d.is_superuser || d.isAdmin || d.is_admin || role === 'super_admin',
-          is_staff: d.is_staff || role === 'admin',
+          is_superuser: d.is_superuser === true,
+          is_staff: d.is_staff === true || role === 'admin',
           role: role,
+          permissions: d.permissions || [],
         } as User,
         status: response.status,
       };
@@ -169,5 +176,22 @@ export const authService = {
    */
   getToken(): string | null {
     return apiClient.getToken();
+  },
+
+  /**
+   * Mettre à jour le profil de l'utilisateur connecté
+   */
+  async updateProfile(data: Partial<User>) {
+    return await apiClient.patch<User>('/api/auth/profile', data);
+  },
+
+  /**
+   * Changer le mot de passe
+   */
+  async changePassword(currentPassword: string, newPassword: string) {
+    return await apiClient.post('/api/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    });
   },
 };

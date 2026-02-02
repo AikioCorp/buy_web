@@ -70,10 +70,11 @@ import {
   AdminUsersPage,
   AdminReportsPage,
   AdminModerationPage,
-  AdminAnalyticsPage,
-  AdminSecurityPage,
-  AdminSettingsPage
+  AdminAnalyticsPage
 } from './pages/dashboard/admin'
+import AdminShopsPage from './pages/dashboard/admin/AdminShopsPage'
+import AdminProductsPage from './pages/dashboard/admin/AdminProductsPage'
+import AdminOrdersPage from './pages/dashboard/admin/AdminOrdersPage'
 import SuperAdminUsersPage from './pages/dashboard/admin/SuperAdminUsersPage'
 import SuperAdminShopsPage from './pages/dashboard/admin/SuperAdminShopsPage'
 import SuperAdminCategoriesPage from './pages/dashboard/admin/SuperAdminCategoriesPage'
@@ -82,8 +83,12 @@ import SuperAdminOrdersPage from './pages/dashboard/admin/SuperAdminOrdersPage'
 import SuperAdminRestaurantsPage from './pages/dashboard/admin/SuperAdminRestaurantsPage'
 import SuperAdminPermissionsPage from './pages/dashboard/admin/SuperAdminPermissionsPage'
 import SuperAdminAnalyticsPage from './pages/dashboard/admin/SuperAdminAnalyticsPage'
-import SuperAdminPerformancePage from './pages/dashboard/admin/SuperAdminPerformancePage'
-import SuperAdminSettingsPage from './pages/dashboard/admin/SuperAdminSettingsPage'
+import AdminProfilePage from './pages/dashboard/admin/AdminProfilePage'
+import AdminReviewsPage from './pages/dashboard/admin/AdminReviewsPage'
+import AdminMessagesPage from './pages/dashboard/admin/AdminMessagesPage'
+import AdminNotificationsPage from './pages/dashboard/admin/AdminNotificationsPage'
+import SuperAdminShopRequestsPage from './pages/dashboard/admin/SuperAdminShopRequestsPage'
+import AdminCategoriesPage from './pages/dashboard/admin/AdminCategoriesPage'
 import { useAuthStore } from './stores/authStore'
 
 function App() {
@@ -166,11 +171,17 @@ function App() {
         }>
           <Route index element={<AdminDashboardPage />} />
           <Route path="users" element={<AdminUsersPage />} />
+          <Route path="shops" element={<AdminShopsPage />} />
+          <Route path="products" element={<AdminProductsPage />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="moderation" element={<AdminModerationPage />} />
+          <Route path="reviews" element={<AdminReviewsPage />} />
+          <Route path="messages" element={<AdminMessagesPage />} />
+          <Route path="notifications" element={<AdminNotificationsPage />} />
+          <Route path="categories" element={<AdminCategoriesPage />} />
           <Route path="analytics" element={<AdminAnalyticsPage />} />
-          <Route path="security" element={<AdminSecurityPage />} />
-          <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="profile" element={<AdminProfilePage />} />
         </Route>
 
         {/* Routes du dashboard super admin */}
@@ -186,10 +197,15 @@ function App() {
           <Route path="categories" element={<SuperAdminCategoriesPage />} />
           <Route path="products" element={<SuperAdminProductsPage />} />
           <Route path="orders" element={<SuperAdminOrdersPage />} />
+          <Route path="shop-requests" element={<SuperAdminShopRequestsPage />} />
+          <Route path="moderation" element={<AdminModerationPage />} />
+          <Route path="reviews" element={<AdminReviewsPage />} />
+          <Route path="messages" element={<AdminMessagesPage />} />
+          <Route path="notifications" element={<AdminNotificationsPage />} />
+          <Route path="categories" element={<AdminCategoriesPage />} />
           <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
-          <Route path="performance" element={<SuperAdminPerformancePage />} />
-          <Route path="security" element={<SuperAdminPermissionsPage />} />
-          <Route path="settings" element={<SuperAdminSettingsPage />} />
+          <Route path="permissions" element={<SuperAdminPermissionsPage />} />
+          <Route path="profile" element={<AdminProfilePage />} />
         </Route>
       </Routes>
     </Router>

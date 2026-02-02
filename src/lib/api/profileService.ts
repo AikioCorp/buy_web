@@ -5,12 +5,15 @@
 import { apiClient } from './apiClient';
 
 export interface CustomerProfile {
-  id: number;
-  user: number;
+  id: string;  // UUID from Supabase
+  username: string;
+  email: string;
   first_name: string;
   last_name: string;
   phone: string;
-  addresses: Address[];
+  street?: string;
+  city?: string;
+  avatar_url?: string;
 }
 
 export interface UpdateProfileData {
@@ -21,24 +24,32 @@ export interface UpdateProfileData {
 
 export interface Address {
   id: number;
+  label: string;
   full_name: string;
-  line1: string;
-  line2: string;
+  phone: string;
+  email: string;
+  commune: string;
+  quartier: string;
+  address_details: string;
+  street: string;
   city: string;
-  state: string;
-  postal_code: string;
   country: string;
   is_default: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateAddressData {
+  label?: string;
   full_name: string;
-  line1: string;
-  line2?: string;
-  city: string;
-  state?: string;
-  postal_code: string;
-  country: string;
+  phone: string;
+  email?: string;
+  commune: string;
+  quartier: string;
+  address_details?: string;
+  street?: string;
+  city?: string;
+  country?: string;
   is_default?: boolean;
 }
 
@@ -47,18 +58,14 @@ export const profileService = {
    * Récupérer le profil client
    */
   async getProfile() {
-    const response = await apiClient.get<CustomerProfile[]>('/api/customers/profiles');
-    return {
-      ...response,
-      data: response.data?.[0], // Retourner le premier profil
-    };
+    return apiClient.get<CustomerProfile>('/api/customers/profile');
   },
 
   /**
    * Mettre à jour le profil client
    */
-  async updateProfile(id: number, data: UpdateProfileData) {
-    return apiClient.patch<CustomerProfile>(`/api/customers/profiles/${id}`, data);
+  async updateProfile(id: string, data: UpdateProfileData) {
+    return apiClient.patch<CustomerProfile>('/api/customers/profile', data);
   },
 
   /**

@@ -18,7 +18,22 @@ export function LoginPage() {
     const success = await login(email, password)
     
     if (success) {
-      const from = (location.state as any)?.from?.pathname || '/dashboard'
+      // Get the role from the store after login
+      const { role, user } = useAuthStore.getState()
+      
+      // Determine redirect based on role
+      let defaultRedirect = '/'
+      if (user?.is_superuser || role === 'super_admin') {
+        defaultRedirect = '/superadmin'
+      } else if (user?.is_staff || role === 'admin') {
+        defaultRedirect = '/admin'
+      } else if (user?.is_seller || role === 'vendor') {
+        defaultRedirect = '/dashboard'
+      } else {
+        defaultRedirect = '/client'
+      }
+      
+      const from = (location.state as any)?.from?.pathname || defaultRedirect
       navigate(from, { replace: true })
     }
   }

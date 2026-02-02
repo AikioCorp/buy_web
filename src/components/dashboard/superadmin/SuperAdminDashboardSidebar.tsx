@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { 
-  LayoutDashboard, Users, TrendingUp, Settings, 
-  Shield, Gauge, Briefcase, FolderTree, Package, ShoppingBag, UtensilsCrossed,
-  LogOut, ChevronRight, Crown, ExternalLink, Globe
+  LayoutDashboard, Users, TrendingUp, 
+  Shield, Briefcase, FolderTree, Package, ShoppingBag, UtensilsCrossed,
+  LogOut, ChevronRight, Crown, ExternalLink, Globe, AlertCircle,
+  MessageSquare, Star, User, Store, Bell
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 
@@ -48,12 +49,6 @@ type SuperAdminDashboardSidebarProps = {
 
 const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({ isOpen }) => {
   const { user, logout } = useAuthStore()
-  const [stats, setStats] = useState({ users: 0, shops: 0, orders: 0 })
-
-  useEffect(() => {
-    // Stats seront chargées depuis l'API
-    setStats({ users: 0, shops: 0, orders: 0 })
-  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -154,14 +149,26 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
 
         {isOpen && (
           <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Modération
+          </p>
+        )}
+        <div className="space-y-1">
+          <SidebarLink to="/superadmin/shop-requests" icon={<Store size={20} />} label="Demandes boutiques" />
+          <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" />
+          <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" />
+          <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" />
+          <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" />
+        </div>
+
+        {isOpen && (
+          <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Système
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Analytiques" />
-          <SidebarLink to="/superadmin/performance" icon={<Gauge size={20} />} label="Performance" />
-          <SidebarLink to="/superadmin/security" icon={<Shield size={20} />} label="Permissions" />
-          <SidebarLink to="/superadmin/settings" icon={<Settings size={20} />} label="Paramètres" />
+          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" />
+          <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" />
+          <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" />
         </div>
       </nav>
 

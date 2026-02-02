@@ -103,6 +103,15 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         existing_images: initialData.existing_images || []
       })
       setImagePreview(initialData.existing_images || [])
+      // Load features from initialData
+      if (initialData.features || (initialData as any).delivery_time) {
+        setFeatures({
+          delivery_time: (initialData as any).delivery_time || initialData.features?.delivery_time || '24-48h',
+          warranty_duration: (initialData as any).warranty_duration || initialData.features?.warranty_duration || '12 mois',
+          return_policy: (initialData as any).return_policy || initialData.features?.return_policy || '7 jours',
+          is_authentic: (initialData as any).is_authentic ?? initialData.features?.is_authentic ?? true
+        })
+      }
     }
   }, [initialData])
 
@@ -185,6 +194,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!formData.category_id) {
       newErrors.category_id = 'La catégorie est requise'
     }
+    if (!formData.store_id) {
+      newErrors.store_id = 'La boutique est requise'
+    }
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -194,7 +206,16 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!validateForm()) return
     
     try {
-      await onSave(formData)
+      // Include features in the form data
+      const dataToSave = {
+        ...formData,
+        features,
+        delivery_time: features.delivery_time,
+        warranty_duration: features.warranty_duration,
+        return_policy: features.return_policy,
+        is_authentic: features.is_authentic
+      }
+      await onSave(dataToSave)
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error)
     }
@@ -435,18 +456,22 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 {/* Boutique */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Boutique
+                    Boutique <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.store_id || ''}
                     onChange={(e) => setFormData({ ...formData, store_id: e.target.value ? parseInt(e.target.value) : null })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white ${errors.store_id ? 'border-red-500' : 'border-gray-300'}`}
                   >
                     <option value="">Sélectionner une boutique</option>
                     {(shops || []).map(shop => (
                       <option key={shop.id} value={shop.id}>{shop.name}</option>
                     ))}
                   </select>
+                  {errors.store_id && <p className="text-red-500 text-sm mt-1">{errors.store_id}</p>}
+                  {(!shops || shops.length === 0) && (
+                    <p className="text-yellow-600 text-sm mt-1">Aucune boutique disponible. Créez d'abord une boutique.</p>
+                  )}
                 </div>
 
                 {/* Description */}

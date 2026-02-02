@@ -10,41 +10,6 @@ interface CategoryItem {
   slug: string
 }
 
-// Produits fictifs
-const mockProducts: any[] = [
-  { id: 101, name: 'iPhone 15 Pro Max', base_price: '850000', slug: 'iphone-15-pro-max', category: { id: 1, name: 'Électronique', slug: 'electronique' }, store: { id: 1, name: 'Tech Store Mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 102, name: 'AirPods Pro 2', base_price: '175000', slug: 'airpods-pro-2', category: { id: 1, name: 'Électronique', slug: 'electronique' }, store: { id: 1, name: 'Tech Store Mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 103, name: 'Robe Africaine Wax', base_price: '35000', slug: 'robe-africaine-wax', category: { id: 2, name: 'Mode', slug: 'mode' }, store: { id: 2, name: 'Mode Bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 104, name: 'Nike Air Max 270', base_price: '95000', slug: 'nike-air-max-270', category: { id: 3, name: 'Sport', slug: 'sport' }, store: { id: 3, name: 'Sport Plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 105, name: 'Apple Watch Series 9', base_price: '350000', slug: 'apple-watch-series-9', category: { id: 1, name: 'Électronique', slug: 'electronique' }, store: { id: 1, name: 'Tech Store Mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 106, name: 'Parfum Dior Sauvage', base_price: '145000', slug: 'parfum-dior-sauvage', category: { id: 4, name: 'Parfumerie', slug: 'parfumerie' }, store: { id: 11, name: 'Dicarlo' }, media: [{ image_url: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 107, name: 'Set Casseroles Inox', base_price: '65000', slug: 'set-casseroles-inox', category: { id: 5, name: 'Cuisine', slug: 'cuisine' }, store: { id: 10, name: 'Orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 108, name: 'Riz Parfumé Thaï 5kg', base_price: '12500', slug: 'riz-parfume-thai', category: { id: 6, name: 'Alimentaire', slug: 'alimentaire' }, store: { id: 9, name: 'Shopreate' }, media: [{ image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 109, name: 'MacBook Air M3', base_price: '1200000', slug: 'macbook-air-m3', category: { id: 1, name: 'Électronique', slug: 'electronique' }, store: { id: 1, name: 'Tech Store Mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 110, name: 'Boubou Bazin Riche', base_price: '75000', slug: 'boubou-bazin-riche', category: { id: 2, name: 'Mode', slug: 'mode' }, store: { id: 2, name: 'Mode Bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 111, name: 'Samsung Galaxy S24', base_price: '950000', slug: 'samsung-galaxy-s24', category: { id: 1, name: 'Électronique', slug: 'electronique' }, store: { id: 1, name: 'Tech Store Mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 112, name: 'TV Samsung 55" 4K', base_price: '450000', slug: 'tv-samsung-55', category: { id: 7, name: 'Électroménager', slug: 'electromenager' }, store: { id: 7, name: 'Électro Bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 113, name: 'Climatiseur 12000 BTU', base_price: '285000', slug: 'climatiseur-12000-btu', category: { id: 7, name: 'Électroménager', slug: 'electromenager' }, store: { id: 7, name: 'Électro Bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 114, name: 'Canapé 3 Places', base_price: '350000', slug: 'canape-3-places', category: { id: 8, name: 'Maison', slug: 'maison' }, store: { id: 5, name: 'Maison & Déco' }, media: [{ image_url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 115, name: 'Miel Pays Dogon 1kg', base_price: '15000', slug: 'miel-pays-dogon', category: { id: 6, name: 'Alimentaire', slug: 'alimentaire' }, store: { id: 6, name: 'Saveurs du Mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 116, name: 'Ballon Adidas Pro', base_price: '35000', slug: 'ballon-adidas-pro', category: { id: 3, name: 'Sport', slug: 'sport' }, store: { id: 3, name: 'Sport Plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1614632537190-23e4146777db?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 117, name: 'Parfum Chanel N°5', base_price: '185000', slug: 'parfum-chanel-n5', category: { id: 4, name: 'Parfumerie', slug: 'parfumerie' }, store: { id: 4, name: 'Beauté Plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 118, name: 'Robot Cuisine', base_price: '125000', slug: 'robot-cuisine', category: { id: 5, name: 'Cuisine', slug: 'cuisine' }, store: { id: 10, name: 'Orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 119, name: 'Chemise Bogolan', base_price: '28000', slug: 'chemise-bogolan', category: { id: 2, name: 'Mode', slug: 'mode' }, store: { id: 8, name: 'Tendance Afrique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop', is_primary: true }] },
-  { id: 120, name: 'JBL Flip 6', base_price: '85000', slug: 'jbl-flip-6', category: { id: 1, name: 'Électronique', slug: 'electronique' }, store: { id: 1, name: 'Tech Store Mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop', is_primary: true }] },
-]
-
-// Catégories fictives
-const mockCategories: CategoryItem[] = [
-  { id: 1, name: 'Électronique', slug: 'electronique' },
-  { id: 2, name: 'Mode', slug: 'mode' },
-  { id: 3, name: 'Sport', slug: 'sport' },
-  { id: 4, name: 'Parfumerie', slug: 'parfumerie' },
-  { id: 5, name: 'Cuisine', slug: 'cuisine' },
-  { id: 6, name: 'Alimentaire', slug: 'alimentaire' },
-  { id: 7, name: 'Électroménager', slug: 'electromenager' },
-  { id: 8, name: 'Maison', slug: 'maison' },
-]
 
 // Helper to get price as number
 const getPrice = (product: Product): number => {
@@ -53,8 +18,10 @@ const getPrice = (product: Product): number => {
 
 // Helper to get image URL
 const getImageUrl = (product: Product): string | undefined => {
-  if (!product.media || product.media.length === 0) return undefined
-  const primaryImage = product.media.find(m => m.is_primary) || product.media[0]
+  // Backend returns 'images' from product_media, but interface uses 'media'
+  const mediaArray = product.media || (product as any).images || []
+  if (!mediaArray || mediaArray.length === 0) return undefined
+  const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
   let url = primaryImage?.image_url || primaryImage?.file
   if (!url) return undefined
   // Convertir http:// en https:// pour éviter le blocage mixed content
@@ -97,24 +64,16 @@ export function ProductsPage() {
         category_slug: category || undefined
       })
       
-      if (response.data?.results && response.data.results.length > 0) {
+      if (response.data?.results) {
         setProducts(response.data.results)
-      } else if (Array.isArray(response.data) && response.data.length > 0) {
+      } else if (Array.isArray(response.data)) {
         setProducts(response.data)
       } else {
-        // Fallback sur les produits fictifs
-        let filtered = mockProducts
-        if (category) {
-          filtered = mockProducts.filter(p => p.category?.slug === category)
-        }
-        if (search) {
-          filtered = filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-        }
-        setProducts(filtered as Product[])
+        setProducts([])
       }
     } catch (error) {
-      // Fallback sur les produits fictifs
-      setProducts(mockProducts as Product[])
+      console.error('Error loading products:', error)
+      setProducts([])
     } finally {
       setLoading(false)
     }
@@ -123,13 +82,14 @@ export function ProductsPage() {
   const loadCategories = async () => {
     try {
       const response = await categoriesService.getCategories()
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+      if (response.data && Array.isArray(response.data)) {
         setCategories(response.data)
       } else {
-        setCategories(mockCategories)
+        setCategories([])
       }
     } catch (error) {
-      setCategories(mockCategories)
+      console.error('Error loading categories:', error)
+      setCategories([])
     }
   }
 
@@ -355,13 +315,13 @@ export function ProductsPage() {
 
             {/* Products Grid */}
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm animate-pulse">
-                    <div className="aspect-square bg-gray-200"></div>
-                    <div className="p-4">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {[...Array(18)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm animate-pulse">
+                    <div className="aspect-[4/3] bg-gray-200"></div>
+                    <div className="p-2.5">
+                      <div className="h-3 bg-gray-200 rounded w-3/4 mb-1.5"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                     </div>
                   </div>
                 ))}
@@ -373,15 +333,15 @@ export function ProductsPage() {
                 <p className="text-gray-500">Essayez de modifier vos filtres</p>
               </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {sortedProducts.map((product) => (
                   <Link
                     key={product.id}
                     to={`/products/${product.slug || product.id}`}
-                    className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+                    className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
                   >
-                    {/* Image */}
-                    <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                    {/* Image - Smaller aspect ratio */}
+                    <div className="relative aspect-[4/3] bg-gray-50 overflow-hidden">
                       {getImageUrl(product) ? (
                         <img
                           src={getImageUrl(product)}
@@ -390,32 +350,40 @@ export function ProductsPage() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ShoppingCart className="w-12 h-12 text-gray-300" />
+                          <Package className="w-8 h-8 text-gray-300" />
                         </div>
                       )}
                       
                       {/* Quick Actions */}
-                      <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2 bg-white rounded-full shadow-lg hover:bg-[#0f4c2b] hover:text-white transition-colors">
-                          <Heart size={18} />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="p-4">
-                      {product.category && (
-                        <span className="text-xs text-gray-500 uppercase tracking-wide">
-                          {product.category.name}
+                      <button 
+                        className="absolute top-1.5 right-1.5 p-1.5 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500"
+                        onClick={(e) => { e.preventDefault(); }}
+                      >
+                        <Heart size={14} />
+                      </button>
+
+                      {/* Stock badge */}
+                      {(product.stock ?? 0) > 0 && (
+                        <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-medium rounded">
+                          En stock
                         </span>
                       )}
-                      <h3 className="font-medium text-gray-900 line-clamp-2 mt-1 group-hover:text-[#0f4c2b] transition-colors">
+                    </div>
+                    
+                    {/* Content - More compact */}
+                    <div className="p-2.5">
+                      {product.store && (
+                        <span className="text-[10px] text-gray-400 truncate block">
+                          {product.store.name}
+                        </span>
+                      )}
+                      <h3 className="font-medium text-gray-900 text-sm line-clamp-2 leading-tight group-hover:text-[#0f4c2b] transition-colors">
                         {product.name}
                       </h3>
                       
                       {/* Price */}
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="font-bold text-lg text-[#0f4c2b]">
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="font-bold text-sm text-[#0f4c2b]">
                           {formatPrice(getPrice(product))}
                         </span>
                       </div>

@@ -100,50 +100,51 @@ const ProductCard = ({
     )
   }
 
-  // Grid view
+  // Grid view - Ultra pretty card
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all group">
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-emerald-200 hover:-translate-y-1 transition-all duration-300 group">
       {/* Image */}
-      <div className="relative aspect-square bg-gray-100">
+      <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100">
         {imageUrl ? (
-          <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          <img src={imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Package size={48} className="text-gray-300" />
           </div>
         )}
         
-        {/* Status badge */}
-        <div className="absolute top-3 left-3">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+        {/* Status badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
             product.is_active !== false
-              ? 'bg-emerald-500 text-white'
-              : 'bg-gray-500 text-white'
+              ? 'bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/30'
+              : 'bg-gray-600/90 text-white'
           }`}>
-            {product.is_active !== false ? 'Actif' : 'Inactif'}
+            {product.is_active !== false ? '● Actif' : '○ Inactif'}
           </span>
+          {product.is_low_stock && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/90 text-white backdrop-blur-sm shadow-lg shadow-amber-500/30">
+              ⚠ Stock bas
+            </span>
+          )}
+          {(product.stock || 0) === 0 && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/90 text-white backdrop-blur-sm shadow-lg shadow-red-500/30">
+              ✕ Rupture
+            </span>
+          )}
         </div>
 
-        {/* Stock warning */}
-        {product.is_low_stock && (
-          <div className="absolute top-3 right-3">
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500 text-white">
-              Stock bas
-            </span>
-          </div>
-        )}
-
         {/* Hover actions */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-4 gap-3">
           <button
             onClick={onEdit}
-            className="p-3 bg-white rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            className="p-3 bg-white rounded-xl text-gray-700 hover:bg-emerald-500 hover:text-white transition-all shadow-lg transform hover:scale-110"
           >
             <Edit size={20} />
           </button>
           <button
             onClick={onDelete}
-            className="p-3 bg-white rounded-xl text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+            className="p-3 bg-white rounded-xl text-gray-700 hover:bg-red-500 hover:text-white transition-all shadow-lg transform hover:scale-110"
           >
             <Trash2 size={20} />
           </button>
@@ -152,19 +153,21 @@ const ProductCard = ({
 
       {/* Info */}
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900 truncate mb-1">{product.name}</h3>
-        <p className="text-sm text-gray-500 mb-3">{product.category?.name || 'Sans catégorie'}</p>
+        <h3 className="font-bold text-gray-900 truncate mb-1 group-hover:text-emerald-600 transition-colors">{product.name}</h3>
+        <p className="text-xs text-gray-400 mb-3">{product.category?.name || 'Sans catégorie'}</p>
         
-        <div className="flex items-center justify-between">
-          <p className="text-lg font-bold text-emerald-600">
-            {parseFloat(product.base_price).toLocaleString()} XOF
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <p className="text-lg font-black text-emerald-600">
+            {parseFloat(product.base_price).toLocaleString()} <span className="text-xs font-normal text-gray-400">XOF</span>
           </p>
-          <p className={`text-sm font-medium ${
-            (product.stock || 0) <= (product.low_stock_threshold || 10) 
-              ? 'text-amber-600' 
-              : 'text-gray-500'
+          <p className={`text-xs font-semibold px-2 py-1 rounded-full ${
+            (product.stock || 0) === 0 
+              ? 'bg-red-100 text-red-600'
+              : (product.stock || 0) <= (product.low_stock_threshold || 10) 
+                ? 'bg-amber-100 text-amber-600' 
+                : 'bg-gray-100 text-gray-600'
           }`}>
-            {product.stock || 0} en stock
+            {product.stock || 0} unités
           </p>
         </div>
       </div>
@@ -399,39 +402,50 @@ const ProductsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats Cards */}
       {products.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-4 border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Package size={20} className="text-blue-600" />
-              </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg shadow-blue-500/25">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-sm text-gray-500">Total produits</p>
+                <p className="text-3xl font-bold">{stats.total}</p>
+                <p className="text-blue-100 text-sm">Total produits</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                <Package size={24} />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <CheckCircle size={20} className="text-emerald-600" />
-              </div>
+          <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/25">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
-                <p className="text-sm text-gray-500">Actifs</p>
+                <p className="text-3xl font-bold">{stats.active}</p>
+                <p className="text-emerald-100 text-sm">Actifs</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                <CheckCircle size={24} />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                <AlertCircle size={20} className="text-amber-600" />
-              </div>
+          <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-white shadow-lg shadow-amber-500/25">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.lowStock}</p>
-                <p className="text-sm text-gray-500">Stock bas</p>
+                <p className="text-3xl font-bold">{stats.lowStock}</p>
+                <p className="text-amber-100 text-sm">Stock bas</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                <AlertCircle size={24} />
+              </div>
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg shadow-purple-500/25">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-3xl font-bold">{products.filter(p => p.is_active === false).length}</p>
+                <p className="text-purple-100 text-sm">Inactifs</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                <XCircle size={24} />
               </div>
             </div>
           </div>

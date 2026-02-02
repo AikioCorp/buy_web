@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { Search, Heart, ShoppingCart, Menu, X, LogOut, ChevronRight, Store, Tag, Package } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import NotificationBell from './NotificationBell'
 import { useCartStore } from '../store/cartStore'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { shopsService } from '../lib/api/shopsService'
@@ -168,32 +169,23 @@ export function Navbar() {
     }
     loadData()
   }, [])
-  
-  // Boutiques fictives pour le mega menu
-  const mockShopsForMenu = [
-    { id: 9, name: 'Shopreate', slug: 'shopreate', logo_url: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=100&h=100&fit=crop' },
-    { id: 10, name: 'Orca', slug: 'orca', logo_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=100&h=100&fit=crop' },
-    { id: 11, name: 'Dicarlo', slug: 'dicarlo', logo_url: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=100&h=100&fit=crop' },
-    { id: 12, name: 'Carré Marché', slug: 'carre-marche', logo_url: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=100&h=100&fit=crop' },
-    { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali', logo_url: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=100&h=100&fit=crop' },
-    { id: 2, name: 'Mode Bamako', slug: 'mode-bamako', logo_url: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=100&h=100&fit=crop' },
-    { id: 3, name: 'Sport Plus', slug: 'sport-plus', logo_url: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=100&h=100&fit=crop' },
-    { id: 4, name: 'Beauté Plus', slug: 'beaute-plus', logo_url: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=100&h=100&fit=crop' },
-  ]
 
-  // Charger les boutiques (avec fallback sur les données fictives)
+  // Charger les boutiques depuis l'API uniquement
   useEffect(() => {
     const loadShops = async () => {
       try {
         const shopsResponse = await shopsService.getPublicShops(1, 8)
-        if (shopsResponse.data?.results && shopsResponse.data.results.length > 0) {
+        console.log('Navbar loadShops response:', shopsResponse)
+        
+        if (shopsResponse.data?.results) {
+          console.log('Navbar: Using API shops, count:', shopsResponse.data.results.length)
           setShops(shopsResponse.data.results.slice(0, 8))
         } else {
-          setShops(mockShopsForMenu)
+          setShops([])
         }
       } catch (error) {
-        // Fallback sur les boutiques fictives
-        setShops(mockShopsForMenu)
+        console.error('Navbar loadShops error:', error)
+        setShops([])
       }
     }
     loadShops()
@@ -236,7 +228,7 @@ export function Navbar() {
           })
         }
       } catch (e) {
-        // Fallback: recherche locale dans les boutiques mockées
+        console.error('Search error:', e)
       }
 
       // Recherche dans les boutiques chargées
@@ -500,7 +492,7 @@ export function Navbar() {
                 </Link>
 
                 {/* Mega Menu des boutiques - Header sticky */}
-                {showShopsMegaMenu && shops.length > 0 && isScrolled && (
+                {showShopsMegaMenu && shops.length > 0 && (!isHomePage || isScrolled) && (
                   <div className="absolute top-full left-0 pt-2 w-[600px] z-[110]">
                     <div className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-100">
                     <div className="p-4 bg-gray-50 border-b border-gray-200">
@@ -555,7 +547,7 @@ export function Navbar() {
                 </Link>
 
                 {/* Mega Menu des catégories - Header sticky */}
-                {showCategoriesMegaMenu && isScrolled && (
+                {showCategoriesMegaMenu && (!isHomePage || isScrolled) && (
                   <div className="absolute top-full left-0 pt-2 w-[500px] z-[110]">
                     <div className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-100">
                       <div className="p-4 bg-gray-50 border-b border-gray-200">
@@ -650,6 +642,9 @@ export function Navbar() {
                   </span>
                 )}
               </Link>
+
+              {/* Notification Bell - only for logged in users */}
+              {user && <NotificationBell variant="dark" />}
               
               <Link to="/cart" className="relative p-2 hover:bg-white/10 rounded-full transition-colors">
                 <ShoppingCart className="w-5 h-5 text-white" />

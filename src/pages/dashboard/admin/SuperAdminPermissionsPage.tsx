@@ -1,41 +1,50 @@
 import React, { useState, useEffect } from 'react'
 import { 
-  Shield, Users, Search, Edit2, Save, X, Check, AlertTriangle,
-  Eye, Package, ShoppingBag, Store, Settings, UserCog, Lock
+  Shield, Users, Search, Save, X, Check, AlertTriangle,
+  Eye, Package, ShoppingBag, Store, Settings, UserCog, Lock,
+  Sparkles, RefreshCw, Loader2, Edit2
 } from 'lucide-react'
 import { usersService, UserData } from '../../../lib/api/usersService'
+import { useToast } from '../../../components/Toast'
 
 interface Permission {
   id: string
   name: string
   description: string
   icon: React.ReactNode
-  category: 'users' | 'shops' | 'products' | 'orders' | 'settings'
+  category: 'users' | 'shops' | 'products' | 'orders' | 'moderation' | 'settings'
 }
 
 const allPermissions: Permission[] = [
   // Users
   { id: 'users_view', name: 'Voir les utilisateurs', description: 'Accès en lecture à la liste des utilisateurs', icon: <Eye size={16} />, category: 'users' },
+  { id: 'users_create', name: 'Créer des utilisateurs', description: 'Créer de nouveaux comptes utilisateurs', icon: <Users size={16} />, category: 'users' },
   { id: 'users_edit', name: 'Modifier les utilisateurs', description: 'Modifier les informations des utilisateurs', icon: <Edit2 size={16} />, category: 'users' },
   { id: 'users_delete', name: 'Supprimer les utilisateurs', description: 'Supprimer des comptes utilisateurs', icon: <AlertTriangle size={16} />, category: 'users' },
-  { id: 'users_create', name: 'Créer des utilisateurs', description: 'Créer de nouveaux comptes utilisateurs', icon: <Users size={16} />, category: 'users' },
   
   // Shops
   { id: 'shops_view', name: 'Voir les boutiques', description: 'Accès en lecture à la liste des boutiques', icon: <Eye size={16} />, category: 'shops' },
+  { id: 'shops_create', name: 'Créer des boutiques', description: 'Créer de nouvelles boutiques', icon: <Store size={16} />, category: 'shops' },
   { id: 'shops_validate', name: 'Valider les boutiques', description: 'Approuver ou rejeter les nouvelles boutiques', icon: <Check size={16} />, category: 'shops' },
   { id: 'shops_edit', name: 'Modifier les boutiques', description: 'Modifier les informations des boutiques', icon: <Edit2 size={16} />, category: 'shops' },
   { id: 'shops_delete', name: 'Supprimer les boutiques', description: 'Supprimer des boutiques', icon: <AlertTriangle size={16} />, category: 'shops' },
   
   // Products
   { id: 'products_view', name: 'Voir les produits', description: 'Accès en lecture à tous les produits', icon: <Eye size={16} />, category: 'products' },
+  { id: 'products_create', name: 'Créer des produits', description: 'Créer de nouveaux produits', icon: <Package size={16} />, category: 'products' },
   { id: 'products_edit', name: 'Modifier les produits', description: 'Modifier les informations des produits', icon: <Edit2 size={16} />, category: 'products' },
   { id: 'products_delete', name: 'Supprimer les produits', description: 'Supprimer des produits', icon: <AlertTriangle size={16} />, category: 'products' },
   { id: 'products_moderate', name: 'Modérer les produits', description: 'Approuver ou masquer des produits', icon: <Shield size={16} />, category: 'products' },
   
   // Orders
   { id: 'orders_view', name: 'Voir les commandes', description: 'Accès en lecture à toutes les commandes', icon: <Eye size={16} />, category: 'orders' },
+  { id: 'orders_create', name: 'Créer des commandes', description: 'Créer de nouvelles commandes', icon: <ShoppingBag size={16} />, category: 'orders' },
   { id: 'orders_manage', name: 'Gérer les commandes', description: 'Modifier le statut des commandes', icon: <ShoppingBag size={16} />, category: 'orders' },
   { id: 'orders_cancel', name: 'Annuler les commandes', description: 'Annuler des commandes', icon: <AlertTriangle size={16} />, category: 'orders' },
+  
+  // Moderation
+  { id: 'moderation_view', name: 'Voir la modération', description: 'Accès à la page de modération', icon: <Eye size={16} />, category: 'moderation' },
+  { id: 'moderation_manage', name: 'Gérer la modération', description: 'Approuver ou rejeter les signalements', icon: <Shield size={16} />, category: 'moderation' },
   
   // Settings
   { id: 'settings_view', name: 'Voir les paramètres', description: 'Accès aux paramètres système', icon: <Eye size={16} />, category: 'settings' },
@@ -47,10 +56,12 @@ const categoryLabels: Record<string, { label: string; icon: React.ReactNode; col
   shops: { label: 'Boutiques', icon: <Store size={18} />, color: 'bg-green-100 text-green-700' },
   products: { label: 'Produits', icon: <Package size={18} />, color: 'bg-purple-100 text-purple-700' },
   orders: { label: 'Commandes', icon: <ShoppingBag size={18} />, color: 'bg-orange-100 text-orange-700' },
+  moderation: { label: 'Modération', icon: <Shield size={18} />, color: 'bg-red-100 text-red-700' },
   settings: { label: 'Paramètres', icon: <Settings size={18} />, color: 'bg-gray-100 text-gray-700' },
 }
 
 const SuperAdminPermissionsPage: React.FC = () => {
+  const { showToast } = useToast()
   const [admins, setAdmins] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +70,7 @@ const SuperAdminPermissionsPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [adminPermissions, setAdminPermissions] = useState<string[]>([])
   const [actionLoading, setActionLoading] = useState(false)
+  const [_expandedCategory, _setExpandedCategory] = useState<string | null>('users') // Reserved for future accordion
 
   useEffect(() => {
     loadAdmins()
@@ -93,10 +105,9 @@ const SuperAdminPermissionsPage: React.FC = () => {
 
   const handleEditPermissions = (admin: UserData) => {
     setSelectedAdmin(admin)
-    // Simuler les permissions existantes (à remplacer par un vrai appel API)
-    setAdminPermissions([
-      'users_view', 'shops_view', 'products_view', 'orders_view'
-    ])
+    // Load actual permissions from admin data or use defaults
+    const existingPermissions = (admin as any).permissions || ['users_view', 'shops_view', 'products_view', 'orders_view']
+    setAdminPermissions(existingPermissions)
     setIsEditModalOpen(true)
   }
 
@@ -130,17 +141,15 @@ const SuperAdminPermissionsPage: React.FC = () => {
     
     try {
       setActionLoading(true)
-      // TODO: Appeler l'API pour sauvegarder les permissions
-      // await permissionsService.updateAdminPermissions(selectedAdmin.id, adminPermissions)
-      
-      // Simuler un délai
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Save permissions via API
+      await usersService.updateUser(selectedAdmin.id, { permissions: adminPermissions } as any)
       
       setIsEditModalOpen(false)
       setSelectedAdmin(null)
-      alert('Permissions mises à jour avec succès!')
+      loadAdmins() // Reload to get updated data
+      showToast('Permissions mises à jour avec succès!', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la sauvegarde des permissions')
+      showToast(err.message || 'Erreur lors de la sauvegarde des permissions', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -160,142 +169,155 @@ const SuperAdminPermissionsPage: React.FC = () => {
   }
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestion des Permissions</h1>
-          <p className="text-gray-600 mt-1">
-            Gérez les droits d'accès des administrateurs
-          </p>
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Header with gradient */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-3xl p-8 text-white">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-24 -translate-x-24"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Gestion des Permissions</h1>
+              <p className="text-white/80 mt-1">Contrôlez les accès de vos administrateurs</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-6 mt-6">
+            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
+              <Users size={18} />
+              <span className="font-medium">{admins.length} Administrateurs</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
+              <Sparkles size={18} />
+              <span className="font-medium">{allPermissions.length} Permissions disponibles</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <Shield className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="font-medium text-blue-900">À propos des permissions</h3>
-            <p className="text-sm text-blue-700 mt-1">
-              Les permissions permettent de contrôler ce que chaque administrateur peut voir et faire sur la plateforme. 
-              Seuls les <strong>Super Admins</strong> peuvent modifier les permissions des autres administrateurs.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+      {/* Search and filters */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher un administrateur..."
+              placeholder="Rechercher un administrateur par nom ou email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
             />
           </div>
+          <button 
+            onClick={loadAdmins}
+            className="flex items-center gap-2 px-5 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            <RefreshCw size={18} className={`text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+            <span className="font-medium text-gray-700">Actualiser</span>
+          </button>
         </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-          </div>
-        ) : error ? (
-          <div className="p-6 text-center">
-            <p className="text-red-600">{error}</p>
-            <button
-              onClick={loadAdmins}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-            >
-              Réessayer
-            </button>
-          </div>
-        ) : filteredAdmins.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <UserCog className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun administrateur</h3>
-            <p className="text-gray-500">
-              Il n'y a pas encore d'administrateurs à gérer. Les administrateurs sont les utilisateurs avec le statut "staff".
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Administrateur
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Statut
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Permissions
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAdmins.map((admin) => (
-                  <tr key={admin.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                          <span className="text-indigo-700 font-bold">
-                            {admin.email?.charAt(0).toUpperCase() || 'A'}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {admin.first_name && admin.last_name 
-                              ? `${admin.first_name} ${admin.last_name}`
-                              : admin.username || 'Admin'}
-                          </div>
-                          <div className="text-sm text-gray-500">@{admin.username}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{admin.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        <Shield size={12} />
-                        Admin
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm text-gray-500">4 permissions</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        onClick={() => handleEditPermissions(admin)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
-                      >
-                        <Lock size={14} />
-                        Gérer
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
+
+      {/* Admin Cards Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-500">Chargement des administrateurs...</p>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-700 font-medium mb-4">{error}</p>
+          <button onClick={loadAdmins} className="px-6 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">
+            Réessayer
+          </button>
+        </div>
+      ) : filteredAdmins.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mx-auto mb-6">
+            <UserCog className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun administrateur trouvé</h3>
+          <p className="text-gray-500 max-w-md mx-auto">
+            Il n'y a pas encore d'administrateurs à gérer. Les administrateurs sont les utilisateurs avec le statut "staff".
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAdmins.map((admin) => {
+            const permCount = (admin as any).permissions?.length || 0
+            const permPercent = Math.round((permCount / allPermissions.length) * 100)
+            
+            return (
+              <div key={admin.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all group">
+                {/* Card Header with gradient */}
+                <div className="h-20 bg-gradient-to-r from-indigo-500 to-purple-500 relative">
+                  <div className="absolute inset-0 bg-black/10"></div>
+                  <div className="absolute -bottom-8 left-6">
+                    <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center border-4 border-white">
+                      <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        {admin.first_name?.charAt(0) || admin.email?.charAt(0).toUpperCase() || 'A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Card Content */}
+                <div className="pt-12 pb-6 px-6">
+                  <div className="mb-4">
+                    <h3 className="font-bold text-gray-900 text-lg">
+                      {admin.first_name && admin.last_name 
+                        ? `${admin.first_name} ${admin.last_name}`
+                        : admin.username || 'Admin'}
+                    </h3>
+                    <p className="text-gray-500 text-sm">{admin.email}</p>
+                  </div>
+                  
+                  {/* Permission Progress */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-gray-600">Permissions actives</span>
+                      <span className="font-bold text-indigo-600">{permCount}/{allPermissions.length}</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                        style={{ width: `${permPercent}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {/* Category badges */}
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {Object.entries(categoryLabels).map(([key, cat]) => {
+                      const catPerms = allPermissions.filter(p => p.category === key)
+                      const hasAny = catPerms.some(p => (admin as any).permissions?.includes(p.id))
+                      return hasAny ? (
+                        <span key={key} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${cat.color}`}>
+                          {cat.icon}
+                        </span>
+                      ) : null
+                    })}
+                  </div>
+                  
+                  {/* Action Button */}
+                  <button 
+                    onClick={() => handleEditPermissions(admin)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/25 group-hover:shadow-indigo-500/40"
+                  >
+                    <Lock size={18} />
+                    Gérer les permissions
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Edit Permissions Modal */}
       {isEditModalOpen && selectedAdmin && (

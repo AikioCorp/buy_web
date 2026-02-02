@@ -23,11 +23,15 @@ export function useFavorites() {
 
       if (response.error) {
         setError(response.error);
+        setFavorites([]);
       } else if (response.data) {
-        setFavorites(response.data.results);
+        setFavorites(response.data.results || []);
+      } else {
+        setFavorites([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des favoris');
+      setFavorites([]);
     } finally {
       setIsLoading(false);
     }

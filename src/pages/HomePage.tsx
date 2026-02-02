@@ -16,8 +16,10 @@ import { useToast } from '../components/Toast'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
 
 const getImageUrl = (product: Product): string | null => {
-  if (!product.media || product.media.length === 0) return null
-  const primaryImage = product.media.find(m => m.is_primary) || product.media[0]
+  // Backend returns 'images' from product_media, but interface uses 'media'
+  const mediaArray = product.media || (product as any).images || []
+  if (!mediaArray || mediaArray.length === 0) return null
+  const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
   let url = primaryImage?.image_url || primaryImage?.file
   if (!url) return null
   if (url.startsWith('http://')) url = url.replace('http://', 'https://')
@@ -58,39 +60,6 @@ const allShopsData = [
   { id: 8, name: 'Tendance Afrique', slug: 'tendance-afrique', logo: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200&h=200&fit=crop', category: 'Mode', rating: 4.8 },
 ]
 
-// Produits fictifs (30 produits variés)
-const mockProducts = [
-  { id: 101, name: 'iPhone 15 Pro Max', base_price: '850000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 102, name: 'AirPods Pro 2', base_price: '175000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 103, name: 'Robe Africaine Wax', base_price: '35000', store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
-  { id: 104, name: 'Nike Air Max 270', base_price: '95000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
-  { id: 105, name: 'Apple Watch Series 9', base_price: '350000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 106, name: 'Parfum Dior Sauvage', base_price: '145000', store: { id: 11, name: 'Dicarlo', slug: 'dicarlo' }, media: [{ image_url: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=400&h=400&fit=crop', is_primary: true }], category: 'Parfumerie' },
-  { id: 107, name: 'Set Casseroles Inox', base_price: '65000', store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop', is_primary: true }], category: 'Cuisine' },
-  { id: 108, name: 'Riz Parfumé Thaï 5kg', base_price: '12500', store: { id: 9, name: 'Shopreate', slug: 'shopreate' }, media: [{ image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop', is_primary: true }], category: 'Alimentaire' },
-  { id: 109, name: 'MacBook Air M3', base_price: '1200000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 110, name: 'Boubou Bazin Riche', base_price: '75000', store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
-  { id: 111, name: 'Samsung Galaxy S24', base_price: '950000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&h=400&fit=crop', is_primary: true }], category: 'Téléphones' },
-  { id: 112, name: 'TV Samsung 55" 4K', base_price: '450000', store: { id: 7, name: 'Électro Bamako', slug: 'electro-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=400&fit=crop', is_primary: true }], category: 'Électroménager' },
-  { id: 113, name: 'Climatiseur 12000 BTU', base_price: '285000', store: { id: 7, name: 'Électro Bamako', slug: 'electro-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=400&h=400&fit=crop', is_primary: true }], category: 'Électroménager' },
-  { id: 114, name: 'Canapé 3 Places', base_price: '350000', store: { id: 5, name: 'Maison & Déco', slug: 'maison-deco' }, media: [{ image_url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop', is_primary: true }], category: 'Maison' },
-  { id: 115, name: 'Miel Pays Dogon 1kg', base_price: '15000', store: { id: 6, name: 'Saveurs du Mali', slug: 'saveurs-du-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&h=400&fit=crop', is_primary: true }], category: 'Alimentaire' },
-  { id: 116, name: 'Ballon Adidas Pro', base_price: '35000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1614632537190-23e4146777db?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
-  { id: 117, name: 'Parfum Chanel N°5', base_price: '185000', store: { id: 4, name: 'Beauté Plus', slug: 'beaute-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=400&h=400&fit=crop', is_primary: true }], category: 'Parfumerie' },
-  { id: 118, name: 'Robot Cuisine', base_price: '125000', store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=400&h=400&fit=crop', is_primary: true }], category: 'Cuisine' },
-  { id: 119, name: 'Chemise Bogolan', base_price: '28000', store: { id: 8, name: 'Tendance Afrique', slug: 'tendance-afrique' }, media: [{ image_url: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
-  { id: 120, name: 'JBL Flip 6', base_price: '85000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 121, name: 'Casque Sony WH-1000XM5', base_price: '295000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 122, name: 'iPad Pro 12.9"', base_price: '850000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 123, name: 'Sneakers Adidas', base_price: '75000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
-  { id: 124, name: 'Montre Rolex', base_price: '2500000', store: { id: 4, name: 'Beauté Plus', slug: 'beaute-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop', is_primary: true }], category: 'Accessoires' },
-  { id: 125, name: 'Sac Louis Vuitton', base_price: '450000', store: { id: 2, name: 'Mode Bamako', slug: 'mode-bamako' }, media: [{ image_url: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop', is_primary: true }], category: 'Mode' },
-  { id: 126, name: 'Lunettes Ray-Ban', base_price: '125000', store: { id: 4, name: 'Beauté Plus', slug: 'beaute-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&h=400&fit=crop', is_primary: true }], category: 'Accessoires' },
-  { id: 127, name: 'Drone DJI Mini 3', base_price: '450000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&h=400&fit=crop', is_primary: true }], category: 'Électronique' },
-  { id: 128, name: 'Console PS5', base_price: '550000', store: { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali' }, media: [{ image_url: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400&h=400&fit=crop', is_primary: true }], category: 'Gaming' },
-  { id: 129, name: 'Vélo VTT Pro', base_price: '350000', store: { id: 3, name: 'Sport Plus', slug: 'sport-plus' }, media: [{ image_url: 'https://images.unsplash.com/photo-1532298229144-0ec0c57515c7?w=400&h=400&fit=crop', is_primary: true }], category: 'Sport' },
-  { id: 130, name: 'Machine à Café', base_price: '185000', store: { id: 10, name: 'Orca', slug: 'orca' }, media: [{ image_url: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=400&h=400&fit=crop', is_primary: true }], category: 'Cuisine' },
-]
 
 // Bannières Hero
 const heroBanners = [
@@ -137,7 +106,7 @@ export function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  const allProducts = apiProducts && apiProducts.length > 0 ? apiProducts : mockProducts as unknown as Product[]
+  const allProducts = apiProducts || []
   const dealProducts = allProducts.slice(0, 6)
   const trendingProducts = allProducts.slice(0, 12)
   const newArrivals = allProducts.slice(8, 16)
@@ -211,7 +180,7 @@ export function HomePage() {
         </div>
       </div>
       <div className="p-3">
-        <p className="text-xs text-gray-400 mb-0.5">{product.store?.name || product.category || 'BuyMore'}</p>
+        <p className="text-xs text-gray-400 mb-0.5">{product.store?.name || product.shop?.name || (typeof product.category === 'string' ? product.category : product.category?.name) || 'BuyMore'}</p>
         <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-green-600 transition-colors">{product.name}</h3>
         <div className="flex items-center gap-1 mb-1">
           {[...Array(5)].map((_, i) => (<Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />))}
@@ -257,9 +226,13 @@ export function HomePage() {
                             </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
-                            {mockProducts.filter((p: any) => p.category === cat.name || p.category?.includes(cat.name.split(' ')[0])).slice(0, 4).map((product: any) => (
+                            {allProducts.filter((p: any) => p.category?.name === cat.name || p.category?.name?.includes(cat.name.split(' ')[0])).slice(0, 4).map((product: any) => (
                               <Link key={product.id} to={`/products/${product.id}`} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                                <img src={product.media[0].image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                                {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+                                  <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center"><Package className="w-6 h-6 text-gray-400" /></div>
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <h5 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h5>
                                   <p className="text-green-600 font-bold text-xs mt-1">{formatPrice(product.base_price)} FCFA</p>
@@ -327,9 +300,13 @@ export function HomePage() {
                 <h3 className="font-bold flex items-center gap-2"><Zap className="w-5 h-5" /> Top Ventes</h3>
               </div>
               <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm divide-y divide-gray-100">
-                {mockProducts.slice(0, 4).map((product) => (
+                {allProducts.slice(0, 4).map((product) => (
                   <Link key={product.id} to={`/products/${product.id}`} className="flex gap-3 p-3 hover:bg-gray-50 transition-colors">
-                    <img src={product.media[0].image_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
+                    {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+                      <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center"><Package className="w-7 h-7 text-gray-400" /></div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <h4 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h4>
                       <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(product.base_price)}</p>
