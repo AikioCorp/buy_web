@@ -21,4 +21,7 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    allowedHosts: ['buyweb-production.up.railway.app'],
+  },
 })
