@@ -41,6 +41,7 @@ export interface OrderItem {
   };
   quantity: number;
   unit_price: string;
+  variant?: string;
 }
 
 export type OrderStatus =
@@ -86,7 +87,7 @@ export const ordersService = {
    * Le backend filtre automatiquement selon l'utilisateur connecté
    */
   async getOrders() {
-    return apiClient.get<Order[]>('/api/orders');
+    return apiClient.get<Order[] | OrdersListResponse>('/api/orders');
   },
 
   /**

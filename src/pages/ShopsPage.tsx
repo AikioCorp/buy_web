@@ -30,10 +30,10 @@ export function ShopsPage() {
       setLoading(true)
       const search = searchParams.get('search') || ''
       setSearchQuery(search)
-      
+
       const response = await shopsService.getPublicShops(1, 50)
       console.log('ShopsPage loadShops response:', response)
-      
+
       if (response.data?.results && response.data.results.length > 0) {
         console.log('ShopsPage: Using API shops, count:', response.data.results.length)
         setShops(response.data.results)
@@ -52,7 +52,7 @@ export function ShopsPage() {
     }
   }
 
-  const filteredShops = shops.filter(shop => 
+  const filteredShops = shops.filter(shop =>
     shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     shop.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -69,7 +69,7 @@ export function ShopsPage() {
             <p className="text-lg text-white/80 mb-8">
               Explorez une sélection de boutiques partenaires offrant des produits de qualité
             </p>
-            
+
             {/* Search Bar */}
             <div className="relative max-w-xl mx-auto">
               <input
@@ -83,9 +83,9 @@ export function ShopsPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Wave Decoration */}
-        <div className="h-16 bg-gray-50" style={{ 
+        <div className="h-16 bg-gray-50" style={{
           clipPath: 'ellipse(70% 100% at 50% 100%)',
           marginTop: '-1px'
         }}></div>
@@ -100,7 +100,7 @@ export function ShopsPage() {
               <strong className="text-[#0f4c2b]">{filteredShops.length}</strong> boutiques trouvées
             </span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setViewMode('grid')}
@@ -141,27 +141,27 @@ export function ShopsPage() {
           /* Grid View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredShops.map((shop) => (
-              <Link 
-                key={shop.id} 
+              <Link
+                key={shop.id}
                 to={`/shops/${shop.slug || shop.id}`}
                 className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
               >
                 {/* Banner/Logo */}
                 <div className="relative h-40 bg-gradient-to-br from-[#0f4c2b]/10 to-[#e8d20c]/10">
                   {(shop.banner_url || shop.banner) ? (
-                    <img src={shop.banner_url || shop.banner} alt="" className="w-full h-full object-cover" />
+                    <img src={shop.banner_url || shop.banner || undefined} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center">
                         {(shop.logo_url || shop.logo) ? (
-                          <img src={shop.logo_url || shop.logo} alt={shop.name} className="w-16 h-16 rounded-full object-cover" />
+                          <img src={shop.logo_url || shop.logo || undefined} alt={shop.name} className="w-16 h-16 rounded-full object-cover" />
                         ) : (
                           <span className="text-3xl font-bold text-[#0f4c2b]">{shop.name.charAt(0)}</span>
                         )}
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Status Badge */}
                   {shop.is_active && (
                     <div className="absolute top-3 right-3 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
@@ -169,19 +169,19 @@ export function ShopsPage() {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Content */}
                 <div className="p-5">
                   <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-[#0f4c2b] transition-colors">
                     {shop.name}
                   </h3>
-                  
+
                   {shop.description && (
                     <p className="text-sm text-gray-600 line-clamp-2 mb-3">
                       {shop.description}
                     </p>
                   )}
-                  
+
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                     {shop.city && (
                       <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -189,7 +189,7 @@ export function ShopsPage() {
                         <span>{shop.city}</span>
                       </div>
                     )}
-                    
+
                     {shop.rating && (
                       <div className="flex items-center gap-1 text-sm">
                         <Star size={14} className="text-yellow-500 fill-yellow-500" />
@@ -197,7 +197,7 @@ export function ShopsPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="mt-4 flex items-center justify-center gap-2 text-[#0f4c2b] font-medium text-sm opacity-0 group-hover:opacity-100 transition-opacity">
                     <span>Visiter la boutique</span>
                     <ArrowRight size={16} />
@@ -210,20 +210,20 @@ export function ShopsPage() {
           /* List View */
           <div className="space-y-4">
             {filteredShops.map((shop) => (
-              <Link 
-                key={shop.id} 
+              <Link
+                key={shop.id}
                 to={`/shops/${shop.slug || shop.id}`}
                 className="group flex bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all"
               >
                 {/* Logo */}
                 <div className="w-32 h-32 flex-shrink-0 bg-gradient-to-br from-[#0f4c2b]/10 to-[#e8d20c]/10 flex items-center justify-center">
                   {(shop.logo_url || shop.logo) ? (
-                    <img src={shop.logo_url || shop.logo} alt={shop.name} className="w-20 h-20 rounded-full object-cover" />
+                    <img src={shop.logo_url || shop.logo || undefined} alt={shop.name} className="w-20 h-20 rounded-full object-cover" />
                   ) : (
                     <span className="text-4xl font-bold text-[#0f4c2b]">{shop.name.charAt(0)}</span>
                   )}
                 </div>
-                
+
                 {/* Content */}
                 <div className="flex-1 p-5 flex flex-col justify-center">
                   <div className="flex items-start justify-between">
@@ -235,13 +235,13 @@ export function ShopsPage() {
                         <p className="text-gray-600 mt-1 line-clamp-1">{shop.description}</p>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center gap-2 text-[#0f4c2b] font-medium">
                       <span className="hidden md:inline">Visiter</span>
                       <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 mt-3">
                     {shop.city && (
                       <div className="flex items-center gap-1 text-sm text-gray-500">
