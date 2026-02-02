@@ -292,8 +292,11 @@ export function Navbar() {
         }`}>
         <div className="flex items-center justify-between px-4 py-2.5">
           {/* Icône gauche */}
-          <button className="p-1.5 text-white">
-            <Menu size={22} />
+          <button
+            className="p-1.5 text-white"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
 
           {/* Logo centré */}
@@ -317,6 +320,145 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Menu mobile déroulant pour le header compact */}
+      {isMenuOpen && (!isHomePage || isScrolled) && (
+        <div className="md:hidden fixed top-12 left-0 right-0 bg-[#1a5f3a] z-[99] shadow-lg max-h-[70vh] overflow-y-auto">
+          {/* Mobile Search */}
+          <form onSubmit={handleSearch} className="p-4 border-b border-[#236b45]">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher un produit..."
+                className="w-full px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#e8d20c]"
+              />
+              <button
+                type="submit"
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
+                <Search className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          </form>
+
+          {/* Mobile Links */}
+          <div className="py-2">
+            <Link
+              to="/"
+              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Accueil
+            </Link>
+            <Link
+              to="/shops"
+              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <Store className="w-5 h-5" />
+              Boutiques
+            </Link>
+            <Link
+              to="/categories"
+              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <Tag className="w-5 h-5" />
+              Catégories
+            </Link>
+            <Link
+              to="/products"
+              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <Package className="w-5 h-5" />
+              Produits
+            </Link>
+            <Link
+              to="/deals"
+              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className="text-lg">🔥</span>
+              Promotions
+            </Link>
+            <Link
+              to="/about"
+              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className="text-lg">ℹ️</span>
+              À propos
+            </Link>
+          </div>
+
+          {/* User Actions */}
+          <div className="border-t border-[#236b45] py-2">
+            {user ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#e8d20c] flex items-center justify-center text-[#0f4c2b] font-bold text-sm">
+                    {user.username?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  Mon compte
+                </Link>
+                {user.is_seller && (
+                  <Link
+                    to="/vendor/shops"
+                    className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Store className="w-5 h-5" />
+                    Mes boutiques
+                  </Link>
+                )}
+                <button
+                  onClick={() => {
+                    handleSignOut()
+                    setIsMenuOpen(false)
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-[#236b45] transition-colors w-full text-left"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  Connexion
+                </Link>
+                <Link
+                  to="/register"
+                  className="flex items-center gap-3 px-4 py-3 text-[#e8d20c] hover:bg-[#236b45] transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                  Inscription
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Navbar mobile en bas de l'écran - Version améliorée avec structure d'origine */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0f4c2b] z-[100] shadow-md border-t border-[#e8d20c]/20">
