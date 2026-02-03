@@ -20,6 +20,8 @@ interface CategoryItem {
   id: number
   name: string
   slug: string
+  icon?: string
+  image?: string
   children?: CategoryItem[]
 }
 
