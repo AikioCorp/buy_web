@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { Mail, Lock, ArrowRight, ShoppingBag, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, ArrowRight, ShoppingBag, Eye, EyeOff, Phone } from 'lucide-react'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const { login, error, isLoading, clearError } = useAuthStore()
@@ -15,7 +17,12 @@ export function LoginPage() {
     e.preventDefault()
     clearError()
 
-    const success = await login(email, password)
+    // Formater le numéro de téléphone au format +223 si nécessaire
+    const loginIdentifier = loginMethod === 'email' 
+      ? email 
+      : (phoneNumber.startsWith('+223') ? phoneNumber : `+223 ${phoneNumber.replace(/^\+?223\s*/, '').replace(/[^0-9]/g, '').replace(/(\d{2})(?=\d)/g, '$1 ').trim()}`)
+
+    const success = await login(loginIdentifier, password, loginMethod)
     
     if (success) {
       // Get the role from the store after login
@@ -63,25 +70,72 @@ export function LoginPage() {
             )}
 
             <div className="space-y-4 sm:space-y-5">
-              {/* Email */}
-              <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Adresse email
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
-                  </div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                    placeholder="exemple@buymore.ml"
-                  />
-                </div>
+              {/* Méthode de connexion */}
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('email')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    loginMethod === 'email'
+                      ? 'bg-[#0f4c2b] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Mail className="inline w-4 h-4 mr-1" /> Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('phone')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    loginMethod === 'phone'
+                      ? 'bg-[#0f4c2b] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Phone className="inline w-4 h-4 mr-1" /> Téléphone
+                </button>
               </div>
+
+              {/* Email ou Téléphone */}
+              {loginMethod === 'email' ? (
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Adresse email
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                    </div>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                      placeholder="exemple@buymore.ml"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Numéro de téléphone (Mali +223)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Phone className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                    </div>
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      required
+                      className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                      placeholder="70 00 90 07"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Mot de passe */}
               <div className="group">

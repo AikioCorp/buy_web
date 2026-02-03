@@ -14,7 +14,7 @@ interface AuthState {
   role: UserRole | null;
 
   // Actions
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (identifier: string, password: string, method?: 'email' | 'phone') => Promise<boolean>;
   register: (data: any) => Promise<boolean>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
@@ -90,11 +90,15 @@ export const useAuthStore = create<AuthState>()(
       error: null,
       role: null,
 
-      login: async (email: string, password: string) => {
+      login: async (identifier: string, password: string, method: 'email' | 'phone' = 'email') => {
         set({ isLoading: true, error: null });
 
         try {
-          const response = await authService.login({ email, password });
+          // Préparer les données de connexion selon la méthode
+          const loginData = method === 'phone' 
+            ? { phone: identifier, password } 
+            : { email: identifier, password };
+          const response = await authService.login(loginData);
           console.log('Login Response:', response);
 
           if (response.error) {
@@ -185,15 +189,19 @@ export const useAuthStore = create<AuthState>()(
             const token = responseData.token || responseData.access_token;
             if (token) apiClient.setToken(token);
 
+            // Extraire les données utilisateur (peut être dans response.data.user ou directement)
+            const userFromResponse = responseData.user || responseData;
             const userData: any = {
-              ...response.data,
-              id: response.data.user_id,
+              ...userFromResponse,
+              id: userFromResponse.id || responseData.user_id,
             };
             const role = determineRole(userData);
             set({ user: { ...userData, role } as User, role, isAuthenticated: true, isLoading: false, error: null });
             return true;
           }
-          return false;
+          // Si pas de data mais pas d'erreur non plus, considérer comme succès (compte créé)
+          set({ isLoading: false, error: null });
+          return true;
         } catch (error: any) {
           let errorMessage = "Erreur";
           if (typeof error === 'string') errorMessage = error;

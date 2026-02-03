@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { shopsService, Shop } from '@/lib/api/shopsService'
 import { productsService, Product } from '@/lib/api/productsService'
 import { CardContent } from '@/components/Card'
-import { Package, Store, Star, ShoppingBag, Heart, ShoppingCart, Eye, ChevronRight, MapPin, Phone, ArrowLeft } from 'lucide-react'
+import { Package, Store, Star, ShoppingBag, Heart, ShoppingCart, Eye, ChevronRight, MapPin, ArrowLeft, MessageCircle } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
 
@@ -196,12 +196,15 @@ export function ShopDetailPage() {
                   {shop.address}
                 </span>
               )}
-              {shop.phone && (
-                <span className="flex items-center gap-1">
-                  <Phone className="w-4 h-4" />
-                  {shop.phone}
-                </span>
-              )}
+              <a 
+                href="https://wa.me/22370796969" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                +223 70 79 69 69
+              </a>
             </div>
           </div>
         </div>

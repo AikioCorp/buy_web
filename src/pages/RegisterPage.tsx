@@ -47,18 +47,23 @@ export function RegisterPage() {
     const firstName = nameParts[0] || ''
     const lastName = nameParts.slice(1).join(' ') || ''
 
-    // Créer un username à partir de l'email ou du téléphone
-    const username = registerMethod === 'email' 
-      ? email.split('@')[0] 
-      : phoneNumber.replace(/[^0-9]/g, '').slice(-8)
+    // Créer un username unique à partir du nom complet + suffixe aléatoire
+    const baseUsername = fullName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+    const uniqueSuffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(-2)
+    const username = `${baseUsername}_${uniqueSuffix}`
+
+    // Formater le numéro de téléphone au format +223
+    const formattedPhone = registerMethod === 'phone' 
+      ? (phoneNumber.startsWith('+223') ? phoneNumber : `+223 ${phoneNumber.replace(/^\+?223\s*/, '').replace(/[^0-9]/g, '').replace(/(\d{2})(?=\d)/g, '$1 ').trim()}`)
+      : (role === 'vendor' ? shopPhone : '')
 
     const registerData = {
       username,
-      email: registerMethod === 'email' ? email : `${phoneNumber.replace(/[^0-9]/g, '')}@phone.buymore.ml`,
+      email: registerMethod === 'email' ? email : '', // Laisser vide si inscription par téléphone
       password,
       first_name: firstName,
       last_name: lastName,
-      phone: registerMethod === 'phone' ? phoneNumber : (role === 'vendor' ? shopPhone : ''),
+      phone: formattedPhone,
       is_seller: role === 'vendor',
       store_name: role === 'vendor' ? shopName : undefined,
       store_description: role === 'vendor' ? shopDescription : undefined,
@@ -150,7 +155,7 @@ export function RegisterPage() {
                     onChange={(e) => setFullName(e.target.value)}
                     required
                     className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                    placeholder="Seydou Kanté"
+                    placeholder="Votre nom complet ici"
                   />
                 </div>
               </div>
@@ -216,7 +221,7 @@ export function RegisterPage() {
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       required
                       className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                      placeholder="+223 70 00 00 00"
+                      placeholder="70 00 90 07"
                     />
                   </div>
                 </div>
