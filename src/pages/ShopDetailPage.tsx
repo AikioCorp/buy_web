@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { shopsService, Shop } from '@/lib/api/shopsService'
 import { productsService, Product } from '@/lib/api/productsService'
 import { CardContent } from '@/components/Card'
-import { Package, Store, Star, ShoppingBag, Heart, ShoppingCart, Eye, ChevronRight, MapPin, Phone } from 'lucide-react'
+import { Package, Store, Star, ShoppingBag, Heart, ShoppingCart, Eye, ChevronRight, MapPin, Phone, ArrowLeft } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
 
@@ -36,6 +36,7 @@ const getProductPrice = (product: Product | any): number => {
 
 export function ShopDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [shop, setShop] = useState<Shop | any>(null)
   const [products, setProducts] = useState<(Product | any)[]>([])
   const [loading, setLoading] = useState(true)
@@ -137,6 +138,14 @@ export function ShopDetailPage() {
         } : {}}
       >
         <div className="absolute inset-0 bg-black/30"></div>
+        {/* Back Button */}
+        <button 
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 z-20 flex items-center gap-2 px-4 py-2 bg-white/90 hover:bg-white text-gray-800 rounded-full shadow-lg transition-all"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Retour</span>
+        </button>
       </div>
 
       <div className="container mx-auto px-4">

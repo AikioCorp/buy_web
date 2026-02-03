@@ -59,7 +59,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ onComplete, onSkip }) =
     {
       id: 'earnings',
       title: 'Recevez vos paiements',
-      description: 'Configurez vos méthodes de paiement (Orange Money, Wave, virement) pour recevoir vos gains automatiquement.',
+      description: 'Configurez vos méthodes de paiement (Orange Money, Wave, Moov Money) pour recevoir vos gains automatiquement.',
       icon: <Wallet size={32} className="text-green-500" />,
       target: '/dashboard/earnings'
     },

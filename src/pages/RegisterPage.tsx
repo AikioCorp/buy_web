@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Upload } from 'lucide-react'
+import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Upload, Phone } from 'lucide-react'
 import { NeighborhoodAutocomplete } from '@/components/NeighborhoodAutocomplete'
 import { PhoneInput } from '@/components/PhoneInput'
 
 export function RegisterPage() {
   const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [registerMethod, setRegisterMethod] = useState<'email' | 'phone'>('email')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState('customer')
@@ -45,16 +47,18 @@ export function RegisterPage() {
     const firstName = nameParts[0] || ''
     const lastName = nameParts.slice(1).join(' ') || ''
 
-    // Créer un username à partir de l'email
-    const username = email.split('@')[0]
+    // Créer un username à partir de l'email ou du téléphone
+    const username = registerMethod === 'email' 
+      ? email.split('@')[0] 
+      : phoneNumber.replace(/[^0-9]/g, '').slice(-8)
 
     const registerData = {
       username,
-      email,
+      email: registerMethod === 'email' ? email : `${phoneNumber.replace(/[^0-9]/g, '')}@phone.buymore.ml`,
       password,
       first_name: firstName,
       last_name: lastName,
-      phone: role === 'vendor' ? shopPhone : '',
+      phone: registerMethod === 'phone' ? phoneNumber : (role === 'vendor' ? shopPhone : ''),
       is_seller: role === 'vendor',
       store_name: role === 'vendor' ? shopName : undefined,
       store_description: role === 'vendor' ? shopDescription : undefined,
@@ -151,25 +155,72 @@ export function RegisterPage() {
                 </div>
               </div>
 
-              {/* Email */}
-              <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Adresse email
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
-                  </div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                    placeholder="votre@email.com"
-                  />
-                </div>
+              {/* Méthode d'inscription */}
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setRegisterMethod('email')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    registerMethod === 'email'
+                      ? 'bg-[#0f4c2b] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Mail className="inline w-4 h-4 mr-1" /> Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegisterMethod('phone')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    registerMethod === 'phone'
+                      ? 'bg-[#0f4c2b] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Phone className="inline w-4 h-4 mr-1" /> Téléphone
+                </button>
               </div>
+
+              {/* Email ou Téléphone */}
+              {registerMethod === 'email' ? (
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Adresse email
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                    </div>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                      placeholder="votre@email.com"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Numéro de téléphone
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Phone className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                    </div>
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      required
+                      className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                      placeholder="+223 70 00 00 00"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Mot de passe */}
               <div className="group">

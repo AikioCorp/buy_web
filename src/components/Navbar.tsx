@@ -389,14 +389,6 @@ export function Navbar() {
               <span className="text-lg">🔥</span>
               Promotions
             </Link>
-            <Link
-              to="/about"
-              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <span className="text-lg">ℹ️</span>
-              À propos
-            </Link>
           </div>
 
           {/* User Actions */}
@@ -770,9 +762,6 @@ export function Navbar() {
               </Link>
               <Link to="/deals" className="text-white hover:text-[#e8d20c] transition-colors font-medium">
                 Promotions
-              </Link>
-              <Link to="/about" className="text-white hover:text-[#e8d20c] transition-colors font-medium">
-                À propos
               </Link>
             </div>
 
@@ -1204,9 +1193,6 @@ export function Navbar() {
                   <Link to="/deals" className="hover:text-[#e8d20c] transition-colors font-medium">
                     Promotions
                   </Link>
-                  <Link to="/about" className="hover:text-[#e8d20c] transition-colors font-medium">
-                    À propos
-                  </Link>
                 </div>
 
                 {/* Icônes et menu utilisateur */}
@@ -1378,13 +1364,6 @@ export function Navbar() {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Promotions
-                </Link>
-                <Link
-                  to="/about"
-                  className="block py-2 hover:text-[#e8d20c]"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  À propos
                 </Link>
               </div>
             </div>

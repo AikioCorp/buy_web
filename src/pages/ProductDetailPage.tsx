@@ -468,7 +468,7 @@ export function ProductDetailPage() {
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${(product.stock ?? 0) > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
               <span className="text-sm text-gray-600">
-                {(product.stock ?? 0) > 0 ? `En stock (${product.stock} disponibles)` : 'Rupture de stock'}
+                {(product.stock ?? 0) > 0 ? 'En stock' : 'Rupture de stock'}
               </span>
             </div>
 

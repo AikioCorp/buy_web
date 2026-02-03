@@ -117,7 +117,7 @@ export const productsService = {
     if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
     if (params?.category_slug) queryParams.append('category_slug', params.category_slug);
     if (params?.search) queryParams.append('search', params.search);
-    if (params?.store_id) queryParams.append('store', params.store_id.toString());
+    if (params?.store_id) queryParams.append('store_id', params.store_id.toString());
 
     const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
     return apiClient.get<ProductsResponse>(endpoint);

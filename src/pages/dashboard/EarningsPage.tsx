@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { 
-  Wallet, CreditCard, Building2,
+  Wallet, CreditCard, Building2, Smartphone,
   Clock, Plus,
   Banknote, TrendingUp, PiggyBank, Receipt, Loader2
 } from 'lucide-react'
@@ -203,14 +203,14 @@ const EarningsPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Virement bancaire */}
+          {/* Moov Money */}
           <div className="border border-gray-200 rounded-xl p-4 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all cursor-pointer">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                <Building2 size={24} className="text-gray-600" />
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Smartphone size={24} className="text-blue-600" />
               </div>
               <div>
-                <p className="font-medium text-gray-900">Virement bancaire</p>
+                <p className="font-medium text-gray-900">Moov Money</p>
                 <p className="text-sm text-gray-500">Non configuré</p>
               </div>
             </div>

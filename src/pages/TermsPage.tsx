@@ -126,7 +126,6 @@ export function TermsPage() {
                     <li>Paiement à la livraison (espèces)</li>
                     <li>Orange Money</li>
                     <li>Moov Money</li>
-                    <li>Virement bancaire</li>
                   </ul>
                   <p><strong>3.3 Confirmation de commande</strong></p>
                   <p>

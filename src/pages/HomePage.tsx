@@ -5,10 +5,11 @@ import {
   Clock, ArrowRight, Heart, Eye, ChevronLeft, RefreshCw,
   ShoppingBag, Sparkles, UtensilsCrossed, Store,
   Smartphone, Home, Shirt, Dumbbell, Laptop, Zap, Gift, Percent, Tag,
-  Headphones, Monitor, Watch, Camera
+  Headphones, Monitor, Watch, Camera, FolderTree
 } from 'lucide-react'
 import { useProducts } from '../hooks/useProducts'
 import { Product } from '../lib/api/productsService'
+import { categoriesService } from '../lib/api/categoriesService'
 import { useCartStore } from '../store/cartStore'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { useToast } from '../components/Toast'
@@ -75,11 +76,20 @@ const promoBanners = [
   { title: 'Mode Africaine', subtitle: 'Créations uniques', discount: '-40%', bgColor: 'from-purple-600 to-pink-600', image: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=200&fit=crop' },
 ]
 
+interface DynamicCategory {
+  id: number
+  name: string
+  slug: string
+  icon?: string
+  image?: string
+}
+
 export function HomePage() {
   const { products: apiProducts, refresh: refreshProducts } = useProducts()
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
   const [currentBanner, setCurrentBanner] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>([])
   const navigate = useNavigate()
   const addItem = useCartStore((state) => state.addItem)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
@@ -87,7 +97,38 @@ export function HomePage() {
   
   const [countdown, setCountdown] = useState({ hours: 23, minutes: 45, seconds: 30 })
 
-  useEffect(() => { refreshProducts() }, [])
+  useEffect(() => { 
+    refreshProducts()
+    loadCategories()
+  }, [])
+
+  const loadCategories = async () => {
+    try {
+      const response = await categoriesService.getCategories()
+      if (response.data && Array.isArray(response.data)) {
+        setDynamicCategories(response.data)
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error)
+    }
+  }
+
+  const getCategoryImage = (cat: DynamicCategory): string => {
+    if (cat.icon) return cat.icon
+    if (cat.image) return cat.image
+    // Fallback images by slug
+    const fallbackImages: Record<string, string> = {
+      'mode': 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop',
+      'alimentaire': 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&h=200&fit=crop',
+      'parfumerie': 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop',
+      'cuisine': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop',
+      'electronique': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop',
+      'telephones': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&h=200&fit=crop',
+      'sport': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=200&fit=crop',
+      'maison': 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop',
+    }
+    return fallbackImages[cat.slug] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&h=200&fit=crop'
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -206,12 +247,14 @@ export function HomePage() {
                 <h3 className="font-bold flex items-center gap-2"><ShoppingBag className="w-5 h-5" /> Catégories</h3>
               </div>
               <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm">
-                {mainCategories.map((cat) => {
-                  const IconComponent = cat.icon
+                {(dynamicCategories.length > 0 ? dynamicCategories.slice(0, 8) : mainCategories).map((cat: any) => {
+                  const catImage = dynamicCategories.length > 0 ? getCategoryImage(cat) : cat.image
                   return (
-                    <div key={cat.slug} className="relative group/cat">
+                    <div key={cat.slug || cat.id} className="relative group/cat">
                       <Link to={`/products?category=${cat.slug}`} className="flex items-center gap-3 px-4 py-3 hover:bg-green-50 border-b border-gray-100 last:border-b-0 transition-colors">
-                        <div className={`w-8 h-8 rounded-lg ${cat.color} flex items-center justify-center text-white shadow-sm`}><IconComponent className="w-4 h-4" /></div>
+                        <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={catImage} alt={cat.name} className="w-full h-full object-cover" />
+                        </div>
                         <span className="text-gray-700 group-hover/cat:text-green-600 font-medium text-sm">{cat.name}</span>
                         <ChevronRight className="w-4 h-4 text-gray-400 ml-auto group-hover/cat:text-green-600 group-hover/cat:translate-x-1 transition-transform" />
                       </Link>
@@ -219,14 +262,16 @@ export function HomePage() {
                       <div className="absolute left-full top-0 ml-1 w-[500px] bg-white rounded-xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible transition-all z-50">
                         <div className="p-4">
                           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
-                            <div className={`w-12 h-12 rounded-xl ${cat.color} flex items-center justify-center text-white`}><IconComponent className="w-6 h-6" /></div>
+                            <div className="w-12 h-12 rounded-xl overflow-hidden">
+                              <img src={catImage} alt={cat.name} className="w-full h-full object-cover" />
+                            </div>
                             <div>
                               <h4 className="font-bold text-gray-900">{cat.name}</h4>
                               <p className="text-sm text-gray-500">Découvrez nos produits</p>
                             </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
-                            {allProducts.filter((p: any) => p.category?.name === cat.name || p.category?.name?.includes(cat.name.split(' ')[0])).slice(0, 4).map((product: any) => (
+                            {allProducts.filter((p: any) => p.category?.name === cat.name || p.category?.slug === cat.slug || p.category?.name?.includes(cat.name.split(' ')[0])).slice(0, 4).map((product: any) => (
                               <Link key={product.id} to={`/products/${product.id}`} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                 {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
                                   <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />

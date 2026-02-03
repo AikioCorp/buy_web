@@ -14,7 +14,7 @@ const HelpPage: React.FC = () => {
     },
     {
       question: "Comment recevoir mes paiements ?",
-      answer: "Configurez vos méthodes de paiement dans 'Revenus'. Vous pouvez ajouter Orange Money, Wave ou un compte bancaire pour recevoir vos gains."
+      answer: "Configurez vos méthodes de paiement dans 'Revenus'. Vous pouvez ajouter Orange Money, Wave ou Moov Money pour recevoir vos gains."
     },
     {
       question: "Comment gérer mes commandes ?",

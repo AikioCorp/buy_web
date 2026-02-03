@@ -59,7 +59,7 @@ const PaymentsPage: React.FC = () => {
       case 'mobile_money':
         return 'Mobile Money'
       case 'bank_transfer':
-        return 'Virement bancaire'
+        return 'Moov Money'
       default:
         return type
     }
@@ -138,7 +138,7 @@ const PaymentsPage: React.FC = () => {
                   }`}
                 >
                   <Building2 size={24} />
-                  <span className="text-sm font-medium">Virement</span>
+                  <span className="text-sm font-medium">Moov Money</span>
                 </button>
               </div>
             </div>
