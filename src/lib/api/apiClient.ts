@@ -260,6 +260,47 @@ class ApiClient {
       };
     }
   }
+
+  /**
+   * Requête PATCH avec FormData (multipart/form-data)
+   */
+  async patchFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+    try {
+      const url = `${API_BASE_URL}${endpoint}`;
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': this.token ? `Bearer ${this.token}` : '',
+        },
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        let errorMessage = 'Une erreur est survenue';
+        if (data) {
+          if (data.detail) errorMessage = data.detail;
+          else if (data.error) errorMessage = data.error;
+          else if (data.message) errorMessage = data.message;
+        }
+        return {
+          error: errorMessage,
+          status: response.status,
+        };
+      }
+
+      return {
+        data,
+        status: response.status,
+      };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Erreur réseau',
+        status: 0,
+      };
+    }
+  }
 }
 
 // Instance singleton

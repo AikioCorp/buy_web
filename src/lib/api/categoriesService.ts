@@ -19,6 +19,7 @@ export interface CreateCategoryData {
   slug: string;
   parent?: number | null;
   en_vedette?: boolean;
+  icon?: File | string;
 }
 
 export const categoriesService = {
@@ -67,6 +68,23 @@ export const categoriesService = {
    * Créer une catégorie (Admin)
    */
   async createCategory(data: CreateCategoryData) {
+    // If icon is a File, use FormData
+    if (data.icon instanceof File) {
+      const formData = new FormData();
+      formData.append('name', data.name);
+      formData.append('slug', data.slug);
+      if (data.parent) formData.append('parent', data.parent.toString());
+      if (data.en_vedette) formData.append('en_vedette', data.en_vedette.toString());
+      formData.append('icon', data.icon);
+
+      const response = await apiClient.postFormData<Category>('/api/categories', formData);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return { data: response.data, status: response.status };
+    }
+
+    // Otherwise use JSON
     const response = await apiClient.post<Category>('/api/categories', data);
     if (response.error) {
       throw new Error(response.error);
@@ -78,6 +96,23 @@ export const categoriesService = {
    * Modifier une catégorie (Admin)
    */
   async updateCategory(slug: string, data: Partial<CreateCategoryData>) {
+    // If icon is a File, use FormData
+    if (data.icon instanceof File) {
+      const formData = new FormData();
+      if (data.name) formData.append('name', data.name);
+      if (data.slug) formData.append('slug', data.slug);
+      if (data.parent !== undefined) formData.append('parent', data.parent?.toString() || '');
+      if (data.en_vedette !== undefined) formData.append('en_vedette', data.en_vedette.toString());
+      formData.append('icon', data.icon);
+
+      const response = await apiClient.patchFormData<Category>(`/api/categories/${slug}`, formData);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return { data: response.data, status: response.status };
+    }
+
+    // Otherwise use JSON
     const response = await apiClient.patch<Category>(`/api/categories/${slug}`, data);
     if (response.error) {
       throw new Error(response.error);

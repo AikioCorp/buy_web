@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
   FolderTree, Search, Plus, Edit2, Trash2,
-  Loader2, RefreshCw, Package, Lock, MoreVertical
+  Loader2, RefreshCw, Package, Lock, MoreVertical, Upload, X
 } from 'lucide-react'
 import { useToast } from '../../../components/Toast'
 import { categoriesService } from '../../../lib/api/categoriesService'
@@ -30,6 +30,8 @@ const AdminCategoriesPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [formData, setFormData] = useState({ name: '', description: '', parent_id: '' })
+  const [iconFile, setIconFile] = useState<File | null>(null)
+  const [iconPreview, setIconPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const hasAccess = isSuperAdmin || canViewProducts()
@@ -83,11 +85,14 @@ const AdminCategoriesPage: React.FC = () => {
       await categoriesService.createCategory({
         name: formData.name,
         slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
-        parent: formData.parent_id ? parseInt(formData.parent_id) : undefined
+        parent: formData.parent_id ? parseInt(formData.parent_id) : undefined,
+        icon: iconFile || undefined
       })
       showToast('Catégorie créée', 'success')
       setIsCreateModalOpen(false)
       setFormData({ name: '', description: '', parent_id: '' })
+      setIconFile(null)
+      setIconPreview(null)
       loadCategories()
     } catch (err: any) {
       showToast(err.message || 'Erreur', 'error')
@@ -106,10 +111,13 @@ const AdminCategoriesPage: React.FC = () => {
       await categoriesService.updateCategory(selectedCategory.slug, {
         name: formData.name,
         slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
-        parent: formData.parent_id ? parseInt(formData.parent_id) : undefined
+        parent: formData.parent_id ? parseInt(formData.parent_id) : undefined,
+        icon: iconFile || undefined
       })
       showToast('Catégorie mise à jour', 'success')
       setIsEditModalOpen(false)
+      setIconFile(null)
+      setIconPreview(null)
       loadCategories()
     } catch (err: any) {
       showToast(err.message || 'Erreur', 'error')
@@ -140,7 +148,26 @@ const AdminCategoriesPage: React.FC = () => {
       description: category.description || '',
       parent_id: category.parent_id?.toString() || ''
     })
+    setIconFile(null)
+    setIconPreview(category.image || null)
     setIsEditModalOpen(true)
+  }
+
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setIconFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setIconPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeIcon = () => {
+    setIconFile(null)
+    setIconPreview(null)
   }
 
   const filteredCategories = categories.filter(cat =>
@@ -330,6 +357,41 @@ const AdminCategoriesPage: React.FC = () => {
                   placeholder="Ex: Électronique"
                 />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Icône / Image</label>
+                <div className="flex items-center gap-4">
+                  {iconPreview ? (
+                    <div className="relative">
+                      <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
+                      <button
+                        type="button"
+                        onClick={removeIcon}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FolderTree className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-emerald-400 transition-colors">
+                      <Upload size={18} className="text-gray-500" />
+                      <span className="text-sm text-gray-600">Choisir une image</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleIconChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
@@ -391,6 +453,41 @@ const AdminCategoriesPage: React.FC = () => {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-100 focus:border-emerald-300"
                 />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Icône / Image</label>
+                <div className="flex items-center gap-4">
+                  {iconPreview ? (
+                    <div className="relative">
+                      <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
+                      <button
+                        type="button"
+                        onClick={removeIcon}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FolderTree className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-emerald-400 transition-colors">
+                      <Upload size={18} className="text-gray-500" />
+                      <span className="text-sm text-gray-600">Choisir une image</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleIconChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea

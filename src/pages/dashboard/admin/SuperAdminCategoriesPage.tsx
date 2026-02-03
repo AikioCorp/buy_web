@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, FolderTree, Edit2, Trash2, X, Save, Plus, Star, ChevronRight } from 'lucide-react'
+import { Search, FolderTree, Edit2, Trash2, X, Save, Plus, Star, ChevronRight, Upload } from 'lucide-react'
 import { categoriesService, Category, CreateCategoryData } from '../../../lib/api/categoriesService'
 
 const SuperAdminCategoriesPage: React.FC = () => {
@@ -19,6 +19,8 @@ const SuperAdminCategoriesPage: React.FC = () => {
     parent: null,
     en_vedette: false
   })
+  const [iconFile, setIconFile] = useState<File | null>(null)
+  const [iconPreview, setIconPreview] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
@@ -63,6 +65,8 @@ const SuperAdminCategoriesPage: React.FC = () => {
       parent: category.parent,
       en_vedette: category.en_vedette
     })
+    setIconFile(null)
+    setIconPreview(category.icon || null)
     setIsEditModalOpen(true)
   }
 
@@ -71,9 +75,14 @@ const SuperAdminCategoriesPage: React.FC = () => {
     
     try {
       setActionLoading(true)
-      await categoriesService.updateCategory(editingCategory.slug, formData)
+      await categoriesService.updateCategory(editingCategory.slug, {
+        ...formData,
+        icon: iconFile || undefined
+      })
       setIsEditModalOpen(false)
       setEditingCategory(null)
+      setIconFile(null)
+      setIconPreview(null)
       loadCategories()
     } catch (err: any) {
       alert(err.message || 'Erreur lors de la mise à jour de la catégorie')
@@ -110,6 +119,8 @@ const SuperAdminCategoriesPage: React.FC = () => {
       parent: null,
       en_vedette: false
     })
+    setIconFile(null)
+    setIconPreview(null)
     setIsCreateModalOpen(true)
   }
 
@@ -121,8 +132,13 @@ const SuperAdminCategoriesPage: React.FC = () => {
     
     try {
       setActionLoading(true)
-      await categoriesService.createCategory(createFormData)
+      await categoriesService.createCategory({
+        ...createFormData,
+        icon: iconFile || undefined
+      })
       setIsCreateModalOpen(false)
+      setIconFile(null)
+      setIconPreview(null)
       loadCategories()
     } catch (err: any) {
       alert(err.message || 'Erreur lors de la création de la catégorie')
@@ -147,6 +163,23 @@ const SuperAdminCategoriesPage: React.FC = () => {
     } else {
       setFormData({ ...formData, name, slug })
     }
+  }
+
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setIconFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setIconPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeIcon = () => {
+    setIconFile(null)
+    setIconPreview(null)
   }
 
   // Flatten categories for display with hierarchy
@@ -332,6 +365,40 @@ const SuperAdminCategoriesPage: React.FC = () => {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Icône / Image</label>
+                <div className="flex items-center gap-4">
+                  {iconPreview ? (
+                    <div className="relative">
+                      <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
+                      <button
+                        type="button"
+                        onClick={removeIcon}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FolderTree className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-400 transition-colors">
+                      <Upload size={18} className="text-gray-500" />
+                      <span className="text-sm text-gray-600">Choisir une image</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleIconChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
                 <input
                   type="text"
@@ -425,6 +492,40 @@ const SuperAdminCategoriesPage: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Icône / Image</label>
+                <div className="flex items-center gap-4">
+                  {iconPreview ? (
+                    <div className="relative">
+                      <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
+                      <button
+                        type="button"
+                        onClick={removeIcon}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FolderTree className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-400 transition-colors">
+                      <Upload size={18} className="text-gray-500" />
+                      <span className="text-sm text-gray-600">Choisir une image</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleIconChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
 
               <div>
