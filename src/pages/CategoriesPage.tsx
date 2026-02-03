@@ -56,6 +56,11 @@ export function CategoriesPage() {
   const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
 
   const getCategoryImage = (category: Category): string => {
+    // Priority: icon > image > image_url > fallback by slug
+    if (category.icon) return category.icon;
+    if (category.image) return category.image;
+    if (category.image_url) return category.image_url;
+    
     const categoryImages: Record<string, string> = {
       'electronique': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&h=100&fit=crop',
       'mode': 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=100&h=100&fit=crop',
@@ -70,7 +75,7 @@ export function CategoriesPage() {
       'jouets': 'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=100&h=100&fit=crop',
       'livres': 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=100&h=100&fit=crop',
     }
-    return category.image_url || categoryImages[category.slug] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'
+    return categoryImages[category.slug] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'
   }
 
   return (

@@ -706,7 +706,8 @@ export function Navbar() {
                             'electromenager': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=100&h=100&fit=crop',
                             'maison': 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=100&h=100&fit=crop',
                           }
-                          const imgUrl = categoryImages[cat.slug] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'
+                          // Priority: icon > image > fallback
+                          const imgUrl = cat.icon || cat.image || categoryImages[cat.slug] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'
                           return (
                             <Link
                               key={cat.id}
