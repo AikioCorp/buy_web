@@ -26,6 +26,45 @@ interface AuthState {
   isSuperAdmin: () => boolean;
 }
 
+// Fonction pour traduire les messages d'erreur en français
+const translateErrorMessage = (message: string): string => {
+  const translations: Record<string, string> = {
+    'Invalid credentials': 'Identifiants incorrects',
+    'Invalid login credentials': 'Identifiants de connexion incorrects',
+    'User not found': 'Utilisateur non trouvé',
+    'Incorrect password': 'Mot de passe incorrect',
+    'Email already exists': 'Cet email est déjà utilisé',
+    'Phone already exists': 'Ce numéro de téléphone est déjà utilisé',
+    'Invalid email': 'Email invalide',
+    'Invalid phone': 'Numéro de téléphone invalide',
+    'Password too short': 'Mot de passe trop court',
+    'User already exists': 'Cet utilisateur existe déjà',
+    'Database error': 'Erreur de base de données',
+    'Failed to create user': 'Échec de la création de l\'utilisateur',
+    'Failed to sign in': 'Échec de la connexion',
+    'Network error': 'Erreur réseau',
+    'Server error': 'Erreur serveur',
+    'Unauthorized': 'Non autorisé',
+    'Forbidden': 'Accès interdit',
+    'Not found': 'Non trouvé',
+  };
+
+  // Chercher une correspondance exacte
+  if (translations[message]) {
+    return translations[message];
+  }
+
+  // Chercher une correspondance partielle
+  for (const [key, value] of Object.entries(translations)) {
+    if (message.toLowerCase().includes(key.toLowerCase())) {
+      return value;
+    }
+  }
+
+  // Retourner le message original s'il est déjà en français ou non traduit
+  return message;
+};
+
 // Déterminer le rôle basé sur les données de l'utilisateur
 // Hiérarchie: super_admin > admin > vendor > client
 const determineRole = (user: User | any): UserRole => {
@@ -106,7 +145,9 @@ export const useAuthStore = create<AuthState>()(
             if (typeof response.error === 'object' && response.error !== null) {
               errorMsg = (response.error as any).message || (response.error as any).error || JSON.stringify(response.error);
             }
-            set({ error: String(errorMsg), isLoading: false });
+            // Traduire les messages d'erreur courants en français
+            const translatedMsg = translateErrorMessage(String(errorMsg));
+            set({ error: translatedMsg, isLoading: false });
             return false;
           }
 
@@ -163,8 +204,11 @@ export const useAuthStore = create<AuthState>()(
             errorMessage = error.message || error.error || JSON.stringify(error);
           }
 
+          // Traduire les messages d'erreur
+          const translatedMsg = translateErrorMessage(errorMessage);
+
           set({
-            error: errorMessage,
+            error: translatedMsg,
             isLoading: false,
           });
           return false;
@@ -180,7 +224,9 @@ export const useAuthStore = create<AuthState>()(
             if (typeof response.error === 'object' && response.error !== null) {
               errorMsg = (response.error as any).message || (response.error as any).error || JSON.stringify(response.error);
             }
-            set({ error: String(errorMsg), isLoading: false });
+            // Traduire les messages d'erreur
+            const translatedMsg = translateErrorMessage(String(errorMsg));
+            set({ error: translatedMsg, isLoading: false });
             return false;
           }
           if (response.data) {
@@ -203,12 +249,15 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false, error: null });
           return true;
         } catch (error: any) {
-          let errorMessage = "Erreur";
+          let errorMessage = "Erreur lors de l'inscription";
           if (typeof error === 'string') errorMessage = error;
           else if (error instanceof Error) errorMessage = error.message;
           else if (error && typeof error === 'object') errorMessage = (error as any).message || JSON.stringify(error);
 
-          set({ error: errorMessage, isLoading: false });
+          // Traduire les messages d'erreur
+          const translatedMsg = translateErrorMessage(errorMessage);
+
+          set({ error: translatedMsg, isLoading: false });
           return false;
         }
       },
