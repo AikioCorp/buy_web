@@ -90,20 +90,33 @@ export const authService = {
   async register(data: RegisterData) {
     const response = await apiClient.post<any>('/api/auth/register', data);
 
+    // Support des deux formats de token (Node.js API vs Standard)
     const token = response.data?.access_token || response.data?.token;
 
     if (token) {
       apiClient.setToken(token);
     }
 
-    // Normalisation identique au login
-    if (response.data?.user) {
-      response.data = {
-        ...response.data,
-        ...response.data.user,
-        access_token: token,
-        user_id: response.data.user.id,
-      };
+    // Normaliser la réponse pour assurer la compatibilité
+    if (response.data) {
+      // Si la réponse contient un objet 'user' imbriqué, on normalise
+      if (response.data.user) {
+        response.data = {
+          ...response.data,
+          ...response.data.user,
+          access_token: token,
+          token: token, // Garder aussi le champ token pour compatibilité
+          user_id: response.data.user.id,
+        };
+      } else {
+        // Si user n'est pas imbriqué, ajouter juste le token normalisé
+        response.data = {
+          ...response.data,
+          access_token: token,
+          token: token,
+          user_id: response.data.id,
+        };
+      }
     }
 
     return response;
