@@ -17,10 +17,8 @@ export function LoginPage() {
     e.preventDefault()
     clearError()
 
-    // Formater le numéro de téléphone au format +223 si nécessaire
-    const loginIdentifier = loginMethod === 'email' 
-      ? email 
-      : (phoneNumber.startsWith('+223') ? phoneNumber : `+223 ${phoneNumber.replace(/^\+?223\s*/, '').replace(/[^0-9]/g, '').replace(/(\d{2})(?=\d)/g, '$1 ').trim()}`)
+    // Pour le téléphone, envoyer directement le numéro (l'API gère le format)
+    const loginIdentifier = loginMethod === 'email' ? email : phoneNumber
 
     const success = await login(loginIdentifier, password, loginMethod)
     
