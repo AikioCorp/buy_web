@@ -112,7 +112,7 @@ const ClientDashboardPage: React.FC = () => {
   const { products } = useProducts()
   const [tab, setTab] = useState<'overview' | 'wishlist'>('overview')
 
-  const firstName = user?.username || 'Utilisateur'
+  const firstName = user?.first_name || user?.username || 'Utilisateur'
   
   // Calculer les statistiques
   const totalOrders = orders?.length || 0

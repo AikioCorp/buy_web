@@ -401,7 +401,7 @@ export function Navbar() {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <div className="w-8 h-8 rounded-full bg-[#e8d20c] flex items-center justify-center text-[#0f4c2b] font-bold text-sm">
-                    {user.username?.charAt(0).toUpperCase() || 'U'}
+                    {user.first_name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   Mon compte
                 </Link>
@@ -613,6 +613,9 @@ export function Navbar() {
 
             {/* Liens de navigation */}
             <div className="hidden lg:flex items-center gap-6">
+              <Link to="/" className="text-white hover:text-[#e8d20c] transition-colors font-medium py-2">
+                Accueil
+              </Link>
               <div
                 className="relative"
                 onMouseEnter={handleShopsMegaMenuEnter}
@@ -792,7 +795,7 @@ export function Navbar() {
                 <div className="relative group">
                   <button className="flex items-center gap-2 p-2 hover:bg-white/10 rounded-full transition-colors">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#e8d20c] to-[#d4c00b] flex items-center justify-center text-[#0f4c2b] font-bold text-sm">
-                      {user.username?.charAt(0).toUpperCase() || 'U'}
+                      {user.first_name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || 'U'}
                     </div>
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-white text-gray-900 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all border border-gray-100">
@@ -1226,9 +1229,9 @@ export function Navbar() {
                     <div className="relative group">
                       <button className="flex items-center space-x-2 p-2.5 rounded-full hover:bg-white/10 transition-all duration-200">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#e8d20c] to-[#d4c00b] flex items-center justify-center text-[#0f4c2b] font-bold text-sm shadow-md">
-                          {user.username?.charAt(0).toUpperCase() || 'U'}
+                          {user.first_name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || 'U'}
                         </div>
-                        <span className="hidden lg:block font-medium">{user.username}</span>
+                        <span className="hidden lg:block font-medium">{user.first_name || user.username}</span>
                       </button>
                       <div className="absolute right-0 mt-2 w-48 bg-white text-gray-900 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                         <Link

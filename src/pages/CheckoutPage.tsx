@@ -122,12 +122,15 @@ export function CheckoutPage() {
       }
     }
     // Sinon, utiliser les données de l'utilisateur
+    // Ne pas afficher l'email généré automatiquement
+    const userEmail = user?.email && !user.email.includes('@phone.buymore.ml') ? user.email : ''
+    
     return {
       full_name: user?.first_name && user?.last_name 
         ? `${user.first_name} ${user.last_name}` 
         : user?.username || '',
       phone: user?.phone || '',
-      email: user?.email || '',
+      email: userEmail,
       commune: '',
       quartier: '',
       address_details: '',
@@ -239,25 +242,28 @@ export function CheckoutPage() {
       }
 
       try {
-        console.log('Creating order with data:', orderData)
+        console.log('🛒 Creating order with data:', orderData)
         const response = await ordersService.createOrder(orderData)
-        console.log('Order creation response:', response)
+        console.log('📦 Order creation response:', response)
         
         if (response.error) {
+          console.error('❌ Order error:', response.error)
           setError(response.error)
           return
         }
 
         if (response.data) {
-          console.log('Order created successfully:', response.data)
+          console.log('✅ Order created successfully:', response.data)
           setOrderId(response.data.id)
           setOrderSuccess(true)
           clearCart()
+          console.log('✅ Order success state set, should show success page')
         } else {
+          console.error('❌ No data returned from server')
           setError('Aucune donnée retournée par le serveur')
         }
       } catch (apiError: any) {
-        console.error('API Error:', apiError)
+        console.error('❌ API Error:', apiError)
         setError(apiError.message || 'Erreur lors de la création de la commande')
       }
     } catch (err: any) {

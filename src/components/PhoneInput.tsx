@@ -79,12 +79,12 @@ export function PhoneInput({
           onChange={handleChange}
           required={required}
           className={`block w-full pl-[140px] pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white ${className}`}
-          placeholder="70 00 90 07"
+          placeholder="Votre numéro ici"
           maxLength={11}
         />
       </div>
       <p className="mt-1 text-xs text-gray-500">
-        Format: 8 chiffres (ex: 70 00 90 07 ou 70-00-90-07)
+        Format: 8 chiffres
       </p>
     </div>
   )

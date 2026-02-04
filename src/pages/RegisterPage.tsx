@@ -221,7 +221,7 @@ export function RegisterPage() {
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       required
                       className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                      placeholder="70 00 90 07"
+                      placeholder="Votre numéro ici"
                     />
                   </div>
                 </div>

@@ -45,6 +45,9 @@ export function SimpleNavbar() {
 
           {/* Liens de navigation */}
           <div className="hidden lg:flex items-center gap-6">
+            <Link to="/" className="text-white hover:text-[#e8d20c] transition-colors font-medium">
+              Accueil
+            </Link>
             <Link to="/shops" className="text-white hover:text-[#e8d20c] transition-colors font-medium">
               Boutiques
             </Link>
