@@ -293,7 +293,14 @@ const StorePage: React.FC = () => {
 
   // Show pending approval page if shop exists but is not active
   if (store && pendingApproval) {
-    return <VendorPendingApprovalPage shopName={store.name} shopEmail={store.email} />
+    return (
+      <VendorPendingApprovalPage 
+        shopName={store.name} 
+        shopEmail={store.email} 
+        shopPhone={store.phone}
+        showLimitedDashboard={true}
+      />
+    )
   }
 
   return (
