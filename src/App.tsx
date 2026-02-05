@@ -84,6 +84,7 @@ import SuperAdminProductsPage from './pages/dashboard/admin/SuperAdminProductsPa
 import SuperAdminOrdersPage from './pages/dashboard/admin/SuperAdminOrdersPage'
 import SuperAdminRestaurantsPage from './pages/dashboard/admin/SuperAdminRestaurantsPage'
 import SuperAdminPermissionsPage from './pages/dashboard/admin/SuperAdminPermissionsPage'
+import PermissionsManagementPage from './pages/dashboard/admin/PermissionsManagementPage'
 import SuperAdminAnalyticsPage from './pages/dashboard/admin/SuperAdminAnalyticsPage'
 import AdminProfilePage from './pages/dashboard/admin/AdminProfilePage'
 import AdminReviewsPage from './pages/dashboard/admin/AdminReviewsPage'
@@ -208,7 +209,7 @@ function App() {
           <Route path="categories" element={<AdminCategoriesPage />} />
           <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
           <Route path="reports" element={<SuperAdminReportsPage />} />
-          <Route path="permissions" element={<SuperAdminPermissionsPage />} />
+          <Route path="permissions" element={<PermissionsManagementPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
         </Route>
       </Routes>

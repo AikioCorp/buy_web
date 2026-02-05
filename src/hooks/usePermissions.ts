@@ -55,6 +55,17 @@ export const ALL_PERMISSIONS = {
   
   // Notifications
   NOTIFICATIONS_SEND: 'notifications_send',
+  NOTIFICATIONS_VIEW: 'notifications_view',
+  NOTIFICATIONS_MANAGE: 'notifications_manage',
+  
+  // Messages (Client-Vendeur)
+  MESSAGES_VIEW: 'messages_view',
+  MESSAGES_MANAGE: 'messages_manage',
+  MESSAGES_DELETE: 'messages_delete',
+  
+  // Statistiques
+  STATISTICS_VIEW: 'statistics_view',
+  STATISTICS_EXPORT: 'statistics_export',
   
   // Catégories
   CATEGORIES_VIEW: 'categories_view',
@@ -176,9 +187,24 @@ export function usePermissions() {
   const canChangeUserStatus = () => hasPermission(ALL_PERMISSIONS.USERS_CHANGE_STATUS)
   
   /**
-   * Vérifie si l'utilisateur peut envoyer des notifications
+   * Vérifie si l'utilisateur peut gérer les notifications
    */
   const canSendNotifications = () => hasPermission(ALL_PERMISSIONS.NOTIFICATIONS_SEND)
+  const canViewNotifications = () => hasPermission(ALL_PERMISSIONS.NOTIFICATIONS_VIEW)
+  const canManageNotifications = () => hasPermission(ALL_PERMISSIONS.NOTIFICATIONS_MANAGE)
+  
+  /**
+   * Vérifie si l'utilisateur peut gérer les messages
+   */
+  const canViewMessages = () => hasPermission(ALL_PERMISSIONS.MESSAGES_VIEW)
+  const canManageMessages = () => hasPermission(ALL_PERMISSIONS.MESSAGES_MANAGE)
+  const canDeleteMessages = () => hasPermission(ALL_PERMISSIONS.MESSAGES_DELETE)
+  
+  /**
+   * Vérifie si l'utilisateur peut voir les statistiques
+   */
+  const canViewStatistics = () => hasPermission(ALL_PERMISSIONS.STATISTICS_VIEW)
+  const canExportStatistics = () => hasPermission(ALL_PERMISSIONS.STATISTICS_EXPORT)
   
   /**
    * Vérifie si l'utilisateur peut gérer les catégories
@@ -250,6 +276,17 @@ export function usePermissions() {
     
     // Notifications
     canSendNotifications,
+    canViewNotifications,
+    canManageNotifications,
+    
+    // Messages
+    canViewMessages,
+    canManageMessages,
+    canDeleteMessages,
+    
+    // Statistiques
+    canViewStatistics,
+    canExportStatistics,
     
     // Catégories
     canViewCategories,
