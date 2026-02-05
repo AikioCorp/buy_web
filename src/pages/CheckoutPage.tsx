@@ -112,25 +112,46 @@ export function CheckoutPage() {
   const [orderId, setOrderId] = useState<number | null>(null)
   const [saveAddressForLater, setSaveAddressForLater] = useState(true)
   
-  // Shipping form - Priorité: adresse sauvegardée > données utilisateur > vide
+  // Shipping form - Priorité: données utilisateur connecté > adresse sauvegardée > vide
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(() => {
-    // Si une adresse est sauvegardée, l'utiliser
+    // Ne pas afficher l'email généré automatiquement
+    const userEmail = user?.email && !user.email.includes('@phone.buymore.ml') ? user.email : ''
+    
+    // Si l'utilisateur est connecté, toujours utiliser ses données
+    if (user) {
+      // Si une adresse est sauvegardée ET appartient à cet utilisateur, utiliser commune/quartier/détails
+      const useSavedLocation = savedAddress && 
+        savedAddress.phone === user.phone && 
+        savedAddress.commune && 
+        savedAddress.quartier
+      
+      return {
+        full_name: user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : user.username || '',
+        phone: user.phone || '',
+        email: userEmail,
+        commune: useSavedLocation ? savedAddress.commune : '',
+        quartier: useSavedLocation ? savedAddress.quartier : '',
+        address_details: useSavedLocation ? savedAddress.address_details : '',
+        country: 'Mali',
+        is_default: true
+      }
+    }
+    
+    // Si pas d'utilisateur connecté mais une adresse sauvegardée, l'utiliser
     if (savedAddress) {
       return {
         ...savedAddress,
         is_default: true
       }
     }
-    // Sinon, utiliser les données de l'utilisateur
-    // Ne pas afficher l'email généré automatiquement
-    const userEmail = user?.email && !user.email.includes('@phone.buymore.ml') ? user.email : ''
     
+    // Sinon, formulaire vide
     return {
-      full_name: user?.first_name && user?.last_name 
-        ? `${user.first_name} ${user.last_name}` 
-        : user?.username || '',
-      phone: user?.phone || '',
-      email: userEmail,
+      full_name: '',
+      phone: '',
+      email: '',
       commune: '',
       quartier: '',
       address_details: '',
@@ -248,7 +269,11 @@ export function CheckoutPage() {
         
         if (response.error) {
           console.error('❌ Order error:', response.error)
-          setError(response.error)
+          // Extraire le message d'erreur si c'est un objet
+          const errorMessage = typeof response.error === 'object' 
+            ? response.error.message || JSON.stringify(response.error)
+            : response.error
+          setError(errorMessage)
           return
         }
 

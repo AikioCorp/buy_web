@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { X, Mail, Lock, Eye, EyeOff, LogIn, UserPlus, User } from 'lucide-react'
+import { X, Mail, Lock, Eye, EyeOff, LogIn, UserPlus, User, Phone } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useToast } from '@/components/Toast'
+import { PhoneInput } from '@/components/PhoneInput'
 
 interface LoginPopupProps {
   isOpen: boolean
@@ -12,7 +13,9 @@ interface LoginPopupProps {
 
 export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupProps) {
   const [isRegister, setIsRegister] = useState(false)
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email')
   const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -28,6 +31,7 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
 
   const resetForm = () => {
     setEmail('')
+    setPhoneNumber('')
     setPassword('')
     setConfirmPassword('')
     setFirstName('')
@@ -46,12 +50,18 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
     setLoading(true)
 
     try {
-      await login(email, password)
-      showToast('Connexion réussie !', 'success')
-      onClose()
-      if (onSuccess) onSuccess()
+      const loginIdentifier = loginMethod === 'email' ? email : phoneNumber
+      const success = await login(loginIdentifier, password, loginMethod)
+      
+      if (success) {
+        showToast('Connexion réussie !', 'success')
+        onClose()
+        if (onSuccess) onSuccess()
+      } else {
+        setError('Email/téléphone ou mot de passe incorrect')
+      }
     } catch (err: any) {
-      setError(err.message || 'Email ou mot de passe incorrect')
+      setError(err.message || 'Email/téléphone ou mot de passe incorrect')
     } finally {
       setLoading(false)
     }
@@ -74,15 +84,33 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
     setLoading(true)
 
     try {
-      await register({
-        email,
+      // Créer un username unique
+      const fullName = `${firstName} ${lastName}`.trim()
+      const baseUsername = fullName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+      const uniqueSuffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(-2)
+      const username = `${baseUsername}_${uniqueSuffix}`
+
+      // Formater le numéro de téléphone
+      const formattedPhone = loginMethod === 'phone'
+        ? (phoneNumber.startsWith('+223') ? phoneNumber : `+223 ${phoneNumber.replace(/^\+?223\s*/, '').replace(/[^0-9]/g, '').replace(/(\d{2})(?=\d)/g, '$1 ').trim()}`)
+        : ''
+
+      const success = await register({
+        username,
+        email: loginMethod === 'email' ? email : '',
         password,
         first_name: firstName,
         last_name: lastName,
+        phone: formattedPhone,
       })
-      showToast('Compte créé avec succès !', 'success')
-      onClose()
-      if (onSuccess) onSuccess()
+      
+      if (success) {
+        showToast('Compte créé avec succès !', 'success')
+        onClose()
+        if (onSuccess) onSuccess()
+      } else {
+        setError('Erreur lors de la création du compte')
+      }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la création du compte')
     } finally {
@@ -154,6 +182,32 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
             </div>
           )}
 
+          {/* Méthode de connexion/inscription */}
+          <div className="flex gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setLoginMethod('email')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                loginMethod === 'email'
+                  ? 'bg-[#0f4c2b] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Mail className="inline w-4 h-4 mr-1" /> Email
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMethod('phone')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                loginMethod === 'phone'
+                  ? 'bg-[#0f4c2b] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Phone className="inline w-4 h-4 mr-1" /> Téléphone
+            </button>
+          </div>
+
           {/* Champs pour l'inscription */}
           {isRegister && (
             <div className="grid grid-cols-2 gap-3">
@@ -192,22 +246,37 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="votre@email.com"
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
+          {/* Email ou Téléphone */}
+          {loginMethod === 'email' ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="votre@email.com"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
+                  required
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Numéro de téléphone
+              </label>
+              <PhoneInput
+                value={phoneNumber}
+                onChange={setPhoneNumber}
                 required
+                className="text-sm"
               />
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
