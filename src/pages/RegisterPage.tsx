@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Phone } from 'lucide-react'
-import { NeighborhoodAutocomplete } from '@/components/NeighborhoodAutocomplete'
-import { PhoneInput } from '@/components/PhoneInput'
 
 export function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -16,8 +14,7 @@ export function RegisterPage() {
   // Champs boutique (si vendeur)
   const [shopName, setShopName] = useState('')
   const [shopDescription, setShopDescription] = useState('')
-  const [shopAddress, setShopAddress] = useState('')
-  const [shopPhone, setShopPhone] = useState('')
+  const [useRegistrationPhone, setUseRegistrationPhone] = useState(true)
   
   const { register, error, isLoading, clearError } = useAuthStore()
   const navigate = useNavigate()
@@ -40,7 +37,7 @@ export function RegisterPage() {
     // Formater le numéro de téléphone au format +223
     const formattedPhone = registerMethod === 'phone' 
       ? (phoneNumber.startsWith('+223') ? phoneNumber : `+223 ${phoneNumber.replace(/^\+?223\s*/, '').replace(/[^0-9]/g, '').replace(/(\d{2})(?=\d)/g, '$1 ').trim()}`)
-      : (role === 'vendor' ? shopPhone : '')
+      : ''
 
     const registerData = {
       username,
@@ -328,10 +325,10 @@ export function RegisterPage() {
                     </div>
                   </div>
 
-                  {/* Description */}
+                  {/* Description (optionnel) */}
                   <div className="group">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description *
+                      Description <span className="text-gray-400 font-normal">(optionnel)</span>
                     </label>
                     <div className="relative">
                       <div className="absolute top-3 left-0 pl-4 pointer-events-none">
@@ -340,28 +337,26 @@ export function RegisterPage() {
                       <textarea
                         value={shopDescription}
                         onChange={(e) => setShopDescription(e.target.value)}
-                        required
-                        rows={3}
+                        rows={2}
                         className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white resize-none"
-                        placeholder="Décrivez votre boutique et vos produits..."
+                        placeholder="Décrivez brièvement votre boutique..."
                       />
                     </div>
                   </div>
 
-                  {/* Quartier (Adresse) */}
-                  <NeighborhoodAutocomplete
-                    value={shopAddress}
-                    onChange={setShopAddress}
-                    required
-                    placeholder="Sélectionnez un quartier de Bamako"
-                  />
-
-                  {/* Téléphone */}
-                  <PhoneInput
-                    value={shopPhone}
-                    onChange={setShopPhone}
-                    required
-                  />
+                  {/* Checkbox pour utiliser le même téléphone */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="useRegistrationPhone"
+                      checked={useRegistrationPhone}
+                      onChange={(e) => setUseRegistrationPhone(e.target.checked)}
+                      className="w-5 h-5 text-[#0f4c2b] border-gray-300 rounded focus:ring-[#0f4c2b]"
+                    />
+                    <label htmlFor="useRegistrationPhone" className="text-sm text-gray-700">
+                      Utiliser le même numéro de téléphone pour ma boutique
+                    </label>
+                  </div>
 
                   {/* Note d'approbation */}
                   <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">

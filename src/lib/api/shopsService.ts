@@ -217,9 +217,10 @@ export const shopsService = {
   },
 
   /**
-   * Récupérer ma boutique (première de la liste)
+   * Récupérer ma boutique (filtrée par owner_id)
+   * @param userId - ID de l'utilisateur connecté pour filtrer les boutiques
    */
-  async getMyShop() {
+  async getMyShop(userId?: string) {
     const response = await apiClient.get<{ results: Shop[]; count: number } | Shop[]>('/api/shops');
     console.log('🔍 getMyShop raw response:', response);
     
@@ -233,7 +234,13 @@ export const shopsService = {
       }
     }
     
-    console.log('📦 getMyShop parsed shops:', shops.length, shops);
+    console.log('📦 getMyShop all shops:', shops.length, shops);
+    
+    // IMPORTANT: Filter shops by owner_id on frontend since backend may not filter correctly
+    if (userId) {
+      shops = shops.filter(shop => String(shop.owner_id) === String(userId));
+      console.log('🔍 getMyShop filtered by userId:', userId, 'found:', shops.length);
+    }
     
     if (shops.length > 0) {
       return {

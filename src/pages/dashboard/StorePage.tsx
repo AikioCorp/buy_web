@@ -47,37 +47,31 @@ const StorePage: React.FC = () => {
     : []
 
   useEffect(() => {
-    loadStore()
-  }, [])
+    if (user?.id) {
+      loadStore()
+    }
+  }, [user?.id])
 
   const loadStore = async () => {
     try {
       setLoading(true)
-      console.log('🔄 Loading store...')
-      const response = await shopsService.getMyShop()
-      console.log('📦 Store response:', response)
+      const currentUserId = user?.id ? String(user.id) : undefined
+      console.log('🔄 Loading store for user:', currentUserId)
+      
+      // Pass userId to filter shops by owner_id
+      const response = await shopsService.getMyShop(currentUserId)
+      console.log('� Store response:', response)
       
       if (response.data) {
-        // IMPORTANT: Verify this shop belongs to the current user
-        const currentUserId = user?.id
-        const shopOwnerId = response.data.owner_id
-        
-        console.log('🔍 Checking ownership:', { currentUserId, shopOwnerId })
-        
-        if (currentUserId && shopOwnerId && String(currentUserId) !== String(shopOwnerId)) {
-          // Shop doesn't belong to this user - they need to create their own
-          console.log('⚠️ Shop belongs to different user, showing create form')
-          setStore(null)
-          return
-        }
-        
-        console.log('✅ Store data received:', response.data)
+        console.log('✅ Store found:', response.data.name, 'is_active:', response.data.is_active)
         setStore(response.data)
         
         // Check if shop is pending approval (is_active = false)
         if (!response.data.is_active) {
           console.log('⏳ Shop is pending approval')
           setPendingApproval(true)
+        } else {
+          setPendingApproval(false)
         }
         
         setFormData({
@@ -100,7 +94,9 @@ const StorePage: React.FC = () => {
           setDeliveryZones(response.data.delivery_zones)
         }
       } else if (response.error) {
-        console.log('ℹ️ No store found, user can create one')
+        console.log('ℹ️ No store found for this user, showing create form')
+        setStore(null)
+        setPendingApproval(false)
       }
     } catch (error) {
       console.error('❌ Erreur chargement boutique:', error)
@@ -235,10 +231,13 @@ const StorePage: React.FC = () => {
         }
       } else {
         // Création
+        console.log('📝 Creating new shop...')
         const response = await shopsService.createShop(data)
+        console.log('📦 Create shop response:', response)
+        
         if (response.data) {
           const newShop = response.data
-          setStore(newShop)
+          console.log('✅ Shop created:', newShop.id, newShop.name, 'is_active:', newShop.is_active)
           
           // Upload images after creation
           if (logoFile || bannerFile) {
@@ -258,8 +257,12 @@ const StorePage: React.FC = () => {
           
           setLogoFile(null)
           setBannerFile(null)
-          setMessage({ type: 'success', text: 'Boutique créée avec succès!' })
-          await loadStore()
+          
+          // Set shop and show pending approval page immediately
+          // New shops are created with is_active: false
+          setStore(newShop)
+          setPendingApproval(true)
+          console.log('⏳ Shop created, showing pending approval page')
         } else if (response.error) {
           // Handle error object or string
           const errorText = typeof response.error === 'object' 
