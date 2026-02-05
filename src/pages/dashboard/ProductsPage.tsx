@@ -289,6 +289,14 @@ const ProductsPage: React.FC = () => {
       const storeResponse = await shopsService.getMyShop()
       if (storeResponse.data) {
         setStore(storeResponse.data)
+        
+        // Show warning if shop is not approved
+        if (!storeResponse.data.is_active) {
+          setMessage({ 
+            type: 'error', 
+            text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.' 
+          })
+        }
       }
 
       // Charger les produits
@@ -304,6 +312,14 @@ const ProductsPage: React.FC = () => {
   }
 
   const handleAddProduct = () => {
+    // Check if shop is approved
+    if (!store?.is_active) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.' 
+      })
+      return
+    }
     setEditingProduct(null)
     setIsFormModalOpen(true)
   }

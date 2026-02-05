@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { 
-  Store, Save, MapPin, Mail, Phone, Globe, 
+  Store, Save, MapPin, Mail, Phone, 
   Camera, CheckCircle, AlertCircle, Loader2, Eye,
-  Facebook, Instagram, Twitter, Upload, X, Image as ImageIcon
+  Upload, X, Image as ImageIcon
 } from 'lucide-react'
 import { shopsService, Shop, CreateShopData } from '../../lib/api/shopsService'
 import { apiClient } from '../../lib/api/apiClient'
@@ -26,10 +26,6 @@ const StorePage: React.FC = () => {
     address_quartier: '',
     address_details: '',
     city: 'Bamako',
-    website: '',
-    facebook: '',
-    instagram: '',
-    twitter: '',
   })
   
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -53,8 +49,12 @@ const StorePage: React.FC = () => {
   const loadStore = async () => {
     try {
       setLoading(true)
+      console.log('🔄 Loading store...')
       const response = await shopsService.getMyShop()
+      console.log('📦 Store response:', response)
+      
       if (response.data) {
+        console.log('✅ Store data received:', response.data)
         setStore(response.data)
         setFormData({
           name: response.data.name || '',
@@ -67,10 +67,6 @@ const StorePage: React.FC = () => {
           address_quartier: response.data.address_quartier || '',
           address_details: response.data.address_details || '',
           city: response.data.city || 'Bamako',
-          website: '',
-          facebook: '',
-          instagram: '',
-          twitter: '',
         })
         // Set image previews
         if (response.data.logo_url) setLogoPreview(response.data.logo_url)
@@ -79,9 +75,11 @@ const StorePage: React.FC = () => {
         if (response.data.delivery_zones) {
           setDeliveryZones(response.data.delivery_zones)
         }
+      } else if (response.error) {
+        console.log('ℹ️ No store found, user can create one')
       }
     } catch (error) {
-      console.error('Erreur chargement boutique:', error)
+      console.error('❌ Erreur chargement boutique:', error)
     } finally {
       setLoading(false)
     }
@@ -105,16 +103,20 @@ const StorePage: React.FC = () => {
   }
 
   const uploadStoreImage = async (storeId: number, file: File, type: 'logo' | 'banner') => {
+    console.log(`📤 Uploading ${type} for store ${storeId}...`)
     const response = await apiClient.upload<{ success: boolean; data: { publicUrl: string } }>(
       `/api/upload/stores/${storeId}?type=${type}`,
       file,
       'image'
     )
+    console.log(`📦 Upload response for ${type}:`, response)
     if (response.error) {
-      console.error('Upload error:', response.error)
+      console.error(`❌ Upload error for ${type}:`, response.error)
       return ''
     }
-    return response.data?.data?.publicUrl || ''
+    const url = response.data?.data?.publicUrl || ''
+    console.log(`✅ ${type} uploaded successfully:`, url)
+    return url
   }
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,22 +176,33 @@ const StorePage: React.FC = () => {
         if (logoFile) {
           setUploadingLogo(true)
           const logoUrl = await uploadStoreImage(store.id, logoFile, 'logo')
-          if (logoUrl) updateData.logo_url = logoUrl
+          if (logoUrl) {
+            updateData.logo_url = logoUrl
+            console.log('✅ Logo URL added to update data:', logoUrl)
+          }
           setUploadingLogo(false)
         }
         if (bannerFile) {
           setUploadingBanner(true)
           const bannerUrl = await uploadStoreImage(store.id, bannerFile, 'banner')
-          if (bannerUrl) updateData.banner_url = bannerUrl
+          if (bannerUrl) {
+            updateData.banner_url = bannerUrl
+            console.log('✅ Banner URL added to update data:', bannerUrl)
+          }
           setUploadingBanner(false)
         }
         
+        console.log('📝 Updating shop with data:', updateData)
         const response = await shopsService.updateShop(store.id, updateData)
+        console.log('📦 Update shop response:', response)
+        
         if (response.data) {
           setStore(response.data)
           setLogoFile(null)
           setBannerFile(null)
           setMessage({ type: 'success', text: 'Boutique mise à jour avec succès!' })
+          // Reload to get fresh data
+          await loadStore()
         } else if (response.error) {
           setMessage({ type: 'error', text: response.error })
         }
@@ -258,6 +271,19 @@ const StorePage: React.FC = () => {
           }
         </p>
       </div>
+
+      {/* Shop Approval Warning */}
+      {store && !store.is_active && (
+        <div className="mb-6 p-4 rounded-xl flex items-start gap-3 bg-yellow-50 text-yellow-800 border border-yellow-200">
+          <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Boutique en attente d'approbation</p>
+            <p className="text-sm mt-1">
+              Votre boutique est en cours de vérification par notre équipe. Vous ne pourrez pas ajouter de produits tant qu'elle n'est pas approuvée.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Message */}
       {message && (
@@ -578,79 +604,6 @@ const StorePage: React.FC = () => {
             />
           )}
 
-          {/* Social Links */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Globe size={20} className="text-emerald-600" />
-              Réseaux sociaux
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Site web
-                </label>
-                <div className="relative">
-                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="https://www.maboutique.com"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Facebook
-                </label>
-                <div className="relative">
-                  <Facebook className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    value={formData.facebook}
-                    onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="facebook.com/maboutique"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Instagram
-                </label>
-                <div className="relative">
-                  <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    value={formData.instagram}
-                    onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="@maboutique"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Twitter / X
-                </label>
-                <div className="relative">
-                  <Twitter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    value={formData.twitter}
-                    onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="@maboutique"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Submit Button */}
