@@ -220,10 +220,24 @@ export const shopsService = {
    * Récupérer ma boutique (première de la liste)
    */
   async getMyShop() {
-    const response = await apiClient.get<Shop[]>('/api/shops');
-    if (response.data && response.data.length > 0) {
+    const response = await apiClient.get<{ results: Shop[]; count: number } | Shop[]>('/api/shops');
+    console.log('🔍 getMyShop raw response:', response);
+    
+    // Handle both response formats: { results: [...] } or direct array
+    let shops: Shop[] = [];
+    if (response.data) {
+      if (Array.isArray(response.data)) {
+        shops = response.data;
+      } else if (response.data.results && Array.isArray(response.data.results)) {
+        shops = response.data.results;
+      }
+    }
+    
+    console.log('📦 getMyShop parsed shops:', shops.length, shops);
+    
+    if (shops.length > 0) {
       return {
-        data: response.data[0],
+        data: shops[0],
         status: response.status,
       };
     }
