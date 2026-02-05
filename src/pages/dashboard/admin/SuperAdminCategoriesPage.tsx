@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, FolderTree, Edit2, Trash2, X, Save, Plus, Star, ChevronRight, Upload } from 'lucide-react'
+import { Search, FolderTree, Edit2, Trash2, X, Save, Plus, Star, ChevronRight, Upload, Loader2, RefreshCw, Package, MoreVertical } from 'lucide-react'
 import { categoriesService, Category, CreateCategoryData } from '../../../lib/api/categoriesService'
 import { useToast } from '../../../components/Toast'
 
@@ -211,144 +211,162 @@ const SuperAdminCategoriesPage: React.FC = () => {
   const parentCategories = (categories || []).filter(cat => !cat.parent)
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestion des Catégories</h1>
-          <p className="text-gray-600 mt-1">
-            {flatCategories.length} catégorie{flatCategories.length > 1 ? 's' : ''} au total
-          </p>
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Header */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-3xl p-8 text-white">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-24 -translate-x-24"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <FolderTree className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Gestion des Catégories</h1>
+              <p className="text-white/80 mt-1">Organisez vos produits par catégories</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-6">
+            <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
+              <span className="font-medium">{flatCategories.length} catégories</span>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
+              <span className="font-medium">{flatCategories.filter(c => c.en_vedette).length} en vedette</span>
+            </div>
+          </div>
         </div>
-        <button 
-          onClick={handleCreateCategory}
-          className="mt-4 md:mt-0 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-        >
-          <Plus size={18} />
-          Nouvelle Catégorie
-        </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+      {/* Actions Bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Rechercher une catégorie..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
             />
           </div>
+          <button 
+            onClick={loadCategories}
+            className="flex items-center gap-2 px-5 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            <span className="font-medium">Actualiser</span>
+          </button>
+          <button 
+            onClick={handleCreateCategory}
+            className="flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+          >
+            <Plus size={18} />
+            <span className="font-medium">Nouvelle catégorie</span>
+          </button>
         </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-          </div>
-        ) : error ? (
-          <div className="p-6 text-center">
-            <p className="text-red-600">{error}</p>
-            <button
-              onClick={loadCategories}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-            >
-              Réessayer
-            </button>
-          </div>
-        ) : filteredCategories.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            Aucune catégorie trouvée
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Catégorie
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Slug
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    En Vedette
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sous-catégories
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCategories.map((category) => (
-                  <tr key={category.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div style={{ marginLeft: `${category.level * 24}px` }} className="flex items-center">
-                          {category.level > 0 && (
-                            <ChevronRight size={16} className="text-gray-400 mr-2" />
-                          )}
-                          <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                            <FolderTree className="text-indigo-600" size={20} />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{category.name}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{category.slug}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {category.en_vedette ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          <Star size={12} />
-                          Vedette
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-500">
-                        {category.children?.length || 0}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleEditCategory(category)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="Modifier"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteClick(category)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
+
+      {/* Categories Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+        </div>
+      ) : error ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={loadCategories}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+          >
+            Réessayer
+          </button>
+        </div>
+      ) : filteredCategories.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+          <FolderTree className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Aucune catégorie</h3>
+          <p className="text-gray-500">Commencez par créer votre première catégorie.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCategories.map((category) => (
+            <div 
+              key={category.id} 
+              className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all group"
+              style={{ marginLeft: `${category.level * 16}px` }}
+            >
+              {/* Image */}
+              <div className="h-32 bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center relative">
+                {category.icon ? (
+                  <img src={category.icon} alt={category.name} className="w-full h-full object-cover" />
+                ) : (
+                  <FolderTree className="w-12 h-12 text-indigo-400" />
+                )}
+                {category.en_vedette && (
+                  <div className="absolute top-3 left-3">
+                    <span className="px-2 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-700 flex items-center gap-1">
+                      <Star size={12} fill="currentColor" />
+                      Vedette
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Content */}
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    {category.level > 0 && (
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                        <ChevronRight size={12} />
+                        <span>Sous-catégorie</span>
+                      </div>
+                    )}
+                    <h3 className="font-bold text-gray-900 text-lg">{category.name}</h3>
+                    <p className="text-sm text-gray-500 mt-1">{category.slug}</p>
+                  </div>
+                  <div className="relative">
+                    <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                      <MoreVertical size={18} className="text-gray-500" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Package size={16} />
+                    <span>{category.children?.length || 0} sous-catégories</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleEditCategory(category)}
+                      className="p-2 hover:bg-blue-50 text-gray-500 hover:text-blue-600 rounded-lg transition-colors"
+                      title="Modifier"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(category)}
+                      className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-lg transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Edit Category Modal */}
       {isEditModalOpen && editingCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Modifier la catégorie</h2>
               <button
                 onClick={() => setIsEditModalOpen(false)}
@@ -365,7 +383,7 @@ const SuperAdminCategoriesPage: React.FC = () => {
                   type="text"
                   value={formData.name || ''}
                   onChange={(e) => handleNameChange(e.target.value, false)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
                 />
               </div>
 
@@ -441,10 +459,10 @@ const SuperAdminCategoriesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+            <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3">
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
                 disabled={actionLoading}
               >
                 Annuler
@@ -452,19 +470,10 @@ const SuperAdminCategoriesPage: React.FC = () => {
               <button
                 onClick={handleSaveCategory}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
               >
-                {actionLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Enregistrement...
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    Enregistrer
-                  </>
-                )}
+                {actionLoading && <Loader2 size={16} className="animate-spin" />}
+                Enregistrer
               </button>
             </div>
           </div>
@@ -473,9 +482,9 @@ const SuperAdminCategoriesPage: React.FC = () => {
 
       {/* Create Category Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Nouvelle catégorie</h2>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
@@ -574,10 +583,10 @@ const SuperAdminCategoriesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+            <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3">
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
                 disabled={actionLoading}
               >
                 Annuler
@@ -585,19 +594,10 @@ const SuperAdminCategoriesPage: React.FC = () => {
               <button
                 onClick={handleSaveNewCategory}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
               >
-                {actionLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Création...
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    Créer
-                  </>
-                )}
+                {actionLoading && <Loader2 size={16} className="animate-spin" />}
+                Créer
               </button>
             </div>
           </div>
@@ -606,8 +606,8 @@ const SuperAdminCategoriesPage: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && categoryToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -631,7 +631,7 @@ const SuperAdminCategoriesPage: React.FC = () => {
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
                   disabled={actionLoading}
                 >
                   Annuler
@@ -639,16 +639,12 @@ const SuperAdminCategoriesPage: React.FC = () => {
                 <button
                   onClick={handleConfirmDelete}
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  className="px-6 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
                 >
-                  {actionLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Suppression...
-                    </div>
-                  ) : (
-                    'Supprimer'
-                  )}
+                  <div className="flex items-center gap-2">
+                    {actionLoading && <Loader2 size={16} className="animate-spin" />}
+                    Supprimer
+                  </div>
                 </button>
               </div>
             </div>
