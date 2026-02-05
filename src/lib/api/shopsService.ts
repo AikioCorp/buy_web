@@ -263,10 +263,13 @@ export const shopsService = {
       email: data.email || '',
       delivery_base_fee: data.delivery_base_fee || 1000,
       delivery_available: data.delivery_available !== false,
-      is_active: data.is_active !== undefined ? data.is_active : true,
+      // Don't send is_active - let backend set it to false for vendors
     };
 
-    return apiClient.post<Shop>('/api/shops', storeData);
+    console.log('📝 Creating shop with data:', storeData);
+    const response = await apiClient.post<Shop>('/api/shops', storeData);
+    console.log('📦 Create shop response:', response);
+    return response;
   },
 
   /**
