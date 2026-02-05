@@ -4,9 +4,25 @@ import {
   CheckCircle, XCircle, AlertTriangle, Ban, Loader2, RefreshCw,
   LayoutGrid, List
 } from 'lucide-react'
-import { productsService, Product } from '../../../lib/api/productsService'
+import { productsService, Product, ProductMedia } from '../../../lib/api/productsService'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { useToast } from '../../../components/Toast'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+
+// Fonction utilitaire pour construire l'URL de l'image
+const getProductImageUrl = (media?: ProductMedia[], images?: ProductMedia[]): string | null => {
+  const mediaList = media && media.length > 0 ? media : images
+  if (!mediaList || mediaList.length === 0) return null
+  const primaryImage = mediaList.find(m => m.is_primary) || mediaList[0]
+  let url = primaryImage?.image_url || primaryImage?.file
+  if (!url) return null
+  if (url.startsWith('http://')) {
+    url = url.replace('http://', 'https://')
+  }
+  if (url.startsWith('https://')) return url
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+}
 
 const AdminProductsPage: React.FC = () => {
   const { showToast } = useToast()
@@ -244,8 +260,8 @@ const AdminProductsPage: React.FC = () => {
           {products.map((product) => (
             <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group">
               <div className="h-40 bg-gray-100 relative">
-                {(product.media?.[0] as any)?.image_url || (product.media?.[0] as any)?.file ? (
-                  <img src={(product.media?.[0] as any)?.image_url || (product.media?.[0] as any)?.file} alt={product.name} className="w-full h-full object-cover" />
+                {getProductImageUrl(product.media, (product as any).images) ? (
+                  <img src={getProductImageUrl(product.media, (product as any).images)!} alt={product.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Package className="w-12 h-12 text-gray-300" />

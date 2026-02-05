@@ -37,6 +37,31 @@ export const ALL_PERMISSIONS = {
   MODERATION_VIEW: 'moderation_view',
   MODERATION_MANAGE: 'moderation_manage',
   
+  // Avis
+  REVIEWS_VIEW: 'reviews_view',
+  REVIEWS_MODERATE: 'reviews_moderate',
+  REVIEWS_DELETE: 'reviews_delete',
+  
+  // Rapports
+  REPORTS_VIEW: 'reports_view',
+  REPORTS_EXPORT: 'reports_export',
+  
+  // Analytics
+  ANALYTICS_VIEW: 'analytics_view',
+  
+  // Gestion des mots de passe
+  USERS_RESET_PASSWORD: 'users_reset_password',
+  USERS_CHANGE_STATUS: 'users_change_status',
+  
+  // Notifications
+  NOTIFICATIONS_SEND: 'notifications_send',
+  
+  // Catégories
+  CATEGORIES_VIEW: 'categories_view',
+  CATEGORIES_CREATE: 'categories_create',
+  CATEGORIES_EDIT: 'categories_edit',
+  CATEGORIES_DELETE: 'categories_delete',
+  
   // Paramètres
   SETTINGS_VIEW: 'settings_view',
   SETTINGS_EDIT: 'settings_edit',
@@ -126,6 +151,43 @@ export function usePermissions() {
   const canViewSettings = () => hasPermission(ALL_PERMISSIONS.SETTINGS_VIEW)
   const canEditSettings = () => hasPermission(ALL_PERMISSIONS.SETTINGS_EDIT)
   
+  /**
+   * Vérifie si l'utilisateur peut gérer les avis
+   */
+  const canViewReviews = () => hasPermission(ALL_PERMISSIONS.REVIEWS_VIEW)
+  const canModerateReviews = () => hasPermission(ALL_PERMISSIONS.REVIEWS_MODERATE)
+  const canDeleteReviews = () => hasPermission(ALL_PERMISSIONS.REVIEWS_DELETE)
+  
+  /**
+   * Vérifie si l'utilisateur peut voir les rapports
+   */
+  const canViewReports = () => hasPermission(ALL_PERMISSIONS.REPORTS_VIEW)
+  const canExportReports = () => hasPermission(ALL_PERMISSIONS.REPORTS_EXPORT)
+  
+  /**
+   * Vérifie si l'utilisateur peut voir les analytics
+   */
+  const canViewAnalytics = () => hasPermission(ALL_PERMISSIONS.ANALYTICS_VIEW)
+  
+  /**
+   * Vérifie si l'utilisateur peut réinitialiser les mots de passe
+   */
+  const canResetPassword = () => hasPermission(ALL_PERMISSIONS.USERS_RESET_PASSWORD)
+  const canChangeUserStatus = () => hasPermission(ALL_PERMISSIONS.USERS_CHANGE_STATUS)
+  
+  /**
+   * Vérifie si l'utilisateur peut envoyer des notifications
+   */
+  const canSendNotifications = () => hasPermission(ALL_PERMISSIONS.NOTIFICATIONS_SEND)
+  
+  /**
+   * Vérifie si l'utilisateur peut gérer les catégories
+   */
+  const canViewCategories = () => hasPermission(ALL_PERMISSIONS.CATEGORIES_VIEW)
+  const canCreateCategories = () => hasPermission(ALL_PERMISSIONS.CATEGORIES_CREATE)
+  const canEditCategories = () => hasPermission(ALL_PERMISSIONS.CATEGORIES_EDIT)
+  const canDeleteCategories = () => hasPermission(ALL_PERMISSIONS.CATEGORIES_DELETE)
+  
   return {
     // Permissions brutes
     permissions: userPermissions,
@@ -169,6 +231,31 @@ export function usePermissions() {
     // Paramètres
     canViewSettings,
     canEditSettings,
+    
+    // Avis
+    canViewReviews,
+    canModerateReviews,
+    canDeleteReviews,
+    
+    // Rapports
+    canViewReports,
+    canExportReports,
+    
+    // Analytics
+    canViewAnalytics,
+    
+    // Mots de passe et statut
+    canResetPassword,
+    canChangeUserStatus,
+    
+    // Notifications
+    canSendNotifications,
+    
+    // Catégories
+    canViewCategories,
+    canCreateCategories,
+    canEditCategories,
+    canDeleteCategories,
   }
 }
 

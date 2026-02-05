@@ -69,6 +69,7 @@ import {
   SuperAdminDashboardPage,
   AdminUsersPage,
   AdminReportsPage,
+  SuperAdminReportsPage,
   AdminModerationPage,
   AdminAnalyticsPage
 } from './pages/dashboard/admin'
@@ -204,6 +205,7 @@ function App() {
           <Route path="notifications" element={<AdminNotificationsPage />} />
           <Route path="categories" element={<AdminCategoriesPage />} />
           <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
+          <Route path="reports" element={<SuperAdminReportsPage />} />
           <Route path="permissions" element={<SuperAdminPermissionsPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
         </Route>

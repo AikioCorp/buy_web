@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, TrendingUp, 
   Shield, Briefcase, FolderTree, Package, ShoppingBag, UtensilsCrossed,
   LogOut, ChevronRight, Crown, ExternalLink, Globe, AlertCircle,
-  MessageSquare, Star, User, Store, Bell
+  MessageSquare, Star, User, Store, Bell, FileText
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 
@@ -167,6 +167,7 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
         )}
         <div className="space-y-1">
           <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" />
+          <SidebarLink to="/superadmin/reports" icon={<FileText size={20} />} label="Rapports" />
           <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" />
           <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" />
         </div>

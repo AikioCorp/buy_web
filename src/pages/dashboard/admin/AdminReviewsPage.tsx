@@ -10,7 +10,7 @@ import { usePermissions } from '../../../hooks/usePermissions'
 
 const AdminReviewsPage: React.FC = () => {
   const { showToast } = useToast()
-  const { canViewModeration, canManageModeration, isSuperAdmin } = usePermissions()
+  const { canViewModeration, canManageModeration, canViewReviews, canModerateReviews, isSuperAdmin } = usePermissions()
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -18,14 +18,17 @@ const AdminReviewsPage: React.FC = () => {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
 
-  const hasAccess = isSuperAdmin || canViewModeration()
-  const canModerate = isSuperAdmin || canManageModeration()
+  const hasAccess = isSuperAdmin || canViewModeration() || canViewReviews()
+  const canModerate = isSuperAdmin || canManageModeration() || canModerateReviews()
+
+  // Return null if no access - page will not render in navigation
+  if (!hasAccess) {
+    return null
+  }
 
   useEffect(() => {
-    if (hasAccess) {
-      loadReviews()
-    }
-  }, [hasAccess])
+    loadReviews()
+  }, [])
 
   const loadReviews = async () => {
     try {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, UserPlus, Edit2, Trash2, Shield, ShieldCheck, Store, User as UserIcon, X, Save, Key, LayoutGrid, List, Filter, Bell, Send } from 'lucide-react'
+import { Search, UserPlus, Edit2, Trash2, Shield, ShieldCheck, Store, User as UserIcon, X, Save, Key, LayoutGrid, List, Filter, Bell, Send, Eye, EyeOff, Copy, RefreshCcw } from 'lucide-react'
 import { usersService, UserData, CreateUserData } from '../../../lib/api/usersService'
 import { notificationsService } from '../../../lib/api/notificationsService'
 import { messagesService } from '../../../lib/api/messagesService'
@@ -21,6 +21,7 @@ const SuperAdminUsersPage: React.FC = () => {
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false)
   const [userToResetPassword, setUserToResetPassword] = useState<UserData | null>(null)
   const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null)
   const [formData, setFormData] = useState<Partial<UserData>>({})
   const [createFormData, setCreateFormData] = useState<CreateUserData>({
@@ -176,7 +177,28 @@ const SuperAdminUsersPage: React.FC = () => {
   const handleOpenResetPassword = (user: UserData) => {
     setUserToResetPassword(user)
     setNewPassword('')
+    setShowPassword(false)
     setIsResetPasswordModalOpen(true)
+  }
+
+  const generatePassword = (length: number = 12): string => {
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+    let password = ''
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length))
+    }
+    return password
+  }
+
+  const handleGeneratePassword = () => {
+    const generated = generatePassword(12)
+    setNewPassword(generated)
+    setShowPassword(true)
+  }
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(newPassword)
+    alert('Mot de passe copié!')
   }
 
   const handleResetPassword = async () => {
@@ -1032,18 +1054,47 @@ const SuperAdminUsersPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-6 space-y-3">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nouveau mot de passe
                   </label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Minimum 8 caractères"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Minimum 8 caractères"
+                      className="w-full px-4 py-2 pr-24 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                      {newPassword && (
+                        <button 
+                          type="button" 
+                          onClick={handleCopyPassword}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
+                          title="Copier"
+                        >
+                          <Copy size={18} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={handleGeneratePassword}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    <RefreshCcw size={16} />
+                    Générer un mot de passe
+                  </button>
+                  <p className="text-xs text-gray-500">
                     Le mot de passe doit contenir au moins 8 caractères
                   </p>
                 </div>
