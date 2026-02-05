@@ -142,6 +142,20 @@ class UsersService {
       status: response.status,
     }
   }
+
+  /**
+   * Envoyer un lien de réinitialisation de mot de passe par email
+   */
+  async sendPasswordResetLink(userId: string) {
+    const response = await apiClient.post<{ detail: string }>(`/api/admin/users/${userId}/send_reset_link/`, {})
+    if (response.error) {
+      throw new Error(response.error)
+    }
+    return {
+      data: response.data,
+      status: response.status,
+    }
+  }
 }
 
 export const usersService = new UsersService()

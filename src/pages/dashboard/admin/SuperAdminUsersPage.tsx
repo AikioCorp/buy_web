@@ -219,11 +219,20 @@ const SuperAdminUsersPage: React.FC = () => {
 
     try {
       setActionLoading(true)
-      await usersService.resetPassword(userToResetPassword.id, newPassword)
+      
+      if (sendByEmail) {
+        // Envoyer un lien de réinitialisation par email
+        await usersService.sendPasswordResetLink(userToResetPassword.id)
+        showToast('Lien de réinitialisation envoyé par email!', 'success')
+      } else {
+        // Réinitialiser directement avec le nouveau mot de passe
+        await usersService.resetPassword(userToResetPassword.id, newPassword)
+        showToast('Mot de passe réinitialisé avec succès!', 'success')
+      }
+      
       setIsResetPasswordModalOpen(false)
       setUserToResetPassword(null)
       setNewPassword('')
-      showToast(sendByEmail ? 'Mot de passe réinitialisé et envoyé par email!' : 'Mot de passe réinitialisé avec succès!', 'success')
     } catch (err: any) {
       showToast(err.message || 'Erreur lors de la réinitialisation du mot de passe', 'error')
     } finally {
@@ -1107,7 +1116,7 @@ const SuperAdminUsersPage: React.FC = () => {
                     Le mot de passe doit contenir au moins 8 caractères
                   </p>
                   
-                  {/* Option envoi par email */}
+                  {/* Option envoi lien par email */}
                   <label className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
                     <input
                       type="checkbox"
@@ -1115,9 +1124,12 @@ const SuperAdminUsersPage: React.FC = () => {
                       onChange={(e) => setSendByEmail(e.target.checked)}
                       className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                     />
-                    <div className="flex items-center gap-2">
-                      <Mail size={18} className="text-blue-600" />
-                      <span className="text-sm text-gray-700">Envoyer le mot de passe par email</span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <Mail size={18} className="text-blue-600" />
+                        <span className="text-sm font-medium text-gray-700">Envoyer un lien de réinitialisation par email</span>
+                      </div>
+                      <span className="text-xs text-gray-500 ml-6">L'utilisateur pourra définir son propre mot de passe</span>
                     </div>
                   </label>
                 </div>
