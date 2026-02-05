@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { ScrollToTop } from './components/ScrollToTop'
 import { ToastProvider } from './components/Toast'
+import { ConfirmProvider } from './components/ConfirmModal'
 import { Layout } from './components/Layout'
 import { AuthLayout } from './components/AuthLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -100,6 +101,7 @@ function App() {
 
   return (
     <ToastProvider>
+    <ConfirmProvider>
     <div className="pb-20 md:pb-0"> {/* Padding-bottom pour la navbar mobile */}
     <Router>
       <ScrollToTop />
@@ -212,6 +214,7 @@ function App() {
       </Routes>
     </Router>
     </div>
+    </ConfirmProvider>
     </ToastProvider>
   )
 }

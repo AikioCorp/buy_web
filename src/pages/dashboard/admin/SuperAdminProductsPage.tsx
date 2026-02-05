@@ -4,6 +4,7 @@ import { productsService, Product, ProductMedia } from '../../../lib/api/product
 import { categoriesService, Category } from '../../../lib/api/categoriesService'
 import { shopsService, Shop } from '../../../lib/api/shopsService'
 import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
+import { useToast } from '../../../components/Toast'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
 
@@ -24,6 +25,7 @@ const getProductImageUrl = (media?: ProductMedia[], images?: ProductMedia[]): st
 }
 
 const SuperAdminProductsPage: React.FC = () => {
+  const { showToast } = useToast()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [shops, setShops] = useState<Shop[]>([])
@@ -164,8 +166,9 @@ const SuperAdminProductsPage: React.FC = () => {
       setIsEditModalOpen(false)
       setEditingProduct(null)
       loadProducts()
+      showToast('Produit mis à jour avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la mise à jour du produit')
+      showToast(err.message || 'Erreur lors de la mise à jour du produit', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -185,8 +188,9 @@ const SuperAdminProductsPage: React.FC = () => {
       setIsDeleteModalOpen(false)
       setProductToDelete(null)
       loadProducts()
+      showToast('Produit supprimé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression du produit')
+      showToast(err.message || 'Erreur lors de la suppression du produit', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -256,8 +260,9 @@ const SuperAdminProductsPage: React.FC = () => {
       
       setIsCreateModalOpen(false)
       loadProducts()
+      showToast('Produit créé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création du produit')
+      showToast(err.message || 'Erreur lors de la création du produit', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -299,8 +304,9 @@ const SuperAdminProductsPage: React.FC = () => {
       setIsEditModalOpen(false)
       setEditingProduct(null)
       loadProducts()
+      showToast('Produit mis à jour avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la mise à jour du produit')
+      showToast(err.message || 'Erreur lors de la mise à jour du produit', 'error')
     } finally {
       setActionLoading(false)
     }

@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import { Search, UserPlus, Edit2, Trash2, Shield, ShieldCheck, Store, User as UserIcon, X, Save, Key, LayoutGrid, List, Filter, Bell, Send, Eye, EyeOff, Copy, RefreshCcw } from 'lucide-react'
+import { Search, UserPlus, Edit2, Trash2, Shield, ShieldCheck, Store, User as UserIcon, X, Save, Key, LayoutGrid, List, Filter, Bell, Send, Eye, EyeOff, Copy, RefreshCcw, Mail } from 'lucide-react'
 import { usersService, UserData, CreateUserData } from '../../../lib/api/usersService'
 import { notificationsService } from '../../../lib/api/notificationsService'
 import { messagesService } from '../../../lib/api/messagesService'
 import { MessageSquare } from 'lucide-react'
+import { useToast } from '../../../components/Toast'
+import { useConfirm } from '../../../components/ConfirmModal'
 
 const SuperAdminUsersPage: React.FC = () => {
+  const { showToast } = useToast()
+  const { confirm, alert: showAlert } = useConfirm()
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,6 +26,7 @@ const SuperAdminUsersPage: React.FC = () => {
   const [userToResetPassword, setUserToResetPassword] = useState<UserData | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [sendByEmail, setSendByEmail] = useState(false)
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null)
   const [formData, setFormData] = useState<Partial<UserData>>({})
   const [createFormData, setCreateFormData] = useState<CreateUserData>({
@@ -126,10 +131,10 @@ const SuperAdminUsersPage: React.FC = () => {
       setIsEditModalOpen(false)
       setEditingUser(null)
       await loadUsers()
-      alert('Utilisateur mis à jour avec succès!')
+      showToast('Utilisateur mis à jour avec succès!', 'success')
     } catch (err: any) {
       console.error('Update error:', err)
-      alert(err.message || 'Erreur lors de la mise à jour de l\'utilisateur')
+      showToast(err.message || 'Erreur lors de la mise à jour de l\'utilisateur', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -149,8 +154,9 @@ const SuperAdminUsersPage: React.FC = () => {
       setIsDeleteModalOpen(false)
       setUserToDelete(null)
       loadUsers()
+      showToast('Utilisateur supprimé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression de l\'utilisateur')
+      showToast(err.message || 'Erreur lors de la suppression de l\'utilisateur', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -160,8 +166,9 @@ const SuperAdminUsersPage: React.FC = () => {
     try {
       await usersService.updateUser(user.id, { is_active: !user.is_active })
       loadUsers()
+      showToast('Statut modifié avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la modification du statut')
+      showToast(err.message || 'Erreur lors de la modification du statut', 'error')
     }
   }
 
@@ -169,8 +176,9 @@ const SuperAdminUsersPage: React.FC = () => {
     try {
       await usersService.updateUser(user.id, { is_seller: !user.is_seller })
       loadUsers()
+      showToast('Rôle modifié avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la modification du rôle')
+      showToast(err.message || 'Erreur lors de la modification du rôle', 'error')
     }
   }
 
@@ -198,14 +206,14 @@ const SuperAdminUsersPage: React.FC = () => {
 
   const handleCopyPassword = () => {
     navigator.clipboard.writeText(newPassword)
-    alert('Mot de passe copié!')
+    showToast('Mot de passe copié!', 'success')
   }
 
   const handleResetPassword = async () => {
     if (!userToResetPassword || !newPassword) return
 
     if (newPassword.length < 8) {
-      alert('Le mot de passe doit contenir au moins 8 caractères')
+      showToast('Le mot de passe doit contenir au moins 8 caractères', 'error')
       return
     }
 
@@ -215,9 +223,9 @@ const SuperAdminUsersPage: React.FC = () => {
       setIsResetPasswordModalOpen(false)
       setUserToResetPassword(null)
       setNewPassword('')
-      alert('Mot de passe réinitialisé avec succès!')
+      showToast(sendByEmail ? 'Mot de passe réinitialisé et envoyé par email!' : 'Mot de passe réinitialisé avec succès!', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la réinitialisation du mot de passe')
+      showToast(err.message || 'Erreur lors de la réinitialisation du mot de passe', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -241,7 +249,7 @@ const SuperAdminUsersPage: React.FC = () => {
 
   const handleSaveNewUser = async () => {
     if (!createFormData.username || !createFormData.email || !createFormData.password) {
-      alert('Veuillez remplir tous les champs obligatoires (username, email, password)')
+      showToast('Veuillez remplir tous les champs obligatoires (username, email, password)', 'error')
       return
     }
 
@@ -250,8 +258,9 @@ const SuperAdminUsersPage: React.FC = () => {
       await usersService.createUser(createFormData)
       setIsCreateModalOpen(false)
       loadUsers()
+      showToast('Utilisateur créé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création de l\'utilisateur')
+      showToast(err.message || 'Erreur lors de la création de l\'utilisateur', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -265,7 +274,7 @@ const SuperAdminUsersPage: React.FC = () => {
 
   const handleSendNotification = async () => {
     if (!userToNotify || !notifData.title.trim() || !notifData.content.trim()) {
-      alert('Veuillez remplir le titre et le contenu')
+      showToast('Veuillez remplir le titre et le contenu', 'error')
       return
     }
 
@@ -276,11 +285,11 @@ const SuperAdminUsersPage: React.FC = () => {
         content: notifData.content,
         type: notifData.type
       })
-      alert('Notification envoyée avec succès !')
+      showToast('Notification envoyée avec succès !', 'success')
       setIsNotifModalOpen(false)
       setUserToNotify(null)
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l\'envoi')
+      showToast(err.message || 'Erreur lors de l\'envoi', 'error')
     } finally {
       setNotifSending(false)
     }
@@ -294,7 +303,7 @@ const SuperAdminUsersPage: React.FC = () => {
 
   const handleSendMessage = async () => {
     if (!userToMessage || !msgContent.trim()) {
-      alert('Veuillez écrire un message')
+      showToast('Veuillez écrire un message', 'error')
       return
     }
 
@@ -302,12 +311,12 @@ const SuperAdminUsersPage: React.FC = () => {
       setMsgSending(true)
       // Optimized: single API call to create conversation and send message
       await messagesService.sendDirectToUser(userToMessage.id, msgContent)
-      alert('Message envoyé avec succès !')
+      showToast('Message envoyé avec succès !', 'success')
       setIsMsgModalOpen(false)
       setUserToMessage(null)
       setMsgContent('')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l\'envoi')
+      showToast(err.message || 'Erreur lors de l\'envoi', 'error')
     } finally {
       setMsgSending(false)
     }
@@ -1097,6 +1106,20 @@ const SuperAdminUsersPage: React.FC = () => {
                   <p className="text-xs text-gray-500">
                     Le mot de passe doit contenir au moins 8 caractères
                   </p>
+                  
+                  {/* Option envoi par email */}
+                  <label className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={sendByEmail}
+                      onChange={(e) => setSendByEmail(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Mail size={18} className="text-blue-600" />
+                      <span className="text-sm text-gray-700">Envoyer le mot de passe par email</span>
+                    </div>
+                  </label>
                 </div>
 
                 <div className="flex items-center justify-end gap-3">

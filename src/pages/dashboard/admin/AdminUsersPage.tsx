@@ -144,8 +144,9 @@ export default function AdminUsersPage() {
       setIsEditModalOpen(false)
       setEditingUser(null)
       loadUsers()
+      showToast('Utilisateur mis à jour avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la mise à jour')
+      showToast(err.message || 'Erreur lors de la mise à jour', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -165,8 +166,9 @@ export default function AdminUsersPage() {
       setIsDeleteModalOpen(false)
       setUserToDelete(null)
       loadUsers()
+      showToast('Utilisateur supprimé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression')
+      showToast(err.message || 'Erreur lors de la suppression', 'error')
     } finally {
       setActionLoading(false)
     }

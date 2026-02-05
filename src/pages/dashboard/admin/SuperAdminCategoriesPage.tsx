@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Search, FolderTree, Edit2, Trash2, X, Save, Plus, Star, ChevronRight, Upload } from 'lucide-react'
 import { categoriesService, Category, CreateCategoryData } from '../../../lib/api/categoriesService'
+import { useToast } from '../../../components/Toast'
 
 const SuperAdminCategoriesPage: React.FC = () => {
+  const { showToast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,8 +86,9 @@ const SuperAdminCategoriesPage: React.FC = () => {
       setIconFile(null)
       setIconPreview(null)
       loadCategories()
+      showToast('Catégorie mise à jour avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la mise à jour de la catégorie')
+      showToast(err.message || 'Erreur lors de la mise à jour de la catégorie', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -105,8 +108,9 @@ const SuperAdminCategoriesPage: React.FC = () => {
       setIsDeleteModalOpen(false)
       setCategoryToDelete(null)
       loadCategories()
+      showToast('Catégorie supprimée avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression de la catégorie')
+      showToast(err.message || 'Erreur lors de la suppression de la catégorie', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -126,7 +130,7 @@ const SuperAdminCategoriesPage: React.FC = () => {
 
   const handleSaveNewCategory = async () => {
     if (!createFormData.name || !createFormData.slug) {
-      alert('Veuillez remplir tous les champs obligatoires (nom, slug)')
+      showToast('Veuillez remplir tous les champs obligatoires (nom, slug)', 'error')
       return
     }
     
@@ -140,8 +144,9 @@ const SuperAdminCategoriesPage: React.FC = () => {
       setIconFile(null)
       setIconPreview(null)
       loadCategories()
+      showToast('Catégorie créée avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création de la catégorie')
+      showToast(err.message || 'Erreur lors de la création de la catégorie', 'error')
     } finally {
       setActionLoading(false)
     }

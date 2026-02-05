@@ -5,6 +5,7 @@ import {
   User, Calendar, CreditCard, MessageSquare, Printer, Download
 } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../lib/api/ordersService'
+import { useToast } from '../../components/Toast'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
 
@@ -21,6 +22,7 @@ const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_prima
 }
 
 const OrdersPage: React.FC = () => {
+  const { showToast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -99,8 +101,9 @@ const OrdersPage: React.FC = () => {
       setOrderToUpdate(null)
       setStatusNote('')
       loadOrders()
+      showToast('Statut mis à jour avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la mise à jour du statut')
+      showToast(err.message || 'Erreur lors de la mise à jour du statut', 'error')
     } finally {
       setActionLoading(false)
     }

@@ -7,10 +7,12 @@ import {
 import { shopsService, Shop, CreateShopData } from '../../../lib/api/shopsService'
 import { locationsService, Commune, Quartier } from '../../../lib/api/locationsService'
 import { apiClient } from '../../../lib/api/apiClient'
+import { useToast } from '../../../components/Toast'
 
 type TabFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'suspended';
 
 const SuperAdminShopsPage: React.FC = () => {
+  const { showToast } = useToast()
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -295,8 +297,9 @@ const SuperAdminShopsPage: React.FC = () => {
       setIsEditModalOpen(false)
       setEditingShop(null)
       loadShops()
+      showToast('Boutique mise à jour avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la mise à jour de la boutique')
+      showToast(err.message || 'Erreur lors de la mise à jour de la boutique', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -337,13 +340,13 @@ const SuperAdminShopsPage: React.FC = () => {
         await shopsService.approveShop(selectedShopForAction.id, actionReason || undefined)
       } else if (actionType === 'reject') {
         if (!actionReason.trim()) {
-          alert('Veuillez fournir une raison pour le rejet')
+          showToast('Veuillez fournir une raison pour le rejet', 'error')
           return
         }
         await shopsService.rejectShop(selectedShopForAction.id, actionReason)
       } else if (actionType === 'suspend') {
         if (!actionReason.trim()) {
-          alert('Veuillez fournir une raison pour la suspension')
+          showToast('Veuillez fournir une raison pour la suspension', 'error')
           return
         }
         await shopsService.suspendShop(selectedShopForAction.id, actionReason)
@@ -354,8 +357,9 @@ const SuperAdminShopsPage: React.FC = () => {
       setActionType(null)
       setActionReason('')
       loadShops()
+      showToast('Action effectuée avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l\'action')
+      showToast(err.message || 'Erreur lors de l\'action', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -370,8 +374,9 @@ const SuperAdminShopsPage: React.FC = () => {
         await shopsService.validateShop(shop.id)
       }
       loadShops()
+      showToast('Statut modifié avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du changement de statut')
+      showToast(err.message || 'Erreur lors du changement de statut', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -392,13 +397,13 @@ const SuperAdminShopsPage: React.FC = () => {
       setIsMessageModalOpen(false)
       setSelectedShopForAction(null)
       setMessageContent('')
-      alert('Message envoyé avec succès!')
+      showToast('Message envoyé avec succès!', 'success')
     } catch (err: any) {
       // For now, just show success since backend endpoint may not exist
       setIsMessageModalOpen(false)
       setSelectedShopForAction(null)
       setMessageContent('')
-      alert('Message envoyé avec succès!')
+      showToast('Message envoyé avec succès!', 'success')
     } finally {
       setActionLoading(false)
     }
@@ -455,8 +460,9 @@ const SuperAdminShopsPage: React.FC = () => {
       setIsDeleteModalOpen(false)
       setShopToDelete(null)
       loadShops()
+      showToast('Boutique supprimée avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression de la boutique')
+      showToast(err.message || 'Erreur lors de la suppression de la boutique', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -485,7 +491,7 @@ const SuperAdminShopsPage: React.FC = () => {
 
   const handleSaveNewShop = async () => {
     if (!createFormData.name || !createFormData.slug) {
-      alert('Veuillez remplir tous les champs obligatoires (nom, slug)')
+      showToast('Veuillez remplir tous les champs obligatoires (nom, slug)', 'error')
       return
     }
     
@@ -524,8 +530,9 @@ const SuperAdminShopsPage: React.FC = () => {
       setCreateWhatsappDifferent(false)
       setIsCreateModalOpen(false)
       loadShops()
+      showToast('Boutique créée avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création de la boutique')
+      showToast(err.message || 'Erreur lors de la création de la boutique', 'error')
     } finally {
       setActionLoading(false)
     }

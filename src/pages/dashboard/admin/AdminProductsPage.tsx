@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { 
-  Search, Package, Edit2, Trash2, X, Save, Eye, Store,
+  Search, Package, Edit2, Trash2, X, Eye, Store,
   CheckCircle, XCircle, AlertTriangle, Ban, Loader2, RefreshCw,
-  LayoutGrid, List
+  LayoutGrid, List, Plus
 } from 'lucide-react'
 import { productsService, Product, ProductMedia } from '../../../lib/api/productsService'
+import { categoriesService, Category } from '../../../lib/api/categoriesService'
+import { shopsService, Shop } from '../../../lib/api/shopsService'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { useToast } from '../../../components/Toast'
+import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
 
@@ -34,6 +37,8 @@ const AdminProductsPage: React.FC = () => {
   } = usePermissions()
 
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -44,6 +49,7 @@ const AdminProductsPage: React.FC = () => {
   // Modal states
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [productToDelete, setProductToDelete] = useState<Product | null>(null)
@@ -61,8 +67,33 @@ const AdminProductsPage: React.FC = () => {
   }
 
   useEffect(() => {
+    loadInitialData()
+  }, [])
+
+  useEffect(() => {
     loadProducts()
   }, [currentPage, searchQuery])
+
+  const loadInitialData = async () => {
+    try {
+      const [catResponse, shopResponse] = await Promise.all([
+        categoriesService.getCategories(),
+        shopsService.getAllShops()
+      ])
+      if (catResponse.data) {
+        setCategories(Array.isArray(catResponse.data) ? catResponse.data : [])
+      }
+      if (shopResponse.data) {
+        if (Array.isArray(shopResponse.data)) {
+          setShops(shopResponse.data)
+        } else if (shopResponse.data.results) {
+          setShops(shopResponse.data.results)
+        }
+      }
+    } catch (err) {
+      console.error('Erreur chargement données initiales:', err)
+    }
+  }
 
   const loadProducts = async () => {
     try {
@@ -99,19 +130,52 @@ const AdminProductsPage: React.FC = () => {
   const handleEditProduct = (product: Product) => {
     if (!canEditProducts()) return
     setEditingProduct(product)
-    setFormData({ ...product })
     setIsEditModalOpen(true)
   }
 
-  const handleSaveProduct = async () => {
-    if (!editingProduct || !canEditProducts()) return
+  const handleCreateProduct = () => {
+    setEditingProduct(null)
+    setIsCreateModalOpen(true)
+  }
+
+  const handleSaveProduct = async (data: ProductFormData) => {
     try {
       setActionLoading(true)
-      await productsService.updateProduct(editingProduct.id, formData as any)
+      
+      if (editingProduct) {
+        // Update existing product
+        await productsService.updateProduct(editingProduct.id, {
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          base_price: data.base_price,
+          stock: data.stock_quantity,
+          is_active: data.is_active,
+          category_id: data.category_id,
+          store_id: data.store_id
+        } as any)
+        showToast('Produit mis à jour avec succès', 'success')
+      } else {
+        // Create new product
+        await productsService.createProduct({
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          base_price: data.base_price,
+          stock: data.stock_quantity,
+          is_active: data.is_active,
+          category_id: data.category_id,
+          store_id: data.store_id
+        } as any)
+        showToast('Produit créé avec succès', 'success')
+      }
+      
       setIsEditModalOpen(false)
+      setIsCreateModalOpen(false)
+      setEditingProduct(null)
       loadProducts()
     } catch (err: any) {
-      showToast(err.message || 'Erreur lors de la mise à jour', 'error')
+      showToast(err.message || 'Erreur lors de l\'enregistrement', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -201,6 +265,15 @@ const AdminProductsPage: React.FC = () => {
           </h1>
           <p className="text-gray-500 mt-1">{totalCount} produits enregistrés</p>
         </div>
+        {canEditProducts() && (
+          <button
+            onClick={handleCreateProduct}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-red-700 transition-all shadow-lg shadow-orange-500/25"
+          >
+            <Plus size={20} />
+            Nouveau produit
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -433,78 +506,40 @@ const AdminProductsPage: React.FC = () => {
       )}
 
       {/* Edit Modal */}
-      {isEditModalOpen && editingProduct && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Modifier le produit</h2>
-              <button onClick={() => setIsEditModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prix (FCFA)</label>
-                  <input
-                    type="number"
-                    value={formData.base_price || ''}
-                    onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Stock</label>
-                  <input
-                    type="number"
-                    value={formData.stock || ''}
-                    onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                  />
-                </div>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active || false}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-5 h-5 rounded border-gray-300 text-blue-600"
-                  />
-                  <span className="font-medium text-gray-700">Produit actif</span>
-                </label>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50">
-              <button onClick={() => setIsEditModalOpen(false)} className="px-5 py-2.5 rounded-xl text-gray-700 font-medium hover:bg-gray-100" disabled={actionLoading}>
-                Annuler
-              </button>
-              <button onClick={handleSaveProduct} disabled={actionLoading} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50">
-                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-                Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProductFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => { setIsEditModalOpen(false); setEditingProduct(null); }}
+        onSave={handleSaveProduct}
+        initialData={editingProduct ? {
+          name: editingProduct.name,
+          slug: editingProduct.slug,
+          description: editingProduct.description || '',
+          base_price: editingProduct.base_price,
+          category_id: editingProduct.category?.id || null,
+          store_id: (editingProduct.store?.id || editingProduct.shop?.id) || null,
+          stock_quantity: editingProduct.stock || 0,
+          sku: '',
+          is_active: editingProduct.is_active ?? true,
+          variants: [],
+          images: [],
+          existing_images: editingProduct.media?.map(m => m.image_url || m.file || '').filter(Boolean) || []
+        } : undefined}
+        categories={categories}
+        shops={shops}
+        isLoading={actionLoading}
+        title="Modifier le produit"
+      />
+
+      {/* Create Modal */}
+      <ProductFormModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSave={handleSaveProduct}
+        categories={categories}
+        shops={shops}
+        isLoading={actionLoading}
+        title="Nouveau produit"
+      />
 
       {/* Delete Modal */}
       {isDeleteModalOpen && productToDelete && (

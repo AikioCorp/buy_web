@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import { Settings, Lock, Bell, Globe, Shield, Eye, EyeOff } from 'lucide-react'
+import { useToast } from '../../../components/Toast'
 
 const SettingsPage: React.FC = () => {
+  const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<'security' | 'notifications' | 'preferences'>('security')
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -31,11 +33,11 @@ const SettingsPage: React.FC = () => {
     e.preventDefault()
     
     if (passwordData.new_password !== passwordData.confirm_password) {
-      alert('Les mots de passe ne correspondent pas')
+      showToast('Les mots de passe ne correspondent pas', 'error')
       return
     }
 
-    alert('Mot de passe modifié avec succès')
+    showToast('Mot de passe modifié avec succès', 'success')
     setPasswordData({
       current_password: '',
       new_password: '',
@@ -44,11 +46,11 @@ const SettingsPage: React.FC = () => {
   }
 
   const handleNotificationSave = () => {
-    alert('Préférences de notification enregistrées')
+    showToast('Préférences de notification enregistrées', 'success')
   }
 
   const handlePreferencesSave = () => {
-    alert('Préférences enregistrées')
+    showToast('Préférences enregistrées', 'success')
   }
 
   return (

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { 
-  Search, Store, Edit2, Trash2, X, Save, Eye, MapPin, Phone,
+  Search, Store, Edit2, Trash2, X, Eye, MapPin, Phone, Plus,
   CheckCircle, XCircle, Clock, AlertTriangle, Ban, Loader2, RefreshCw,
   LayoutGrid, List
 } from 'lucide-react'
 import { shopsService, Shop } from '../../../lib/api/shopsService'
+import { apiClient } from '../../../lib/api/apiClient'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { useToast } from '../../../components/Toast'
+import ShopFormModal, { ShopFormData } from '../../../components/admin/ShopFormModal'
 
 const AdminShopsPage: React.FC = () => {
   const { showToast } = useToast()
@@ -29,11 +31,11 @@ const AdminShopsPage: React.FC = () => {
   // Modal states
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [shopToDelete, setShopToDelete] = useState<Shop | null>(null)
   const [viewingShop, setViewingShop] = useState<Shop | null>(null)
-  const [formData, setFormData] = useState<Partial<Shop>>({})
   const [actionLoading, setActionLoading] = useState(false)
 
   const pageSize = 20
@@ -96,19 +98,72 @@ const AdminShopsPage: React.FC = () => {
   const handleEditShop = (shop: Shop) => {
     if (!canEditShops()) return
     setEditingShop(shop)
-    setFormData({ ...shop })
     setIsEditModalOpen(true)
   }
 
-  const handleSaveShop = async () => {
-    if (!editingShop || !canEditShops()) return
+  const handleCreateShop = () => {
+    setEditingShop(null)
+    setIsCreateModalOpen(true)
+  }
+
+  const uploadStoreImage = async (storeId: number, file: File, type: 'logo' | 'banner') => {
+    const response = await apiClient.upload<{ success: boolean; data: { publicUrl: string } }>(
+      `/api/upload/stores/${storeId}?type=${type}`,
+      file,
+      'image'
+    )
+    if (response.error) {
+      console.error('Upload error:', response.error)
+      return ''
+    }
+    return response.data?.data?.publicUrl || ''
+  }
+
+  const handleSaveShop = async (data: ShopFormData, logoFile?: File, bannerFile?: File) => {
     try {
       setActionLoading(true)
-      await shopsService.updateShop(editingShop.id, formData as any)
+      
+      if (editingShop) {
+        // Update existing shop
+        let updateData: any = { ...data }
+        
+        // Upload images if provided
+        if (logoFile) {
+          const logoUrl = await uploadStoreImage(editingShop.id, logoFile, 'logo')
+          if (logoUrl) updateData.logo_url = logoUrl
+        }
+        if (bannerFile) {
+          const bannerUrl = await uploadStoreImage(editingShop.id, bannerFile, 'banner')
+          if (bannerUrl) updateData.banner_url = bannerUrl
+        }
+        
+        await shopsService.updateShop(editingShop.id, updateData)
+        showToast('Boutique mise à jour avec succès', 'success')
+      } else {
+        // Create new shop
+        const response = await shopsService.createShop(data as any)
+        const newShop = response.data
+        
+        // Upload images if provided
+        if (newShop && (logoFile || bannerFile)) {
+          if (logoFile) {
+            const logoUrl = await uploadStoreImage(newShop.id, logoFile, 'logo')
+            if (logoUrl) await shopsService.updateShop(newShop.id, { logo_url: logoUrl })
+          }
+          if (bannerFile) {
+            const bannerUrl = await uploadStoreImage(newShop.id, bannerFile, 'banner')
+            if (bannerUrl) await shopsService.updateShop(newShop.id, { banner_url: bannerUrl })
+          }
+        }
+        showToast('Boutique créée avec succès', 'success')
+      }
+      
       setIsEditModalOpen(false)
+      setIsCreateModalOpen(false)
+      setEditingShop(null)
       loadShops()
     } catch (err: any) {
-      showToast(err.message || 'Erreur lors de la mise à jour', 'error')
+      showToast(err.message || 'Erreur lors de l\'enregistrement', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -215,6 +270,15 @@ const AdminShopsPage: React.FC = () => {
           </h1>
           <p className="text-gray-500 mt-1">{totalCount} boutiques enregistrées</p>
         </div>
+        {canEditShops() && (
+          <button
+            onClick={handleCreateShop}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/25"
+          >
+            <Plus size={20} />
+            Nouvelle boutique
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -514,78 +578,39 @@ const AdminShopsPage: React.FC = () => {
       )}
 
       {/* Edit Modal */}
-      {isEditModalOpen && editingShop && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Modifier la boutique</h2>
-              <button onClick={() => setIsEditModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
-                  <input
-                    type="text"
-                    value={formData.phone || ''}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
-                  />
-                </div>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active || false}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-5 h-5 rounded border-gray-300 text-blue-600"
-                  />
-                  <span className="font-medium text-gray-700">Boutique active</span>
-                </label>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50">
-              <button onClick={() => setIsEditModalOpen(false)} className="px-5 py-2.5 rounded-xl text-gray-700 font-medium hover:bg-gray-100" disabled={actionLoading}>
-                Annuler
-              </button>
-              <button onClick={handleSaveShop} disabled={actionLoading} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50">
-                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-                Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ShopFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => { setIsEditModalOpen(false); setEditingShop(null); }}
+        onSave={handleSaveShop}
+        initialData={editingShop ? {
+          name: editingShop.name,
+          slug: editingShop.slug,
+          description: editingShop.description || '',
+          logo_url: editingShop.logo_url || '',
+          banner_url: editingShop.banner_url || '',
+          address_commune: editingShop.address_commune || '',
+          address_quartier: editingShop.address_quartier || '',
+          address_details: editingShop.address_details || '',
+          city: editingShop.city || 'Bamako',
+          phone: editingShop.phone || '',
+          whatsapp: editingShop.whatsapp || '',
+          email: editingShop.email || '',
+          delivery_base_fee: editingShop.delivery_base_fee || 1000,
+          delivery_available: editingShop.delivery_available ?? true,
+          is_active: editingShop.is_active ?? true
+        } : undefined}
+        isLoading={actionLoading}
+        title="Modifier la boutique"
+      />
+
+      {/* Create Modal */}
+      <ShopFormModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSave={handleSaveShop}
+        isLoading={actionLoading}
+        title="Nouvelle boutique"
+      />
 
       {/* Delete Modal */}
       {isDeleteModalOpen && shopToDelete && (

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Search, UtensilsCrossed, Edit2, Trash2, X, Save, Plus, CheckCircle, XCircle } from 'lucide-react'
 import { shopsService, Shop, CreateShopData } from '../../../lib/api/shopsService'
+import { useToast } from '../../../components/Toast'
 
 const SuperAdminRestaurantsPage: React.FC = () => {
+  const { showToast } = useToast()
   const [restaurants, setRestaurants] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -87,8 +89,9 @@ const SuperAdminRestaurantsPage: React.FC = () => {
       setIsEditModalOpen(false)
       setEditingRestaurant(null)
       loadRestaurants()
+      showToast('Restaurant mis à jour avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la mise à jour du restaurant')
+      showToast(err.message || 'Erreur lors de la mise à jour du restaurant', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -108,8 +111,9 @@ const SuperAdminRestaurantsPage: React.FC = () => {
       setIsDeleteModalOpen(false)
       setRestaurantToDelete(null)
       loadRestaurants()
+      showToast('Restaurant supprimé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression du restaurant')
+      showToast(err.message || 'Erreur lors de la suppression du restaurant', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -127,7 +131,7 @@ const SuperAdminRestaurantsPage: React.FC = () => {
 
   const handleSaveNewRestaurant = async () => {
     if (!createFormData.name || !createFormData.slug) {
-      alert('Veuillez remplir tous les champs obligatoires (nom, slug)')
+      showToast('Veuillez remplir tous les champs obligatoires (nom, slug)', 'error')
       return
     }
     
@@ -136,8 +140,9 @@ const SuperAdminRestaurantsPage: React.FC = () => {
       await shopsService.createShop(createFormData)
       setIsCreateModalOpen(false)
       loadRestaurants()
+      showToast('Restaurant créé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création du restaurant')
+      showToast(err.message || 'Erreur lors de la création du restaurant', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -148,8 +153,9 @@ const SuperAdminRestaurantsPage: React.FC = () => {
       setActionLoading(true)
       await shopsService.validateShop(restaurant.id)
       loadRestaurants()
+      showToast('Restaurant validé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la validation du restaurant')
+      showToast(err.message || 'Erreur lors de la validation du restaurant', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -160,8 +166,9 @@ const SuperAdminRestaurantsPage: React.FC = () => {
       setActionLoading(true)
       await shopsService.deactivateShop(restaurant.id)
       loadRestaurants()
+      showToast('Restaurant désactivé avec succès', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la désactivation du restaurant')
+      showToast(err.message || 'Erreur lors de la désactivation du restaurant', 'error')
     } finally {
       setActionLoading(false)
     }
