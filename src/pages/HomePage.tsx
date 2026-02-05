@@ -10,6 +10,7 @@ import {
 import { useProducts } from '../hooks/useProducts'
 import { Product } from '../lib/api/productsService'
 import { categoriesService } from '../lib/api/categoriesService'
+import { shopsService, Shop } from '../lib/api/shopsService'
 import { useCartStore } from '../store/cartStore'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { useToast } from '../components/Toast'
@@ -40,25 +41,16 @@ const mainCategories = [
   { name: 'Maison', slug: 'maison', icon: Home, color: 'bg-teal-500', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop' },
 ]
 
-// Boutiques en vedette
-const featuredShops = [
-  { id: 9, name: 'Shopreate', slug: 'shopreate', logo: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=200&h=200&fit=crop', category: 'Alimentaire', rating: 4.7, color: 'from-green-500 to-emerald-600' },
-  { id: 10, name: 'Orca', slug: 'orca', logo: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop', category: 'Cuisine', rating: 4.5, color: 'from-blue-500 to-cyan-600' },
-  { id: 11, name: 'Dicarlo', slug: 'dicarlo', logo: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop', category: 'Parfumerie', rating: 4.9, color: 'from-purple-500 to-pink-600' },
-  { id: 12, name: 'Carré Marché', slug: 'carre-marche', logo: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=200&h=200&fit=crop', category: 'Alimentaire', rating: 4.6, color: 'from-orange-500 to-red-600' },
-]
-
-// Toutes les boutiques
-const allShopsData = [
-  ...featuredShops,
-  { id: 1, name: 'Tech Store Mali', slug: 'tech-store-mali', logo: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&h=200&fit=crop', category: 'Électronique', rating: 4.8 },
-  { id: 2, name: 'Mode Bamako', slug: 'mode-bamako', logo: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=200&h=200&fit=crop', category: 'Mode', rating: 4.6 },
-  { id: 3, name: 'Sport Plus', slug: 'sport-plus', logo: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=200&h=200&fit=crop', category: 'Sport', rating: 4.5 },
-  { id: 4, name: 'Beauté Plus', slug: 'beaute-plus', logo: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&h=200&fit=crop', category: 'Beauté', rating: 4.7 },
-  { id: 5, name: 'Maison & Déco', slug: 'maison-deco', logo: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop', category: 'Maison', rating: 4.4 },
-  { id: 6, name: 'Saveurs du Mali', slug: 'saveurs-du-mali', logo: 'https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=200&h=200&fit=crop', category: 'Alimentaire', rating: 4.9 },
-  { id: 7, name: 'Électro Bamako', slug: 'electro-bamako', logo: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=200&fit=crop', category: 'Électroménager', rating: 4.6 },
-  { id: 8, name: 'Tendance Afrique', slug: 'tendance-afrique', logo: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200&h=200&fit=crop', category: 'Mode', rating: 4.8 },
+// Couleurs pour les boutiques en vedette
+const shopColors = [
+  'from-green-500 to-emerald-600',
+  'from-blue-500 to-cyan-600',
+  'from-purple-500 to-pink-600',
+  'from-orange-500 to-red-600',
+  'from-teal-500 to-green-600',
+  'from-indigo-500 to-purple-600',
+  'from-rose-500 to-pink-600',
+  'from-amber-500 to-orange-600',
 ]
 
 
@@ -90,6 +82,7 @@ export function HomePage() {
   const [currentBanner, setCurrentBanner] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>([])
+  const [shops, setShops] = useState<Shop[]>([])
   const navigate = useNavigate()
   const addItem = useCartStore((state) => state.addItem)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
@@ -100,6 +93,7 @@ export function HomePage() {
   useEffect(() => { 
     refreshProducts()
     loadCategories()
+    loadShops()
   }, [])
 
   const loadCategories = async () => {
@@ -112,6 +106,24 @@ export function HomePage() {
       console.error('Error loading categories:', error)
     }
   }
+
+  const loadShops = async () => {
+    try {
+      const response = await shopsService.getPublicShops(1, 12)
+      if (response.data?.results && response.data.results.length > 0) {
+        setShops(response.data.results)
+      } else if (Array.isArray(response.data) && response.data.length > 0) {
+        setShops(response.data)
+      }
+    } catch (error) {
+      console.error('Error loading shops:', error)
+    }
+  }
+
+  // Boutiques en vedette (4 premières)
+  const featuredShops = shops.slice(0, 4)
+  // Toutes les boutiques
+  const allShopsData = shops
 
   const getCategoryImage = (cat: DynamicCategory): string => {
     if (cat.icon) return cat.icon
@@ -405,47 +417,60 @@ export function HomePage() {
       </section>
 
       {/* Boutiques en vedette */}
-      <section className="py-6 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Boutiques en vedette</h2>
-            <Link to="/shops" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+      {/* Boutiques en vedette - Afficher seulement si des boutiques existent */}
+      {featuredShops.length > 0 && (
+        <section className="py-6 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Boutiques en vedette</h2>
+              <Link to="/shops" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {featuredShops.map((shop, index) => (
+                <Link key={shop.id} to={`/shops/${shop.id}`} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${shopColors[index % shopColors.length]} p-4 text-white hover:scale-[1.02] transition-transform shadow-lg`}>
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-2 overflow-hidden">
+                    {shop.logo_url ? (
+                      <img src={shop.logo_url} alt={shop.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Store className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <h3 className="font-bold">{shop.name}</h3>
+                  <p className="text-white/80 text-xs">{shop.category || shop.city || 'Boutique'}</p>
+                  <div className="flex items-center gap-1 mt-2"><Star className="w-3 h-3 fill-yellow-300 text-yellow-300" /><span className="text-xs">{shop.rating || 4.5}</span></div>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {featuredShops.map((shop) => (
-              <Link key={shop.id} to={`/shops/${shop.slug}`} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${shop.color} p-4 text-white hover:scale-[1.02] transition-transform shadow-lg`}>
-                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-2 overflow-hidden">
-                  <img src={shop.logo} alt={shop.name} className="w-full h-full object-cover" />
-                </div>
-                <h3 className="font-bold">{shop.name}</h3>
-                <p className="text-white/80 text-xs">{shop.category}</p>
-                <div className="flex items-center gap-1 mt-2"><Star className="w-3 h-3 fill-yellow-300 text-yellow-300" /><span className="text-xs">{shop.rating}</span></div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* Toutes les boutiques */}
-      <section className="py-4 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Toutes les boutiques</h2>
-            <Link to="/shops" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+      {/* Toutes les boutiques - Afficher seulement si des boutiques existent */}
+      {allShopsData.length > 0 && (
+        <section className="py-4 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Toutes les boutiques</h2>
+              <Link to="/shops" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {allShopsData.map((shop) => (
+                <Link key={shop.id} to={`/shops/${shop.id}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
+                  <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-200 flex items-center justify-center overflow-hidden group-hover:border-green-400 transition-colors">
+                    {shop.logo_url ? (
+                      <img src={shop.logo_url} alt={shop.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Store className="w-6 h-6 text-green-600" />
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-700 font-medium text-center line-clamp-2 max-w-[80px] group-hover:text-green-600">{shop.name}</span>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            {allShopsData.map((shop) => (
-              <Link key={shop.id} to={`/shops/${shop.slug}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
-                <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-200 flex items-center justify-center overflow-hidden group-hover:border-green-400 transition-colors">
-                  <img src={shop.logo} alt={shop.name} className="w-full h-full object-cover" />
-                </div>
-                <span className="text-xs text-gray-700 font-medium text-center line-clamp-2 max-w-[80px] group-hover:text-green-600">{shop.name}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Flash Deals */}
       <section className="py-6 bg-gradient-to-r from-red-500 to-orange-500">

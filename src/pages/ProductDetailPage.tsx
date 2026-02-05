@@ -63,9 +63,14 @@ export function ProductDetailPage() {
         setProduct(response.data)
         // Load similar products based on category
         loadSimilarProducts(response.data)
+      } else if (response.error || response.status === 404) {
+        // Produit non trouvé - rediriger vers la page produits
+        console.warn('Product not found:', id)
+        setProduct(null)
       }
     } catch (error) {
       console.error('Error loading product:', error)
+      setProduct(null)
     } finally {
       setLoading(false)
     }
