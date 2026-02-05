@@ -14,11 +14,23 @@ export function RegisterPage() {
   // Champs boutique (si vendeur)
   const [shopName, setShopName] = useState('')
   const [shopDescription, setShopDescription] = useState('')
+  const [shopPhone, setShopPhone] = useState('')
+  const [shopEmail, setShopEmail] = useState('')
   const [useRegistrationPhone, setUseRegistrationPhone] = useState(true)
   
   const { register, error, isLoading, clearError } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Formater un numéro de téléphone malien (8 chiffres) en +223 XX XX XX XX
+  const formatMaliPhone = (digits: string) => {
+    if (!digits) return ''
+    const clean = digits.replace(/[^0-9]/g, '').slice(0, 8)
+    if (clean.length === 0) return ''
+    // Format: +223 XX XX XX XX
+    const formatted = clean.replace(/(\d{2})(?=\d)/g, '$1 ').trim()
+    return `+223 ${formatted}`
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,14 +46,24 @@ export function RegisterPage() {
     const uniqueSuffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(-2)
     const username = `${baseUsername}_${uniqueSuffix}`
 
-    // Formater le numéro de téléphone au format +223
-    const formattedPhone = registerMethod === 'phone' 
-      ? (phoneNumber.startsWith('+223') ? phoneNumber : `+223 ${phoneNumber.replace(/^\+?223\s*/, '').replace(/[^0-9]/g, '').replace(/(\d{2})(?=\d)/g, '$1 ').trim()}`)
-      : ''
+    // Formater le numéro de téléphone utilisateur
+    const formattedPhone = registerMethod === 'phone' ? formatMaliPhone(phoneNumber) : ''
+
+    // Déterminer le téléphone de la boutique
+    let finalShopPhone = ''
+    if (role === 'vendor') {
+      if (registerMethod === 'phone' && useRegistrationPhone) {
+        // Utiliser le numéro d'inscription
+        finalShopPhone = formattedPhone
+      } else if (shopPhone) {
+        // Utiliser le numéro de boutique saisi
+        finalShopPhone = formatMaliPhone(shopPhone)
+      }
+    }
 
     const registerData = {
       username,
-      email: registerMethod === 'email' ? email : '', // Laisser vide si inscription par téléphone
+      email: registerMethod === 'email' ? email : '',
       password,
       first_name: firstName,
       last_name: lastName,
@@ -49,14 +71,24 @@ export function RegisterPage() {
       is_seller: role === 'vendor',
       store_name: role === 'vendor' ? shopName : undefined,
       store_description: role === 'vendor' ? shopDescription : undefined,
+      store_phone: role === 'vendor' ? finalShopPhone : undefined,
+      store_email: role === 'vendor' && shopEmail ? shopEmail : undefined,
     }
+
+    console.log('📝 Register data:', registerData)
 
     const success = await register(registerData)
     
     if (success) {
-      // Rediriger vers la page précédente (ex: checkout) ou vers l'accueil
-      const from = (location.state as any)?.from?.pathname || '/'
-      navigate(from, { replace: true })
+      // Rediriger vers la page appropriée
+      if (role === 'vendor') {
+        // Vendeur: aller au dashboard pour voir la page d'attente
+        navigate('/dashboard/store', { replace: true })
+      } else {
+        // Client: retour à la page précédente ou accueil
+        const from = (location.state as any)?.from?.pathname || '/'
+        navigate(from, { replace: true })
+      }
     }
   }
 
@@ -195,17 +227,23 @@ export function RegisterPage() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Phone className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                      <span className="text-gray-500 font-medium text-sm">+223</span>
                     </div>
                     <input
                       type="tel"
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onChange={(e) => {
+                        // Only allow digits, max 8 characters
+                        const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
+                        setPhoneNumber(value)
+                      }}
                       required
-                      className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                      placeholder="Votre numéro ici"
+                      maxLength={8}
+                      className="block w-full pl-16 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                      placeholder="70 00 00 00"
                     />
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">Format: 70 00 00 00 (8 chiffres)</p>
                 </div>
               )}
 
@@ -344,18 +382,64 @@ export function RegisterPage() {
                     </div>
                   </div>
 
-                  {/* Checkbox pour utiliser le même téléphone */}
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                    <input
-                      type="checkbox"
-                      id="useRegistrationPhone"
-                      checked={useRegistrationPhone}
-                      onChange={(e) => setUseRegistrationPhone(e.target.checked)}
-                      className="w-5 h-5 text-[#0f4c2b] border-gray-300 rounded focus:ring-[#0f4c2b]"
-                    />
-                    <label htmlFor="useRegistrationPhone" className="text-sm text-gray-700">
-                      Utiliser le même numéro de téléphone pour ma boutique
+                  {/* Téléphone boutique */}
+                  {registerMethod === 'phone' && (
+                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                      <input
+                        type="checkbox"
+                        id="useRegistrationPhone"
+                        checked={useRegistrationPhone}
+                        onChange={(e) => setUseRegistrationPhone(e.target.checked)}
+                        className="w-5 h-5 text-[#0f4c2b] border-gray-300 rounded focus:ring-[#0f4c2b]"
+                      />
+                      <label htmlFor="useRegistrationPhone" className="text-sm text-gray-700">
+                        Utiliser <strong>+223 {phoneNumber}</strong> pour ma boutique
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Champ téléphone boutique (si pas de checkbox ou inscription par email) */}
+                  {(registerMethod === 'email' || !useRegistrationPhone) && (
+                    <div className="group">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Téléphone boutique <span className="text-gray-400 font-normal">(optionnel)</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <span className="text-gray-500 font-medium text-sm">+223</span>
+                        </div>
+                        <input
+                          type="tel"
+                          value={shopPhone}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
+                            setShopPhone(value)
+                          }}
+                          maxLength={8}
+                          className="block w-full pl-16 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                          placeholder="70 00 00 00"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Email boutique (optionnel) */}
+                  <div className="group">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Email boutique <span className="text-gray-400 font-normal">(optionnel)</span>
                     </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                      </div>
+                      <input
+                        type="email"
+                        value={shopEmail}
+                        onChange={(e) => setShopEmail(e.target.value)}
+                        className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                        placeholder="contact@maboutique.com"
+                      />
+                    </div>
                   </div>
 
                   {/* Note d'approbation */}
