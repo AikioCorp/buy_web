@@ -270,9 +270,9 @@ export function CheckoutPage() {
         if (response.error) {
           console.error('❌ Order error:', response.error)
           // Extraire le message d'erreur si c'est un objet
-          const errorMessage = typeof response.error === 'object' 
-            ? response.error.message || JSON.stringify(response.error)
-            : response.error
+          const errorMessage = typeof response.error === 'object' && response.error !== null
+            ? (response.error as any).message || JSON.stringify(response.error)
+            : String(response.error)
           setError(errorMessage)
           return
         }
