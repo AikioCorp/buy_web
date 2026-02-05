@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Upload, Phone } from 'lucide-react'
+import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Phone } from 'lucide-react'
 import { NeighborhoodAutocomplete } from '@/components/NeighborhoodAutocomplete'
 import { PhoneInput } from '@/components/PhoneInput'
 
@@ -18,25 +18,10 @@ export function RegisterPage() {
   const [shopDescription, setShopDescription] = useState('')
   const [shopAddress, setShopAddress] = useState('')
   const [shopPhone, setShopPhone] = useState('')
-  const [shopEmail, setShopEmail] = useState('')
-  const [shopLogo, setShopLogo] = useState<File | null>(null)
-  const [shopLogoPreview, setShopLogoPreview] = useState<string>('')
   
   const { register, error, isLoading, clearError } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setShopLogo(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setShopLogoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -378,57 +363,12 @@ export function RegisterPage() {
                     required
                   />
 
-                  {/* Email boutique (optionnel) */}
-                  <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email de la boutique (optionnel)
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
-                      </div>
-                      <input
-                        type="email"
-                        value={shopEmail}
-                        onChange={(e) => setShopEmail(e.target.value)}
-                        className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                        placeholder="contact@maboutique.com"
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Si vide, votre email personnel sera utilisé</p>
-                  </div>
-
-                  {/* Logo */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Logo de la boutique (optionnel)
-                    </label>
-                    <div className="flex items-center gap-4">
-                      {shopLogoPreview && (
-                        <div className="flex-shrink-0">
-                          <img
-                            src={shopLogoPreview}
-                            alt="Logo preview"
-                            className="h-20 w-20 object-cover rounded-lg border-2 border-gray-200"
-                          />
-                        </div>
-                      )}
-                      <label className="flex-1 cursor-pointer">
-                        <div className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-[#0f4c2b] transition-colors bg-gray-50 hover:bg-green-50">
-                          <Upload className="h-5 w-5 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-600">
-                            {shopLogo ? 'Changer le logo' : 'Télécharger un logo'}
-                          </span>
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleLogoChange}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Format: JPG, PNG (max 2MB)</p>
+                  {/* Note d'approbation */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Note:</strong> Votre boutique sera vérifiée par notre équipe avant d'être activée. 
+                      Ce processus prend généralement moins de 24h (jours ouvrables).
+                    </p>
                   </div>
                 </div>
               )}

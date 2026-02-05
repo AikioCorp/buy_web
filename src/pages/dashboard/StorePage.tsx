@@ -8,11 +8,15 @@ import { shopsService, Shop, CreateShopData } from '../../lib/api/shopsService'
 import { apiClient } from '../../lib/api/apiClient'
 import { BAMAKO_COMMUNES } from '../../lib/api/deliveryService'
 import { DeliveryZonesManager } from '../../components/dashboard/DeliveryZonesManager'
+import { useAuthStore } from '../../store/authStore'
+import VendorPendingApprovalPage from './VendorPendingApprovalPage'
 
 const StorePage: React.FC = () => {
+  const { user } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [store, setStore] = useState<Shop | null>(null)
+  const [pendingApproval, setPendingApproval] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   
   const [formData, setFormData] = useState({
@@ -54,8 +58,28 @@ const StorePage: React.FC = () => {
       console.log('📦 Store response:', response)
       
       if (response.data) {
+        // IMPORTANT: Verify this shop belongs to the current user
+        const currentUserId = user?.id
+        const shopOwnerId = response.data.owner_id
+        
+        console.log('🔍 Checking ownership:', { currentUserId, shopOwnerId })
+        
+        if (currentUserId && shopOwnerId && String(currentUserId) !== String(shopOwnerId)) {
+          // Shop doesn't belong to this user - they need to create their own
+          console.log('⚠️ Shop belongs to different user, showing create form')
+          setStore(null)
+          return
+        }
+        
         console.log('✅ Store data received:', response.data)
         setStore(response.data)
+        
+        // Check if shop is pending approval (is_active = false)
+        if (!response.data.is_active) {
+          console.log('⏳ Shop is pending approval')
+          setPendingApproval(true)
+        }
+        
         setFormData({
           name: response.data.name || '',
           slug: response.data.slug || '',
@@ -255,6 +279,11 @@ const StorePage: React.FC = () => {
         </div>
       </div>
     )
+  }
+
+  // Show pending approval page if shop exists but is not active
+  if (store && pendingApproval) {
+    return <VendorPendingApprovalPage shopName={store.name} shopEmail={store.email} />
   }
 
   return (
