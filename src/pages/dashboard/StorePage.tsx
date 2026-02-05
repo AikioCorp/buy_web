@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { 
   Store, Save, MapPin, Mail, Phone, Globe, 
   Camera, CheckCircle, AlertCircle, Loader2, Eye,
-  Facebook, Instagram, Twitter
+  Facebook, Instagram, Twitter, Upload, X, Image as ImageIcon
 } from 'lucide-react'
 import { shopsService, Shop, CreateShopData } from '../../lib/api/shopsService'
+import { apiClient } from '../../lib/api/apiClient'
 import { BAMAKO_COMMUNES } from '../../lib/api/deliveryService'
 import { DeliveryZonesManager } from '../../components/dashboard/DeliveryZonesManager'
 
@@ -24,11 +25,19 @@ const StorePage: React.FC = () => {
     address_commune: '',
     address_quartier: '',
     address_details: '',
+    city: 'Bamako',
     website: '',
     facebook: '',
     instagram: '',
     twitter: '',
   })
+  
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
   
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   
@@ -57,11 +66,15 @@ const StorePage: React.FC = () => {
           address_commune: response.data.address_commune || '',
           address_quartier: response.data.address_quartier || '',
           address_details: response.data.address_details || '',
+          city: response.data.city || 'Bamako',
           website: '',
           facebook: '',
           instagram: '',
           twitter: '',
         })
+        // Set image previews
+        if (response.data.logo_url) setLogoPreview(response.data.logo_url)
+        if (response.data.banner_url) setBannerPreview(response.data.banner_url)
         // Charger les zones de livraison si disponibles
         if (response.data.delivery_zones) {
           setDeliveryZones(response.data.delivery_zones)
@@ -91,6 +104,43 @@ const StorePage: React.FC = () => {
     })
   }
 
+  const uploadStoreImage = async (storeId: number, file: File, type: 'logo' | 'banner') => {
+    const response = await apiClient.upload<{ success: boolean; data: { publicUrl: string } }>(
+      `/api/upload/stores/${storeId}?type=${type}`,
+      file,
+      'image'
+    )
+    if (response.error) {
+      console.error('Upload error:', response.error)
+      return ''
+    }
+    return response.data?.data?.publicUrl || ''
+  }
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setLogoFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setBannerFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setBannerPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -113,13 +163,32 @@ const StorePage: React.FC = () => {
         address_commune: formData.address_commune,
         address_quartier: formData.address_quartier,
         address_details: formData.address_details,
+        city: formData.city,
       }
 
       if (store) {
         // Mise à jour
-        const response = await shopsService.updateShop(store.id, data)
+        let updateData: any = { ...data }
+        
+        // Upload images if provided
+        if (logoFile) {
+          setUploadingLogo(true)
+          const logoUrl = await uploadStoreImage(store.id, logoFile, 'logo')
+          if (logoUrl) updateData.logo_url = logoUrl
+          setUploadingLogo(false)
+        }
+        if (bannerFile) {
+          setUploadingBanner(true)
+          const bannerUrl = await uploadStoreImage(store.id, bannerFile, 'banner')
+          if (bannerUrl) updateData.banner_url = bannerUrl
+          setUploadingBanner(false)
+        }
+        
+        const response = await shopsService.updateShop(store.id, updateData)
         if (response.data) {
           setStore(response.data)
+          setLogoFile(null)
+          setBannerFile(null)
           setMessage({ type: 'success', text: 'Boutique mise à jour avec succès!' })
         } else if (response.error) {
           setMessage({ type: 'error', text: response.error })
@@ -128,8 +197,29 @@ const StorePage: React.FC = () => {
         // Création
         const response = await shopsService.createShop(data)
         if (response.data) {
-          setStore(response.data)
+          const newShop = response.data
+          setStore(newShop)
+          
+          // Upload images after creation
+          if (logoFile || bannerFile) {
+            if (logoFile) {
+              setUploadingLogo(true)
+              const logoUrl = await uploadStoreImage(newShop.id, logoFile, 'logo')
+              if (logoUrl) await shopsService.updateShop(newShop.id, { logo_url: logoUrl })
+              setUploadingLogo(false)
+            }
+            if (bannerFile) {
+              setUploadingBanner(true)
+              const bannerUrl = await uploadStoreImage(newShop.id, bannerFile, 'banner')
+              if (bannerUrl) await shopsService.updateShop(newShop.id, { banner_url: bannerUrl })
+              setUploadingBanner(false)
+            }
+          }
+          
+          setLogoFile(null)
+          setBannerFile(null)
           setMessage({ type: 'success', text: 'Boutique créée avec succès!' })
+          await loadStore()
         } else if (response.error) {
           setMessage({ type: 'error', text: response.error })
         }
@@ -138,6 +228,8 @@ const StorePage: React.FC = () => {
       setMessage({ type: 'error', text: error.message || 'Une erreur est survenue' })
     } finally {
       setSaving(false)
+      setUploadingLogo(false)
+      setUploadingBanner(false)
     }
   }
 
@@ -180,51 +272,119 @@ const StorePage: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Store Preview Card */}
-        <div className="bg-gradient-to-r from-emerald-600 to-green-600 rounded-2xl p-6 mb-6 text-white">
-          <div className="flex items-start gap-6">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-2xl bg-white/20 flex items-center justify-center overflow-hidden">
-                {store?.logo ? (
-                  <img src={store.logo} alt={store.name} className="w-full h-full object-cover" />
-                ) : (
-                  <Store size={40} className="text-white/80" />
+        {/* Store Preview Card with Banner */}
+        <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 mb-6">
+          {/* Banner */}
+          <div className="relative h-32 bg-gradient-to-r from-emerald-600 to-green-600">
+            {bannerPreview && (
+              <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" />
+            )}
+            <input
+              type="file"
+              id="banner-upload"
+              accept="image/*"
+              onChange={handleBannerChange}
+              className="hidden"
+            />
+            <label
+              htmlFor="banner-upload"
+              className="absolute top-2 right-2 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg flex items-center gap-2 text-sm font-medium text-gray-700 hover:bg-white cursor-pointer transition-colors"
+            >
+              {uploadingBanner ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Camera size={16} />
+              )}
+              Bannière
+            </label>
+            {bannerFile && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBannerFile(null)
+                  setBannerPreview(store?.banner_url || null)
+                }}
+                className="absolute top-2 right-32 p-2 bg-red-500/90 backdrop-blur-sm rounded-lg text-white hover:bg-red-600 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          
+          {/* Logo and Info */}
+          <div className="px-6 pb-6">
+            <div className="flex items-start gap-6 -mt-12">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-2xl bg-white shadow-lg border-2 border-white flex items-center justify-center overflow-hidden">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt={formData.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Store size={40} className="text-emerald-600" />
+                  )}
+                </div>
+                <input
+                  type="file"
+                  id="logo-upload"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="logo-upload"
+                  className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-emerald-700 cursor-pointer transition-colors"
+                >
+                  {uploadingLogo ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Camera size={16} />
+                  )}
+                </label>
+                {logoFile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLogoFile(null)
+                      setLogoPreview(store?.logo_url || null)
+                    }}
+                    className="absolute -top-2 -left-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
                 )}
               </div>
-              <button 
-                type="button"
-                className="absolute -bottom-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center text-emerald-600 shadow-lg hover:bg-gray-50"
-              >
-                <Camera size={16} />
-              </button>
-            </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold">
-                {formData.name || 'Nom de votre boutique'}
-              </h2>
-              <p className="text-emerald-100 mt-1">
-                buymore.ml/shop/{formData.slug || 'votre-boutique'}
-              </p>
-              {store && (
-                <div className="flex items-center gap-4 mt-4">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    store.is_active 
-                      ? 'bg-white/20 text-white' 
-                      : 'bg-yellow-400/20 text-yellow-100'
-                  }`}>
-                    {store.is_active ? '● En ligne' : '○ En attente de validation'}
-                  </span>
-                  <a 
-                    href={`/shops/${store.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm text-white/80 hover:text-white"
-                  >
-                    <Eye size={16} />
-                    Voir ma boutique
-                  </a>
-                </div>
-              )}
+              <div className="flex-1 mt-4">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {formData.name || 'Nom de votre boutique'}
+                </h2>
+                <p className="text-gray-500 mt-1">
+                  buymore.ml/shop/{formData.slug || 'votre-boutique'}
+                </p>
+                {store && (
+                  <div className="flex items-center gap-4 mt-4">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      store.is_active 
+                        ? 'bg-emerald-100 text-emerald-700' 
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {store.is_active ? '● En ligne' : '○ En attente de validation'}
+                    </span>
+                    {store.products_count !== undefined && (
+                      <span className="text-sm text-gray-500">
+                        {store.products_count} produit{store.products_count > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    <a 
+                      href={`/shops/${store.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700"
+                    >
+                      <Eye size={16} />
+                      Voir ma boutique
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -339,6 +499,19 @@ const StorePage: React.FC = () => {
                     placeholder="+223 70 12 34 56"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ville
+                </label>
+                <input
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Bamako"
+                />
               </div>
 
               <div>
