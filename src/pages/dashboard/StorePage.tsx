@@ -110,12 +110,15 @@ const StorePage: React.FC = () => {
   }
 
   const generateSlug = (name: string) => {
-    return name
+    const baseSlug = name
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
+    // Add unique suffix to avoid duplicate slug errors
+    const uniqueSuffix = Date.now().toString(36).slice(-4)
+    return `${baseSlug}-${uniqueSuffix}`
   }
 
   const handleNameChange = (name: string) => {
@@ -258,7 +261,11 @@ const StorePage: React.FC = () => {
           setMessage({ type: 'success', text: 'Boutique créée avec succès!' })
           await loadStore()
         } else if (response.error) {
-          setMessage({ type: 'error', text: response.error })
+          // Handle error object or string
+          const errorText = typeof response.error === 'object' 
+            ? ((response.error as any).message || JSON.stringify(response.error))
+            : response.error
+          setMessage({ type: 'error', text: errorText })
         }
       }
     } catch (error: any) {
