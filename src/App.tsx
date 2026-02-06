@@ -146,6 +146,7 @@ function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="earnings" element={<EarningsPage />} />
           <Route path="shipping" element={<ShippingPage />} />
+          <Route path="profile" element={<SettingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="help" element={<HelpPage />} />
         </Route>

@@ -229,7 +229,7 @@ export function ShopDetailPage() {
               {products.map((product) => (
                 <Link 
                   key={product.id} 
-                  to={`/products/${product.id}`}
+                  to={`/products/${product.slug || product.id}`}
                   className="group bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-100"
                   onMouseEnter={() => setHoveredProduct(product.id)}
                   onMouseLeave={() => setHoveredProduct(null)}

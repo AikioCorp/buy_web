@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '../../stores/authStore'
 import { productsService } from '../../lib/api/productsService'
 import { ordersService } from '../../lib/api/ordersService'
+import { Shop } from '../../lib/api/shopsService'
 
 type SidebarLinkProps = {
   to: string
@@ -25,40 +26,58 @@ type SidebarLinkProps = {
   label: string
   badge?: number | string
   end?: boolean
+  disabled?: boolean
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end }) => (
-  <NavLink 
-    to={to}
-    end={end}
-    className={({ isActive }) => `
-      group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-      ${isActive 
-        ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/25' 
-        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
-    `}
-  >
-    <div className="w-5 h-5 flex-shrink-0">{icon}</div>
-    <span className="font-medium flex-1">{label}</span>
-    {badge !== undefined && (
-      <span className={`
-        px-2 py-0.5 text-xs font-semibold rounded-full
-        ${typeof badge === 'number' && badge > 0 
-          ? 'bg-red-500 text-white' 
-          : 'bg-gray-200 text-gray-600'}
-      `}>
-        {badge}
-      </span>
-    )}
-    <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-  </NavLink>
-)
+const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, disabled }) => {
+  if (disabled) {
+    return (
+      <div className="group flex items-center gap-3 px-4 py-3 rounded-xl opacity-50 cursor-not-allowed">
+        <div className="w-5 h-5 flex-shrink-0">{icon}</div>
+        <span className="font-medium flex-1 text-gray-400">{label}</span>
+        {badge !== undefined && (
+          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-400">
+            {badge}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <NavLink 
+      to={to}
+      end={end}
+      className={({ isActive }) => `
+        group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+        ${isActive 
+          ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/25' 
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
+      `}
+    >
+      <div className="w-5 h-5 flex-shrink-0">{icon}</div>
+      <span className="font-medium flex-1">{label}</span>
+      {badge !== undefined && (
+        <span className={`
+          px-2 py-0.5 text-xs font-semibold rounded-full
+          ${typeof badge === 'number' && badge > 0 
+            ? 'bg-red-500 text-white' 
+            : 'bg-gray-200 text-gray-600'}
+        `}>
+          {badge}
+        </span>
+      )}
+      <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+    </NavLink>
+  )
+}
 
 type DashboardSidebarProps = {
   isOpen: boolean
+  shop?: Shop | null
 }
 
-const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen }) => {
+const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop }) => {
   const { user, role, logout } = useAuthStore()
   const [stats, setStats] = useState({ products: 0, orders: 0 })
 
@@ -135,10 +154,12 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-gray-900 truncate">{displayName}</p>
-              <div className="flex items-center gap-1 text-sm text-gray-500">
-                <Star size={12} className="text-yellow-500 fill-yellow-500" />
-                <span>Vendeur vérifié</span>
-              </div>
+              {shop?.is_verified && (
+                <div className="flex items-center gap-1 text-sm text-gray-500">
+                  <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                  <span>Vendeur vérifié</span>
+                </div>
+              )}
             </div>
           </div>
           
@@ -166,8 +187,8 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen }) => {
         <div className="space-y-1">
           <SidebarLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end />
           <SidebarLink to="/dashboard/store" icon={<Store size={20} />} label="Ma Boutique" />
-          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} />
-          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} />
+          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} disabled={!shop?.is_active} />
+          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} disabled={!shop?.is_active} />
         </div>
 
         {isOpen && (
@@ -176,9 +197,9 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen }) => {
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" />
-          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" />
-          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" />
+          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" disabled={!shop?.is_active} />
+          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" disabled={!shop?.is_active} />
+          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" disabled={!shop?.is_active} />
         </div>
 
         {isOpen && (

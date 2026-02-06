@@ -22,11 +22,20 @@ export interface Product {
   images?: ProductMedia[];
   options?: ProductOption[];
   variants?: ProductVariant[];
+  features?: ProductFeature[];
   related_products?: Product[];
   average_rating?: number;
   total_reviews?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ProductFeature {
+  id: number;
+  product_id: number;
+  name: string;
+  value: string;
+  sort_order?: number;
 }
 
 export interface ProductOption {
@@ -164,6 +173,25 @@ export const productsService = {
    */
   async uploadProductImage(productId: number, file: File) {
     return apiClient.upload(`/api/my-products/${productId}/upload-image`, file, 'image');
+  },
+
+  /**
+   * Sauvegarder les variantes d'un produit
+   */
+  async saveProductVariants(productId: number, variants: Array<{
+    name: string;
+    value: string;
+    price_modifier: number;
+    stock: number;
+  }>) {
+    return apiClient.post(`/api/my-products/${productId}/variants`, { variants });
+  },
+
+  /**
+   * Récupérer les variantes d'un produit
+   */
+  async getProductVariants(productId: number) {
+    return apiClient.get(`/api/my-products/${productId}/variants`);
   },
 
   // ========== ADMIN ENDPOINTS ==========

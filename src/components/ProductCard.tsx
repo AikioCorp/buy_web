@@ -64,7 +64,7 @@ export function ProductCard({ product, showDiscount = false }: ProductCardProps)
 
   return (
     <Link
-      to={`/products/${product.id}`}
+      to={`/products/${product.slug || product.id}`}
       className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

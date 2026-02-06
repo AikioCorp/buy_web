@@ -72,7 +72,7 @@ const FavoritesPage: React.FC = () => {
               key={favorite.id}
               className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden group"
             >
-              <Link to={`/products/${favorite.product.id}`}>
+              <Link to={`/products/${favorite.product.slug || favorite.product.id}`}>
                 <div className="aspect-square bg-gray-100 overflow-hidden">
                   {getImageUrl(favorite.product.media) ? (
                     <img
@@ -89,7 +89,7 @@ const FavoritesPage: React.FC = () => {
               </Link>
 
               <div className="p-4">
-                <Link to={`/products/${favorite.product.id}`}>
+                <Link to={`/products/${favorite.product.slug || favorite.product.id}`}>
                   <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2 hover:text-green-600">
                     {favorite.product.name}
                   </h3>
@@ -101,7 +101,7 @@ const FavoritesPage: React.FC = () => {
 
                 <div className="flex gap-2">
                   <Link
-                    to={`/products/${favorite.product.id}`}
+                    to={`/products/${favorite.product.slug || favorite.product.id}`}
                     className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 text-sm"
                   >
                     <ShoppingCart size={16} />

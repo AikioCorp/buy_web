@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { 
   Menu, Search, ChevronDown, ShoppingCart, 
-  User, LogOut, Settings, HelpCircle, ExternalLink, Package
+  User, LogOut, Settings, HelpCircle, ExternalLink, Package, Home, Grid, Store as StoreIcon, Heart
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 import { useCartStore } from '../../../store/cartStore'
@@ -60,6 +60,26 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
       >
         <Menu size={22} />
       </button>
+
+      {/* Navigation Menu */}
+      <nav className="hidden lg:flex items-center gap-1 ml-6">
+        <Link to="/" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+          <Home size={16} />
+          <span>Accueil</span>
+        </Link>
+        <Link to="/categories" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+          <Grid size={16} />
+          <span>Catégories</span>
+        </Link>
+        <Link to="/shops" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+          <StoreIcon size={16} />
+          <span>Boutiques</span>
+        </Link>
+        <Link to="/favorites" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+          <Heart size={16} />
+          <span>Favoris</span>
+        </Link>
+      </nav>
 
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="hidden md:flex ml-4 flex-1 relative max-w-md">

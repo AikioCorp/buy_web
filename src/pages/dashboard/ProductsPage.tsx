@@ -3,25 +3,30 @@ import { Link } from 'react-router-dom'
 import { 
   Package, Plus, Search, Edit, Trash2,
   AlertCircle, CheckCircle, XCircle, Loader2,
-  Grid, List, Image as ImageIcon
+  Grid, List, Image as ImageIcon, Eye
 } from 'lucide-react'
 import { productsService, Product } from '../../lib/api/productsService'
 import { shopsService, Shop } from '../../lib/api/shopsService'
 import ProductFormModal from '../../components/dashboard/ProductFormModal'
+import ProductPreviewModal from '../../components/dashboard/ProductPreviewModal'
 
 // Product Card Component
 const ProductCard = ({ 
   product, 
   onEdit, 
   onDelete,
+  onPreview,
   viewMode 
 }: { 
   product: Product
   onEdit: () => void
   onDelete: () => void
+  onPreview: () => void
   viewMode: 'grid' | 'list'
 }) => {
-  const primaryImage = product.media?.find(m => m.is_primary) || product.media?.[0]
+  // Backend returns 'images' but interface uses 'media'
+  const mediaArray = (product as any).images || product.media || []
+  const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
   
   // Construire l'URL de l'image (gérer les chemins relatifs et absolus)
   const getImageUrl = () => {
@@ -45,7 +50,7 @@ const ProductCard = ({
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           {/* Image + Info (mobile: row, desktop: separate) */}
           <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+            <div className="w-16 h-16 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
               {imageUrl ? (
                 <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
               ) : (
@@ -82,14 +87,23 @@ const ProductCard = ({
             </div>
             <div className="flex items-center gap-1">
               <button
-                onClick={onEdit}
+                onClick={onPreview}
                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Aperçu"
+              >
+                <Eye size={18} />
+              </button>
+              <button
+                onClick={onEdit}
+                className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                title="Modifier"
               >
                 <Edit size={18} />
               </button>
               <button
                 onClick={onDelete}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Supprimer"
               >
                 <Trash2 size={18} />
               </button>
@@ -104,7 +118,7 @@ const ProductCard = ({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-emerald-200 hover:-translate-y-1 transition-all duration-300 group">
       {/* Image */}
-      <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="relative aspect-square bg-gray-100 overflow-hidden">
         {imageUrl ? (
           <img src={imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
@@ -135,16 +149,25 @@ const ProductCard = ({
         </div>
 
         {/* Hover actions */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-4 gap-3">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-4 gap-2">
+          <button
+            onClick={onPreview}
+            className="p-3 bg-white rounded-xl text-gray-700 hover:bg-blue-500 hover:text-white transition-all shadow-lg transform hover:scale-110"
+            title="Aperçu"
+          >
+            <Eye size={20} />
+          </button>
           <button
             onClick={onEdit}
             className="p-3 bg-white rounded-xl text-gray-700 hover:bg-emerald-500 hover:text-white transition-all shadow-lg transform hover:scale-110"
+            title="Modifier"
           >
             <Edit size={20} />
           </button>
           <button
             onClick={onDelete}
             className="p-3 bg-white rounded-xl text-gray-700 hover:bg-red-500 hover:text-white transition-all shadow-lg transform hover:scale-110"
+            title="Supprimer"
           >
             <Trash2 size={20} />
           </button>
@@ -270,6 +293,8 @@ const ProductsPage: React.FC = () => {
   
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
+  const [previewingProduct, setPreviewingProduct] = useState<Product | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -301,8 +326,16 @@ const ProductsPage: React.FC = () => {
 
       // Charger les produits
       const productsResponse = await productsService.getMyProducts()
+      console.log('📦 Products response:', productsResponse)
       if (productsResponse.data) {
-        setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : [])
+        // Backend returns { results: [...], count: N } format
+        if (Array.isArray(productsResponse.data)) {
+          setProducts(productsResponse.data)
+        } else if (productsResponse.data.results && Array.isArray(productsResponse.data.results)) {
+          setProducts(productsResponse.data.results)
+        } else {
+          setProducts([])
+        }
       }
     } catch (error) {
       console.error('Erreur chargement:', error)
@@ -327,6 +360,19 @@ const ProductsPage: React.FC = () => {
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product)
     setIsFormModalOpen(true)
+  }
+
+  const handlePreviewProduct = (product: Product) => {
+    setPreviewingProduct(product)
+    setIsPreviewModalOpen(true)
+  }
+
+  const handleEditFromPreview = () => {
+    if (previewingProduct) {
+      setEditingProduct(previewingProduct)
+      setIsPreviewModalOpen(false)
+      setIsFormModalOpen(true)
+    }
   }
 
   const handleDeleteProduct = async () => {
@@ -549,12 +595,24 @@ const ProductsPage: React.FC = () => {
               key={product.id}
               product={product}
               viewMode={viewMode}
+              onPreview={() => handlePreviewProduct(product)}
               onEdit={() => handleEditProduct(product)}
               onDelete={() => setDeletingProduct(product)}
             />
           ))}
         </div>
       )}
+
+      {/* Product Preview Modal */}
+      <ProductPreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => {
+          setIsPreviewModalOpen(false)
+          setPreviewingProduct(null)
+        }}
+        product={previewingProduct}
+        onEdit={handleEditFromPreview}
+      />
 
       {/* Product Form Modal */}
       <ProductFormModal
@@ -563,7 +621,7 @@ const ProductsPage: React.FC = () => {
           setIsFormModalOpen(false)
           setEditingProduct(null)
         }}
-        onSuccess={handleFormSuccess}
+        onSuccess={loadData}
         product={editingProduct}
       />
 

@@ -192,20 +192,20 @@ export function VendorPendingApprovalPage({
             </p>
             <div className="space-y-2">
               <a 
-                href="mailto:support@buymore.ml" 
+                href="mailto:vente@buymore.ml" 
                 className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
               >
                 <Mail className="w-4 h-4" />
-                support@buymore.ml
+                vente@buymore.ml
               </a>
               <a 
-                href="https://wa.me/22370000000" 
+                href="https://wa.me/22370796969" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
               >
                 <Phone className="w-4 h-4" />
-                +223 70 00 00 00 (WhatsApp)
+                +223 70 79 69 69 (WhatsApp)
               </a>
             </div>
           </div>

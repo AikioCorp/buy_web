@@ -20,6 +20,8 @@ export interface Shop {
   rating?: number;
   products_count?: number;
   is_active: boolean;
+  is_verified?: boolean;
+  verification_date?: string;
   // Approval status
   status?: ShopStatus;
   admin_notes?: string;
@@ -39,6 +41,9 @@ export interface Shop {
   delivery_base_fee?: number;
   delivery_available?: boolean;
   delivery_zones?: ShopDeliveryZone[];
+  // Commission
+  default_commission_rate?: number;
+  commission_type?: 'percentage' | 'fixed';
   // Timestamps
   created_at?: string;
   updated_at?: string;
@@ -221,8 +226,8 @@ export const shopsService = {
    * @param userId - ID de l'utilisateur connecté pour filtrer les boutiques
    */
   async getMyShop(userId?: string) {
-    const response = await apiClient.get<{ results: Shop[]; count: number } | Shop[]>('/api/shops');
-    console.log('🔍 getMyShop raw response:', response);
+    // Include inactive shops for authenticated users to see pending shops
+    const response = await apiClient.get<{ results: Shop[]; count: number } | Shop[]>('/api/shops?include_inactive=true');
     
     // Handle both response formats: { results: [...] } or direct array
     let shops: Shop[] = [];
@@ -234,12 +239,9 @@ export const shopsService = {
       }
     }
     
-    console.log('📦 getMyShop all shops:', shops.length, shops);
-    
-    // IMPORTANT: Filter shops by owner_id on frontend since backend may not filter correctly
+    // Filter shops by owner_id on frontend since backend may not filter correctly
     if (userId) {
       shops = shops.filter(shop => String(shop.owner_id) === String(userId));
-      console.log('🔍 getMyShop filtered by userId:', userId, 'found:', shops.length);
     }
     
     if (shops.length > 0) {
@@ -454,6 +456,30 @@ export const shopsService = {
       return { status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la suppression de la boutique');
+    }
+  },
+
+  /**
+   * Vérifier une boutique (Admin/SuperAdmin) - marque la boutique comme vérifiée par l'équipe
+   */
+  async verifyShop(id: number) {
+    try {
+      const response = await apiClient.post<Shop>(`/api/shops/admin/${id}/verify`);
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la vérification de la boutique');
+    }
+  },
+
+  /**
+   * Retirer la vérification d'une boutique (Admin/SuperAdmin)
+   */
+  async unverifyShop(id: number) {
+    try {
+      const response = await apiClient.post<Shop>(`/api/shops/admin/${id}/unverify`);
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du retrait de la vérification');
     }
   },
 };

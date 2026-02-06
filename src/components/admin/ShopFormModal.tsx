@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Save, Upload, Store, MapPin, Phone, Mail, Truck } from 'lucide-react'
+import { X, Save, Upload, Store, MapPin, Phone, Mail, Truck, UserPlus } from 'lucide-react'
 import { locationsService, Commune, Quartier } from '../../lib/api/locationsService'
 
 export interface ShopFormData {
@@ -18,6 +18,12 @@ export interface ShopFormData {
   delivery_base_fee: number
   delivery_available: boolean
   is_active: boolean
+  admin_first_name?: string
+  admin_last_name?: string
+  admin_email?: string
+  admin_phone?: string
+  admin_password?: string
+  send_password_email?: boolean
 }
 
 interface ShopFormModalProps {
@@ -62,6 +68,27 @@ const ShopFormModal: React.FC<ShopFormModalProps> = ({
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>('')
   const [bannerPreview, setBannerPreview] = useState<string>('')
+  const [createAdmin, setCreateAdmin] = useState(false)
+  const [sendPasswordEmail, setSendPasswordEmail] = useState(true)
+  const [generatedPassword, setGeneratedPassword] = useState('')
+
+  const isNewShop = !initialData
+
+  const generatePassword = () => {
+    const length = 12
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+    let password = ''
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length))
+    }
+    return password
+  }
+
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword()
+    setGeneratedPassword(newPassword)
+    setFormData({ ...formData, admin_password: newPassword })
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -446,6 +473,146 @@ const ShopFormModal: React.FC<ShopFormModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Administrateur de la boutique - only for new shops */}
+          {isNewShop && (
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide flex items-center gap-2">
+                <UserPlus size={16} className="text-emerald-600" />
+                Administrateur de la boutique
+              </h3>
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={createAdmin}
+                    onChange={(e) => setCreateAdmin(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900">Créer un nouvel administrateur</span>
+                    <p className="text-sm text-gray-600">Créer un compte utilisateur pour gérer cette boutique</p>
+                  </div>
+                </label>
+              </div>
+
+              {createAdmin && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Prénom <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.admin_first_name || ''}
+                        onChange={(e) => setFormData({ ...formData, admin_first_name: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        placeholder="Prénom"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nom <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.admin_last_name || ''}
+                        onChange={(e) => setFormData({ ...formData, admin_last_name: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        placeholder="Nom"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.admin_email || ''}
+                        onChange={(e) => setFormData({ ...formData, admin_email: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        placeholder="admin@boutique.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Téléphone <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.admin_phone || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '')
+                          if (value.length <= 8) {
+                            const formatted = value.replace(/(\d{2})(?=\d)/g, '$1 ').trim()
+                            setFormData({ ...formData, admin_phone: formatted ? `+223 ${formatted}` : '' })
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        placeholder="+223 XX XX XX XX"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password options */}
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                    <label className="flex items-center gap-3 cursor-pointer mb-3">
+                      <input
+                        type="checkbox"
+                        checked={sendPasswordEmail}
+                        onChange={(e) => {
+                          setSendPasswordEmail(e.target.checked)
+                          if (e.target.checked) {
+                            setFormData({ ...formData, admin_password: '', send_password_email: true })
+                            setGeneratedPassword('')
+                          } else {
+                            setFormData({ ...formData, send_password_email: false })
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <span className="font-medium text-gray-900">Envoyer un email de création de mot de passe</span>
+                        <p className="text-sm text-gray-600">L'utilisateur recevra un email pour définir son mot de passe</p>
+                      </div>
+                    </label>
+
+                    {!sendPasswordEmail && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Mot de passe <span className="text-red-500">*</span>
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={formData.admin_password || ''}
+                              onChange={(e) => setFormData({ ...formData, admin_password: e.target.value })}
+                              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                              placeholder="Mot de passe (min. 6 caractères)"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleGeneratePassword}
+                              className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap"
+                            >
+                              Générer
+                            </button>
+                          </div>
+                          {generatedPassword && (
+                            <p className="mt-2 text-sm text-green-600 font-medium">
+                              Mot de passe généré : {generatedPassword}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Statut */}
           <div className="border-t border-gray-200 pt-6">

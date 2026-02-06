@@ -317,12 +317,7 @@ export function ProductDetailPage() {
                   <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
-              {/* Placeholder thumbnails if less than 4 images */}
-              {images.length < 4 && [...Array(4 - images.length)].map((_, idx) => (
-                <div key={`placeholder-${idx}`} className="aspect-square bg-gray-100 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center">
-                  <Package className="w-6 h-6 text-gray-300" />
-                </div>
-              ))}
+              {/* Removed placeholder thumbnails - only show actual images */}
             </div>
           </div>
 
@@ -386,6 +381,21 @@ export function ProductDetailPage() {
               </p>
             </div>
 
+            {/* Product Characteristics/Features */}
+            {(product as any).features && (product as any).features.length > 0 && (
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                <h3 className="font-semibold text-gray-900 mb-3">Caractéristiques</h3>
+                <div className="space-y-2">
+                  {(product as any).features.map((feature: any) => (
+                    <div key={feature.id} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
+                      <span className="text-sm font-medium text-gray-700">{feature.name}</span>
+                      <span className="text-sm text-gray-900 font-semibold">{feature.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Product Features/Characteristics */}
             <div className="grid grid-cols-2 gap-3">
               {(product as any).delivery_time && (
@@ -428,22 +438,68 @@ export function ProductDetailPage() {
 
             {/* Product Variants */}
             {(product as any).variants && (product as any).variants.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-gray-900 text-sm">Variantes disponibles</h3>
-                <div className="flex flex-wrap gap-2">
-                  {(product as any).variants.map((variant: any) => (
-                    <button
-                      key={variant.id}
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm hover:border-[#0f4c2b] transition-colors"
-                    >
-                      <span className="font-medium">{variant.name || variant.sku}</span>
-                      {variant.price && (
-                        <span className="ml-2 text-[#0f4c2b] font-bold">
-                          {formatPrice(parseFloat(variant.price))}
-                        </span>
-                      )}
-                    </button>
-                  ))}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-900">Variantes disponibles</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(product as any).variants.map((variant: any) => {
+                    const optionValues = variant.option_values || {}
+                    const variantName = Object.entries(optionValues).map(([key, value]) => `${key}: ${value}`).join(', ')
+                    const basePrice = parseFloat(product.base_price || '0')
+                    const priceModifier = parseFloat(variant.price_modifier || '0')
+                    const finalPrice = basePrice + priceModifier
+                    
+                    return (
+                      <div
+                        key={variant.id}
+                        className="border-2 border-gray-200 rounded-xl p-3 hover:border-[#0f4c2b] transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Variant Image */}
+                          {variant.image_url && (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                              <img 
+                                src={variant.image_url} 
+                                alt={variantName}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Variant Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm truncate">
+                              {variantName || variant.sku || 'Variante'}
+                            </p>
+                            
+                            {/* Price */}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[#0f4c2b] font-bold text-sm">
+                                {formatPrice(finalPrice)}
+                              </span>
+                              {priceModifier !== 0 && (
+                                <span className={`text-xs ${priceModifier > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                                  {priceModifier > 0 ? '+' : ''}{formatPrice(priceModifier)}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Stock */}
+                            <div className="flex items-center gap-2 mt-1">
+                              {variant.stock > 0 ? (
+                                <span className="text-xs text-green-600 font-medium">
+                                  ✓ En stock ({variant.stock} unités)
+                                </span>
+                              ) : (
+                                <span className="text-xs text-red-600 font-medium">
+                                  ✗ Rupture de stock
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

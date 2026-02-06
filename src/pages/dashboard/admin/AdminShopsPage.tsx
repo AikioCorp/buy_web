@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react'
 import { 
   Search, Store, Edit2, Trash2, X, Eye, MapPin, Phone, Plus,
   CheckCircle, XCircle, Clock, AlertTriangle, Ban, Loader2, RefreshCw,
-  LayoutGrid, List
+  LayoutGrid, List, Star, User, Mail, DollarSign
 } from 'lucide-react'
 import { shopsService, Shop } from '../../../lib/api/shopsService'
 import { apiClient } from '../../../lib/api/apiClient'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { useToast } from '../../../components/Toast'
+import { useAuthStore } from '../../../stores/authStore'
 import ShopFormModal, { ShopFormData } from '../../../components/admin/ShopFormModal'
+import CommissionManagementModal from '../../../components/admin/CommissionManagementModal'
 
 const AdminShopsPage: React.FC = () => {
   const { showToast } = useToast()
@@ -37,6 +39,8 @@ const AdminShopsPage: React.FC = () => {
   const [shopToDelete, setShopToDelete] = useState<Shop | null>(null)
   const [viewingShop, setViewingShop] = useState<Shop | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [commissionShop, setCommissionShop] = useState<Shop | null>(null)
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false)
 
   const pageSize = 20
 
@@ -192,20 +196,73 @@ const AdminShopsPage: React.FC = () => {
   const handleApproveShop = async (shop: Shop) => {
     if (!canValidateShops()) return
     try {
-      await shopsService.updateShop(shop.id, { is_active: true, status: 'approved' } as any)
+      setActionLoading(true)
+      await shopsService.approveShop(shop.id)
+      showToast(`Boutique "${shop.name}" approuvée`, 'success')
       loadShops()
     } catch (err: any) {
       showToast(err.message || 'Erreur lors de l\'approbation', 'error')
+    } finally {
+      setActionLoading(false)
     }
   }
 
   const handleRejectShop = async (shop: Shop) => {
     if (!canValidateShops()) return
+    
+    // Check if user is superadmin - reason is optional for superadmin, required for admin
+    const { role } = useAuthStore.getState()
+    const isSuperAdmin = role === 'super_admin'
+    
+    const reason = prompt(isSuperAdmin 
+      ? 'Raison du rejet (optionnel pour SuperAdmin):' 
+      : 'Raison du rejet (obligatoire):')
+    
+    if (reason === null) return // User cancelled
+    
+    // For admin, require a reason
+    if (!isSuperAdmin && !reason.trim()) {
+      showToast('La raison du rejet est obligatoire pour les admins', 'error')
+      return
+    }
+    
     try {
-      await shopsService.updateShop(shop.id, { is_active: false, status: 'rejected' } as any)
+      setActionLoading(true)
+      await shopsService.rejectShop(shop.id, reason || '')
+      showToast(`Boutique "${shop.name}" rejetée`, 'success')
       loadShops()
     } catch (err: any) {
       showToast(err.message || 'Erreur lors du rejet', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleVerifyShop = async (shop: Shop) => {
+    if (!canValidateShops()) return
+    try {
+      setActionLoading(true)
+      await shopsService.verifyShop(shop.id)
+      showToast('Boutique vérifiée avec succès', 'success')
+      loadShops()
+    } catch (err: any) {
+      showToast(err.message || 'Erreur lors de la vérification', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleUnverifyShop = async (shop: Shop) => {
+    if (!canValidateShops()) return
+    try {
+      setActionLoading(true)
+      await shopsService.unverifyShop(shop.id)
+      showToast('Vérification retirée', 'success')
+      loadShops()
+    } catch (err: any) {
+      showToast(err.message || 'Erreur lors du retrait de la vérification', 'error')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -395,9 +452,16 @@ const AdminShopsPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                    <button onClick={() => handleViewShop(shop)} className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100" title="Voir">
-                      <Eye size={16} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleViewShop(shop)} className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100" title="Voir">
+                        <Eye size={16} />
+                      </button>
+                      {shop.is_verified && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 rounded-lg text-xs font-medium" title="Boutique vérifiée">
+                          <Star size={12} className="fill-yellow-500" />
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       {canValidateShops() && (shop.status === 'pending' || (!shop.status && !shop.is_active)) && (
                         <>
@@ -409,6 +473,39 @@ const AdminShopsPage: React.FC = () => {
                           </button>
                         </>
                       )}
+                      {canValidateShops() && shop.is_active && (
+                        <>
+                          {!shop.is_verified ? (
+                            <button 
+                              onClick={() => handleVerifyShop(shop)} 
+                              className="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100" 
+                              title="Vérifier la boutique"
+                              disabled={actionLoading}
+                            >
+                              <Star size={16} />
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleUnverifyShop(shop)} 
+                              className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100" 
+                              title="Retirer la vérification"
+                              disabled={actionLoading}
+                            >
+                              <Star size={16} className="fill-yellow-500" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                      <button 
+                        onClick={() => {
+                          setCommissionShop(shop)
+                          setIsCommissionModalOpen(true)
+                        }} 
+                        className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100" 
+                        title="Gérer les commissions"
+                      >
+                        <DollarSign size={16} />
+                      </button>
                       {canEditShops() && (
                         <button onClick={() => handleEditShop(shop)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100" title="Modifier">
                           <Edit2 size={16} />
@@ -524,54 +621,213 @@ const AdminShopsPage: React.FC = () => {
         </div>
       )}
 
-      {/* View Modal */}
+      {/* View Modal - Enhanced */}
       {isViewModalOpen && viewingShop && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="relative h-40 bg-gradient-to-r from-emerald-500 to-teal-600">
-              {viewingShop.banner_url && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Banner Section */}
+            <div className="relative h-48 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500">
+              {viewingShop.banner_url ? (
                 <img src={viewingShop.banner_url} alt={viewingShop.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Store className="w-20 h-20 text-white/30" />
+                </div>
               )}
-              <button onClick={() => setIsViewModalOpen(false)} className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+              <button 
+                onClick={() => setIsViewModalOpen(false)} 
+                className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
+              >
                 <X size={20} />
               </button>
+              {canEditShops() && (
+                <button 
+                  onClick={() => {
+                    setIsViewModalOpen(false)
+                    handleEditShop(viewingShop)
+                  }}
+                  className="absolute top-4 right-16 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
+                  title="Modifier"
+                >
+                  <Edit2 size={20} />
+                </button>
+              )}
             </div>
-            <div className="p-6 -mt-12">
-              <div className="flex items-end gap-4 mb-6">
-                <div className="w-24 h-24 rounded-2xl bg-white shadow-lg flex items-center justify-center overflow-hidden border-4 border-white">
-                  {viewingShop.logo_url ? (
-                    <img src={viewingShop.logo_url} alt={viewingShop.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <Store className="w-10 h-10 text-gray-400" />
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Logo & Title Section */}
+              <div className="p-6 -mt-16 relative z-10">
+                <div className="flex items-end gap-4 mb-6">
+                  <div className="w-32 h-32 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border-4 border-white">
+                    {viewingShop.logo_url ? (
+                      <img src={viewingShop.logo_url} alt={viewingShop.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Store className="w-12 h-12 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h2 className="text-3xl font-bold text-gray-900">{viewingShop.name}</h2>
+                      {viewingShop.is_verified && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium">
+                          <Star size={14} className="fill-yellow-500" />
+                          Vérifié
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-500 mb-2">@{viewingShop.slug}</p>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const statusInfo = getStatusInfo(viewingShop)
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium ${statusInfo.bg}`}>
+                            <statusInfo.icon size={14} />
+                            {statusInfo.label}
+                          </span>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {viewingShop.description && (
+                  <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
+                    <p className="text-gray-700 leading-relaxed">{viewingShop.description}</p>
+                  </div>
+                )}
+
+                {/* Owner Information */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <User size={20} className="text-emerald-600" />
+                    Propriétaire de la boutique
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl border border-emerald-100">
+                      <p className="text-sm text-gray-600 mb-1">Nom</p>
+                      <p className="font-semibold text-gray-900">{(viewingShop as any).owner_name || 'Non défini'}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                        <Mail size={14} />
+                        Email
+                      </p>
+                      <p className="font-semibold text-gray-900 truncate">{(viewingShop as any).owner_email || 'Non défini'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shop Details */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <Store size={20} className="text-emerald-600" />
+                    Informations de la boutique
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                        <Phone size={14} />
+                        Téléphone
+                      </p>
+                      <p className="font-semibold text-gray-900">{viewingShop.phone || 'Non défini'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                        <Mail size={14} />
+                        Email boutique
+                      </p>
+                      <p className="font-semibold text-gray-900">{viewingShop.email || 'Non défini'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                        <MapPin size={14} />
+                        Commune
+                      </p>
+                      <p className="font-semibold text-gray-900">{viewingShop.address_commune || 'Non défini'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                        <MapPin size={14} />
+                        Quartier
+                      </p>
+                      <p className="font-semibold text-gray-900">{viewingShop.address_quartier || 'Non défini'}</p>
+                    </div>
+                  </div>
+                  {viewingShop.address_details && (
+                    <div className="mt-4 bg-gray-50 p-4 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-1">Adresse complète</p>
+                      <p className="font-semibold text-gray-900">{viewingShop.address_details}</p>
+                    </div>
                   )}
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{viewingShop.name}</h2>
-                  <p className="text-gray-500">{viewingShop.slug}</p>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl text-center border border-purple-100">
+                    <p className="text-2xl font-bold text-purple-600">{viewingShop.products_count || 0}</p>
+                    <p className="text-sm text-gray-600 mt-1">Produits</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-4 rounded-xl text-center border border-orange-100">
+                    <p className="text-2xl font-bold text-orange-600">{viewingShop.rating?.toFixed(1) || '0.0'}</p>
+                    <p className="text-sm text-gray-600 mt-1">Note moyenne</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl text-center border border-green-100">
+                    <p className="text-2xl font-bold text-green-600">{viewingShop.delivery_available ? 'Oui' : 'Non'}</p>
+                    <p className="text-sm text-gray-600 mt-1">Livraison</p>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-sm text-gray-500 mb-1">Localisation</p>
-                  <p className="font-medium text-gray-900 flex items-center gap-2">
-                    <MapPin size={16} />
-                    {viewingShop.address_commune || 'Non défini'}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-sm text-gray-500 mb-1">Téléphone</p>
-                  <p className="font-medium text-gray-900 flex items-center gap-2">
-                    <Phone size={16} />
-                    {viewingShop.phone || 'Non défini'}
-                  </p>
-                </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+              >
+                Fermer
+              </button>
+              <div className="flex items-center gap-3">
+                {canValidateShops() && viewingShop.is_active && (
+                  <>
+                    {!viewingShop.is_verified ? (
+                      <button 
+                        onClick={() => handleVerifyShop(viewingShop)} 
+                        className="flex items-center gap-2 px-6 py-2.5 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition-colors font-medium"
+                        disabled={actionLoading}
+                      >
+                        <Star size={18} />
+                        Vérifier la boutique
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleUnverifyShop(viewingShop)} 
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium"
+                        disabled={actionLoading}
+                      >
+                        <Star size={18} className="fill-yellow-500" />
+                        Retirer vérification
+                      </button>
+                    )}
+                  </>
+                )}
+                {canEditShops() && (
+                  <button 
+                    onClick={() => {
+                      setIsViewModalOpen(false)
+                      handleEditShop(viewingShop)
+                    }}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-medium"
+                  >
+                    <Edit2 size={18} />
+                    Modifier
+                  </button>
+                )}
               </div>
-              {viewingShop.description && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-500 mb-1">Description</p>
-                  <p className="text-gray-700">{viewingShop.description}</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -611,6 +867,21 @@ const AdminShopsPage: React.FC = () => {
         isLoading={actionLoading}
         title="Nouvelle boutique"
       />
+
+      {/* Commission Management Modal */}
+      {isCommissionModalOpen && commissionShop && (
+        <CommissionManagementModal
+          storeId={commissionShop.id}
+          storeName={commissionShop.name}
+          defaultCommissionRate={commissionShop.default_commission_rate || 10}
+          defaultCommissionType={commissionShop.commission_type || 'percentage'}
+          onClose={() => {
+            setIsCommissionModalOpen(false)
+            setCommissionShop(null)
+          }}
+          onUpdate={loadShops}
+        />
+      )}
 
       {/* Delete Modal */}
       {isDeleteModalOpen && shopToDelete && (

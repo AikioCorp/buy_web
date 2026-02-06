@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Menu, Bell, Search, ChevronDown, LogOut } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Menu, Bell, Search, ChevronDown, LogOut, Home, Grid, Store as StoreIcon, Heart } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 
 interface AdminDashboardHeaderProps {
@@ -39,6 +39,26 @@ const AdminDashboardHeader: React.FC<AdminDashboardHeaderProps> = ({ toggleSideb
       >
         <Menu size={20} />
       </button>
+
+      {/* Navigation Menu */}
+      <nav className="hidden lg:flex items-center gap-1 ml-6">
+        <Link to="/" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          <Home size={16} />
+          <span>Accueil</span>
+        </Link>
+        <Link to="/categories" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          <Grid size={16} />
+          <span>Catégories</span>
+        </Link>
+        <Link to="/shops" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          <StoreIcon size={16} />
+          <span>Boutiques</span>
+        </Link>
+        <Link to="/favorites" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          <Heart size={16} />
+          <span>Favoris</span>
+        </Link>
+      </nav>
 
       <div className="hidden md:flex ml-4 flex-1 relative max-w-xl">
         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">

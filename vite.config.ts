@@ -12,10 +12,11 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0', // Listen on all network interfaces
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'https://buymore-api-production.up.railway.app', // Production
-        //target: 'http://localhost:3000', // Local backend (uncomment for local dev)
+        target: 'http://localhost:3000', // Local backend
         changeOrigin: true,
         secure: false,
       },

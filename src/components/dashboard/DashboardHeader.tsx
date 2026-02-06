@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { 
   Menu, Search, ChevronDown, Settings, User, 
-  LogOut, HelpCircle, ExternalLink
+  LogOut, HelpCircle, ExternalLink, Home, Grid, Store as StoreIcon, Heart
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import NotificationBell from '../NotificationBell'
@@ -50,27 +50,37 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ toggleSidebar }) => {
         <Menu size={22} />
       </button>
 
-      {/* Search Bar */}
-      <div className="hidden md:flex ml-4 flex-1 relative max-w-md">
-        <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-          <Search size={18} className="text-gray-400" />
-        </div>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Rechercher produits, commandes..."
-          className="pl-11 pr-4 py-2.5 w-full border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50 text-sm transition-all"
-        />
-        {searchQuery && (
-          <button 
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            ×
-          </button>
-        )}
-      </div>
+      {/* Navigation Menu */}
+      <nav className="hidden lg:flex items-center gap-1 ml-6">
+        <Link
+          to="/"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+        >
+          <Home size={16} />
+          <span>Accueil</span>
+        </Link>
+        <Link
+          to="/categories"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+        >
+          <Grid size={16} />
+          <span>Catégories</span>
+        </Link>
+        <Link
+          to="/shops"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+        >
+          <StoreIcon size={16} />
+          <span>Boutiques</span>
+        </Link>
+        <Link
+          to="/favorites"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+        >
+          <Heart size={16} />
+          <span>Favoris</span>
+        </Link>
+      </nav>
 
       {/* Right Actions */}
       <div className="flex items-center ml-auto gap-2">

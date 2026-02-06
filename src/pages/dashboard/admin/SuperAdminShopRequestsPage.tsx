@@ -22,7 +22,8 @@ const SuperAdminShopRequestsPage: React.FC = () => {
   const loadShopRequests = async () => {
     try {
       setLoading(true)
-      const response = await shopsService.getAllShops(1, 100)
+      // Use getAllShopsAdmin to get all shops including inactive ones
+      const response = await shopsService.getAllShopsAdmin({ page: 1 })
       if (response.data) {
         let allShops: Shop[] = []
         if (Array.isArray(response.data)) {
@@ -30,8 +31,10 @@ const SuperAdminShopRequestsPage: React.FC = () => {
         } else if (response.data.results) {
           allShops = response.data.results
         }
-        // Filter only pending shops
-        const pendingShops = allShops.filter(s => s.status === 'pending' || (!s.is_active && s.status !== 'rejected'))
+        // Filter only pending shops (not active OR status is pending)
+        const pendingShops = allShops.filter(s => 
+          s.status === 'pending' || (!s.is_active && s.status !== 'rejected' && s.status !== 'suspended')
+        )
         setShops(pendingShops)
       }
     } catch (err: any) {
@@ -44,7 +47,7 @@ const SuperAdminShopRequestsPage: React.FC = () => {
   const handleApprove = async (shop: Shop) => {
     try {
       setActionLoading(true)
-      await shopsService.updateShop(shop.id, { is_active: true, status: 'approved' } as any)
+      await shopsService.approveShop(shop.id)
       showToast(`Boutique "${shop.name}" approuvée!`, 'success')
       loadShopRequests()
       setIsViewModalOpen(false)
@@ -56,10 +59,12 @@ const SuperAdminShopRequestsPage: React.FC = () => {
   }
 
   const handleReject = async (shop: Shop) => {
-    const reason = prompt('Raison du rejet (optionnel):')
+    const reason = prompt('Raison du rejet (optionnel pour SuperAdmin):')
+    if (reason === null) return // User cancelled
+    
     try {
       setActionLoading(true)
-      await shopsService.updateShop(shop.id, { is_active: false, status: 'rejected', rejection_reason: reason } as any)
+      await shopsService.rejectShop(shop.id, reason || '')
       showToast(`Boutique "${shop.name}" rejetée`, 'success')
       loadShopRequests()
       setIsViewModalOpen(false)

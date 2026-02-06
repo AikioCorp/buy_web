@@ -104,7 +104,7 @@ export function FavoritesPage() {
               className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
             >
               {/* Image */}
-              <Link to={`/products/${product.id}`} className="block relative aspect-square overflow-hidden">
+              <Link to={`/products/${product.slug || product.id}`} className="block relative aspect-square overflow-hidden">
                 {getImageUrl(product) ? (
                   <img 
                     src={getImageUrl(product)!} 
@@ -131,7 +131,7 @@ export function FavoritesPage() {
 
               {/* Content */}
               <div className="p-4">
-                <Link to={`/products/${product.id}`}>
+                <Link to={`/products/${product.slug || product.id}`}>
                   <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2 hover:text-[#0f4c2b] transition-colors">
                     {product.name}
                   </h3>

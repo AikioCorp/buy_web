@@ -13,6 +13,8 @@ interface ProductVariant {
   value: string
   price_modifier: number
   stock: number
+  image_url?: string
+  imageFile?: File
 }
 
 interface ProductFormModalProps {
@@ -74,7 +76,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           category: product.category?.id?.toString() || '',
           is_active: product.is_active !== false,
         })
-        setExistingImages(product.media || [])
+        // Backend returns 'images' but interface uses 'media'
+        setExistingImages((product as any).images || product.media || [])
         setVariants([])
         setFeatures({
           delivery_time: (product as any).delivery_time || '24-48h',
@@ -171,10 +174,12 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   }
 
   const addVariant = () => {
-    setVariants([...variants, { name: '', value: '', price_modifier: 0, stock: 0 }])
+    // Pre-fill price_modifier with base_price if available
+    const basePrice = parseFloat(formData.base_price) || 0
+    setVariants([...variants, { name: '', value: '', price_modifier: basePrice, stock: 0 }])
   }
 
-  const updateVariant = (index: number, field: keyof ProductVariant, value: string | number) => {
+  const updateVariant = (index: number, field: keyof ProductVariant, value: string | number | File | undefined) => {
     const newVariants = [...variants]
     newVariants[index] = { ...newVariants[index], [field]: value }
     setVariants(newVariants)
@@ -197,6 +202,18 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setError('Veuillez sélectionner une catégorie')
       return false
     }
+    
+    // Validate variant stocks don't exceed total product stock
+    if (variants.length > 0) {
+      const totalVariantStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+      const productStock = parseInt(formData.stock) || 0
+      
+      if (totalVariantStock > productStock) {
+        setError(`Le stock total des variantes (${totalVariantStock}) ne peut pas dépasser le stock du produit (${productStock})`)
+        return false
+      }
+    }
+    
     return true
   }
 
@@ -209,15 +226,21 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     try {
       setLoading(true)
 
-      const productData: CreateProductData & { stock?: number; low_stock_threshold?: number; is_active?: boolean } = {
+      const productData: CreateProductData & { stock?: number; low_stock_threshold?: number; is_active?: boolean; promo_price?: string } = {
         name: formData.name,
         slug: formData.slug || generateSlug(formData.name),
         description: formData.description,
         base_price: formData.base_price,
+        promo_price: formData.promo_price || undefined,
         category: parseInt(formData.category),
         stock: parseInt(formData.stock) || 0,
         low_stock_threshold: parseInt(formData.low_stock_threshold) || 10,
         is_active: formData.is_active,
+        // Product characteristics
+        delivery_time: features.delivery_time,
+        warranty_duration: features.warranty_duration,
+        return_policy: features.return_policy,
+        is_authentic: features.is_authentic,
       }
 
       let savedProduct: Product | undefined
@@ -238,6 +261,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         setSuccess('Produit créé avec succès!')
       }
 
+      // Upload images
       if (savedProduct && images.length > 0) {
         setUploadingImages(true)
         for (const image of images) {
@@ -248,6 +272,32 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           }
         }
         setUploadingImages(false)
+      }
+
+      // Upload variant images and save variants
+      if (savedProduct && variants.length > 0) {
+        try {
+          // Upload variant images first
+          const variantsWithUrls = await Promise.all(
+            variants.map(async (variant) => {
+              if (variant.imageFile) {
+                try {
+                  const response = await productsService.uploadProductImage(savedProduct.id, variant.imageFile)
+                  return { ...variant, image_url: response.data?.image_url || response.data?.file }
+                } catch (err) {
+                  console.error('Erreur upload image variante:', err)
+                  return variant
+                }
+              }
+              return variant
+            })
+          )
+          
+          // Save variants with image URLs
+          await productsService.saveProductVariants(savedProduct.id, variantsWithUrls)
+        } catch (variantError) {
+          console.error('Erreur sauvegarde variantes:', variantError)
+        }
       }
 
       setTimeout(() => {
@@ -544,6 +594,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     onChange={(e) => setFeatures({ ...features, delivery_time: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
                   >
+                    <option value="Immédiat">Immédiat</option>
                     <option value="24h">Sous 24h</option>
                     <option value="24-48h">Sous 24-48h</option>
                     <option value="48-72h">Sous 48-72h</option>
@@ -676,6 +727,37 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </p>
               </div>
 
+              {/* Stock Summary */}
+              {variants.length > 0 && (
+                <div className={`p-4 rounded-xl border-2 ${
+                  variants.reduce((sum, v) => sum + (v.stock || 0), 0) > parseInt(formData.stock || '0')
+                    ? 'bg-red-50 border-red-300'
+                    : 'bg-green-50 border-green-300'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Stock des variantes</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {variants.reduce((sum, v) => sum + (v.stock || 0), 0)} / {formData.stock || 0} unités utilisées
+                      </p>
+                    </div>
+                    <div className={`text-2xl font-bold ${
+                      variants.reduce((sum, v) => sum + (v.stock || 0), 0) > parseInt(formData.stock || '0')
+                        ? 'text-red-600'
+                        : 'text-green-600'
+                    }`}>
+                      {parseInt(formData.stock || '0') - variants.reduce((sum, v) => sum + (v.stock || 0), 0)}
+                    </div>
+                  </div>
+                  {variants.reduce((sum, v) => sum + (v.stock || 0), 0) > parseInt(formData.stock || '0') && (
+                    <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+                      <AlertCircle size={14} />
+                      Le stock total des variantes dépasse le stock du produit !
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-4">
                 {variants.map((variant, index) => (
                   <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
@@ -688,51 +770,115 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         <Trash2 size={18} />
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                        <select
-                          value={variant.name}
-                          onChange={(e) => updateVariant(index, 'name', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
-                        >
-                          <option value="">Sélectionner</option>
-                          <option value="Taille">Taille</option>
-                          <option value="Quantité">Quantité</option>
-                          <option value="Couleur">Couleur</option>
-                          <option value="Dimension">Dimension</option>
-                        </select>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                          <select
+                            value={variant.name}
+                            onChange={(e) => updateVariant(index, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                          >
+                            <option value="">Sélectionner</option>
+                            <option value="Taille">Taille</option>
+                            <option value="Quantité">Quantité</option>
+                            <option value="Couleur">Couleur</option>
+                            <option value="Dimension">Dimension</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Valeur</label>
+                          <input
+                            type="text"
+                            value={variant.value}
+                            onChange={(e) => updateVariant(index, 'value', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                            placeholder="Ex: XL, 500g"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Modif. Prix (FCFA)
+                            {formData.base_price && (
+                              <span className="ml-2 text-xs text-gray-500">
+                                Prix de base: {parseFloat(formData.base_price).toLocaleString()} FCFA
+                              </span>
+                            )}
+                          </label>
+                          <input
+                            type="number"
+                            value={variant.price_modifier}
+                            onChange={(e) => updateVariant(index, 'price_modifier', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                            placeholder="+500 ou -200"
+                          />
+                          {formData.base_price && variant.price_modifier !== 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Prix final: {(parseFloat(formData.base_price) + (variant.price_modifier || 0)).toLocaleString()} FCFA
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Stock</label>
+                          <input
+                            type="number"
+                            value={variant.stock === 0 ? '' : variant.stock}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? 0 : parseInt(e.target.value)
+                              updateVariant(index, 'stock', isNaN(value) ? 0 : value)
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                            placeholder="50"
+                            min="0"
+                          />
+                        </div>
                       </div>
+                      
+                      {/* Variant Image Upload */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Valeur</label>
-                        <input
-                          type="text"
-                          value={variant.value}
-                          onChange={(e) => updateVariant(index, 'value', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
-                          placeholder="Ex: XL, 500g"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Modif. Prix (FCFA)</label>
-                        <input
-                          type="number"
-                          value={variant.price_modifier}
-                          onChange={(e) => updateVariant(index, 'price_modifier', parseFloat(e.target.value) || 0)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
-                          placeholder="+500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Stock</label>
-                        <input
-                          type="number"
-                          value={variant.stock}
-                          onChange={(e) => updateVariant(index, 'stock', parseInt(e.target.value) || 0)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
-                          placeholder="50"
-                          min="0"
-                        />
+                        <label className="block text-xs font-medium text-gray-600 mb-2">Image de la variante (optionnel)</label>
+                        <div className="flex items-center gap-3">
+                          {(variant.image_url || variant.imageFile) && (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                              <img 
+                                src={variant.imageFile ? URL.createObjectURL(variant.imageFile) : variant.image_url} 
+                                alt="" 
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <label className="flex-1 cursor-pointer">
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 hover:border-emerald-500 transition-colors flex items-center justify-center gap-2">
+                              <Upload size={16} className="text-gray-400" />
+                              <span className="text-sm text-gray-600">
+                                {variant.imageFile || variant.image_url ? 'Changer l\'image' : 'Ajouter une image'}
+                              </span>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  updateVariant(index, 'imageFile', file)
+                                }
+                              }}
+                            />
+                          </label>
+                          {(variant.image_url || variant.imageFile) && (
+                            <button
+                              onClick={() => {
+                                updateVariant(index, 'imageFile', undefined)
+                                updateVariant(index, 'image_url', undefined)
+                              }}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer l'image"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

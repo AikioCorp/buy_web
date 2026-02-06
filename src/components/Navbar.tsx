@@ -640,7 +640,7 @@ export function Navbar() {
                         {shops.map((shop) => (
                           <Link
                             key={shop.id}
-                            to={`/shops/${shop.id}`}
+                            to={`/shops/${shop.slug || shop.id}`}
                             className="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
                             onClick={() => setShowShopsMegaMenu(false)}
                           >
@@ -1040,9 +1040,10 @@ export function Navbar() {
               </div>
 
               {/* Barre de navigation avec catégories et icônes */}
-              <div className="w-full flex items-center justify-between max-w-6xl mx-auto">
+              <div className="w-full flex items-center justify-center max-w-6xl mx-auto">
                 {/* Bouton Catégories */}
-                <div className="relative">
+                {/* Categories button removed per user request */}
+                <div className="relative hidden">
                   <button
                     onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
                     className="flex items-center space-x-2 bg-[#1a5f3a] px-5 py-2.5 rounded-lg hover:bg-[#236b45] transition-colors whitespace-nowrap shadow-sm"
@@ -1093,7 +1094,7 @@ export function Navbar() {
                             {shops.map((shop) => (
                               <Link
                                 key={shop.id}
-                                to={`/shops/${shop.id}`}
+                                to={`/shops/${shop.slug || shop.id}`}
                                 className="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
                                 onClick={() => setShowShopsMegaMenu(false)}
                               >
@@ -1199,7 +1200,7 @@ export function Navbar() {
                 </div>
 
                 {/* Icônes et menu utilisateur */}
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 mr-8">
                   {/* Wishlist - Design moderne */}
                   <Link
                     to="/favorites"

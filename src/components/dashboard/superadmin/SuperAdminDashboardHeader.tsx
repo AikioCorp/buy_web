@@ -1,7 +1,9 @@
-import React, { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Menu, Bell, Search, ChevronDown, LogOut, AlertCircle } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Menu, Bell, Search, ChevronDown, LogOut, AlertCircle, Home, Grid, Store as StoreIcon, Heart } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
+import NotificationBell from '../../NotificationBell'
+import { shopsService } from '../../../lib/api/shopsService'
 
 interface SuperAdminDashboardHeaderProps {
   toggleSidebar: () => void
@@ -11,7 +13,27 @@ const SuperAdminDashboardHeader: React.FC<SuperAdminDashboardHeaderProps> = ({ t
   const navigate = useNavigate()
   const { logout, user } = useAuthStore()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [pendingShopsCount, setPendingShopsCount] = useState(0)
   const timeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    loadPendingShopsCount()
+    const interval = setInterval(loadPendingShopsCount, 30000) // Refresh every 30s
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadPendingShopsCount = async () => {
+    try {
+      const response = await shopsService.getAllShopsAdmin({ page: 1 })
+      if (response.data) {
+        const shops = 'results' in response.data ? response.data.results : response.data as any[]
+        const pending = shops.filter(s => !s.is_active || s.status === 'pending').length
+        setPendingShopsCount(pending)
+      }
+    } catch (error) {
+      console.error('Error loading pending shops count:', error)
+    }
+  }
   
   const handleSignOut = async () => {
     await logout()
@@ -40,6 +62,26 @@ const SuperAdminDashboardHeader: React.FC<SuperAdminDashboardHeaderProps> = ({ t
         <Menu size={20} />
       </button>
 
+      {/* Navigation Menu */}
+      <nav className="hidden lg:flex items-center gap-1 ml-6">
+        <Link to="/" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+          <Home size={16} />
+          <span>Accueil</span>
+        </Link>
+        <Link to="/categories" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+          <Grid size={16} />
+          <span>Catégories</span>
+        </Link>
+        <Link to="/shops" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+          <StoreIcon size={16} />
+          <span>Boutiques</span>
+        </Link>
+        <Link to="/favorites" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+          <Heart size={16} />
+          <span>Favoris</span>
+        </Link>
+      </nav>
+
       <div className="hidden md:flex ml-4 flex-1 relative max-w-xl">
         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
           <Search size={18} className="text-gray-400" />
@@ -52,15 +94,20 @@ const SuperAdminDashboardHeader: React.FC<SuperAdminDashboardHeaderProps> = ({ t
       </div>
 
       <div className="flex items-center ml-auto gap-3">
-        <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100 relative">
+        <button 
+          onClick={() => navigate('/superadmin/shop-requests')}
+          className="p-2 rounded-full text-gray-600 hover:bg-gray-100 relative"
+          title="Boutiques en attente d'approbation"
+        >
           <AlertCircle size={20} />
-          <span className="absolute top-0 right-0 h-2 w-2 bg-yellow-500 rounded-full"></span>
+          {pendingShopsCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-yellow-500 text-white text-[10px] font-bold rounded-full px-1">
+              {pendingShopsCount > 99 ? '99+' : pendingShopsCount}
+            </span>
+          )}
         </button>
 
-        <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100 relative">
-          <Bell size={20} />
-          <span className="absolute top-0 right-0 h-2 w-2 bg-indigo-500 rounded-full"></span>
-        </button>
+        <NotificationBell variant="light" />
 
         <div 
           className="relative ml-2"

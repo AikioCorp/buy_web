@@ -89,12 +89,156 @@ export function HomePage() {
   const { showToast } = useToast()
   
   const [countdown, setCountdown] = useState({ hours: 23, minutes: 45, seconds: 30 })
+  const [flashDealsScrollRef, setFlashDealsScrollRef] = useState<HTMLDivElement | null>(null)
+  const [popularScrollRef, setPopularScrollRef] = useState<HTMLDivElement | null>(null)
+  const [menScrollRef, setMenScrollRef] = useState<HTMLDivElement | null>(null)
+  const [womenScrollRef, setWomenScrollRef] = useState<HTMLDivElement | null>(null)
+  const [kidsScrollRef, setKidsScrollRef] = useState<HTMLDivElement | null>(null)
+  const [foodScrollRef, setFoodScrollRef] = useState<HTMLDivElement | null>(null)
+  const [beautyScrollRef, setBeautyScrollRef] = useState<HTMLDivElement | null>(null)
+  const [kitchenScrollRef, setKitchenScrollRef] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => { 
     refreshProducts()
     loadCategories()
     loadShops()
   }, [])
+
+  // Auto-scroll for Flash Deals
+  useEffect(() => {
+    if (!flashDealsScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = flashDealsScrollRef.scrollWidth
+      const clientWidth = flashDealsScrollRef.clientWidth
+      const currentScroll = flashDealsScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        flashDealsScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        flashDealsScrollRef.scrollBy({ left: 200, behavior: 'smooth' })
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [flashDealsScrollRef])
+
+  // Auto-scroll for Popular Products
+  useEffect(() => {
+    if (!popularScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = popularScrollRef.scrollWidth
+      const clientWidth = popularScrollRef.clientWidth
+      const currentScroll = popularScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        popularScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        popularScrollRef.scrollBy({ left: 200, behavior: 'smooth' })
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [popularScrollRef])
+
+  // Auto-scroll for Men Section (3.5s interval)
+  useEffect(() => {
+    if (!menScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = menScrollRef.scrollWidth
+      const clientWidth = menScrollRef.clientWidth
+      const currentScroll = menScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        menScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        menScrollRef.scrollBy({ left: 180, behavior: 'smooth' })
+      }
+    }, 3500)
+    return () => clearInterval(interval)
+  }, [menScrollRef])
+
+  // Auto-scroll for Women Section (4s interval)
+  useEffect(() => {
+    if (!womenScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = womenScrollRef.scrollWidth
+      const clientWidth = womenScrollRef.clientWidth
+      const currentScroll = womenScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        womenScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        womenScrollRef.scrollBy({ left: 220, behavior: 'smooth' })
+      }
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [womenScrollRef])
+
+  // Auto-scroll for Kids Section (3.2s interval)
+  useEffect(() => {
+    if (!kidsScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = kidsScrollRef.scrollWidth
+      const clientWidth = kidsScrollRef.clientWidth
+      const currentScroll = kidsScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        kidsScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        kidsScrollRef.scrollBy({ left: 190, behavior: 'smooth' })
+      }
+    }, 3200)
+    return () => clearInterval(interval)
+  }, [kidsScrollRef])
+
+  // Auto-scroll for Food Section (4.5s interval)
+  useEffect(() => {
+    if (!foodScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = foodScrollRef.scrollWidth
+      const clientWidth = foodScrollRef.clientWidth
+      const currentScroll = foodScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        foodScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        foodScrollRef.scrollBy({ left: 210, behavior: 'smooth' })
+      }
+    }, 4500)
+    return () => clearInterval(interval)
+  }, [foodScrollRef])
+
+  // Auto-scroll for Beauty Section (3.8s interval)
+  useEffect(() => {
+    if (!beautyScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = beautyScrollRef.scrollWidth
+      const clientWidth = beautyScrollRef.clientWidth
+      const currentScroll = beautyScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        beautyScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        beautyScrollRef.scrollBy({ left: 195, behavior: 'smooth' })
+      }
+    }, 3800)
+    return () => clearInterval(interval)
+  }, [beautyScrollRef])
+
+  // Auto-scroll for Kitchen Section (4.2s interval)
+  useEffect(() => {
+    if (!kitchenScrollRef) return
+    const interval = setInterval(() => {
+      const scrollWidth = kitchenScrollRef.scrollWidth
+      const clientWidth = kitchenScrollRef.clientWidth
+      const currentScroll = kitchenScrollRef.scrollLeft
+      
+      if (currentScroll + clientWidth >= scrollWidth - 10) {
+        kitchenScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        kitchenScrollRef.scrollBy({ left: 205, behavior: 'smooth' })
+      }
+    }, 4200)
+    return () => clearInterval(interval)
+  }, [kitchenScrollRef])
 
   const loadCategories = async () => {
     try {
@@ -192,19 +336,27 @@ export function HomePage() {
 
   const ProductCard = ({ product, index, showDiscount = false }: { product: any, index: number, showDiscount?: boolean }) => (
     <Link 
-      to={`/products/${product.id}`}
+      to={`/products/${product.slug || product.id}`}
       className="group bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
       onMouseEnter={() => setHoveredProduct(product.id)}
       onMouseLeave={() => setHoveredProduct(null)}
     >
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
+        {/* Product Banner - Enhanced */}
         {showDiscount && (
-          <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-            -{15 + (index % 5) * 10}%
+          <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg">
+            -{15 + (index % 5) * 10}% OFF
           </div>
         )}
         {index < 3 && !showDiscount && (
-          <div className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">HOT</div>
+          <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-orange-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1">
+            🔥 HOT
+          </div>
+        )}
+        {index === 0 && (
+          <div className="absolute top-2 right-2 z-10 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+            ⭐ TOP
+          </div>
         )}
         {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
           <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -284,7 +436,7 @@ export function HomePage() {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             {allProducts.filter((p: any) => p.category?.name === cat.name || p.category?.slug === cat.slug || p.category?.name?.includes(cat.name.split(' ')[0])).slice(0, 4).map((product: any) => (
-                              <Link key={product.id} to={`/products/${product.id}`} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                              <Link key={product.id} to={`/products/${product.slug || product.id}`} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                 {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
                                   <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
                                 ) : (
@@ -358,7 +510,7 @@ export function HomePage() {
               </div>
               <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm divide-y divide-gray-100">
                 {allProducts.slice(0, 4).map((product) => (
-                  <Link key={product.id} to={`/products/${product.id}`} className="flex gap-3 p-3 hover:bg-gray-50 transition-colors">
+                  <Link key={product.id} to={`/products/${product.slug || product.id}`} className="flex gap-3 p-3 hover:bg-gray-50 transition-colors">
                     {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
                       <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
                     ) : (
@@ -398,9 +550,8 @@ export function HomePage() {
       {/* Catégories Mobile */}
       <section className="lg:hidden py-4 bg-white">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3">
             <h2 className="text-lg font-bold text-gray-900">Catégories</h2>
-            <Link to="/categories" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {mainCategories.map((cat) => {
@@ -427,18 +578,37 @@ export function HomePage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {featuredShops.map((shop, index) => (
-                <Link key={shop.id} to={`/shops/${shop.id}`} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${shopColors[index % shopColors.length]} p-4 text-white hover:scale-[1.02] transition-transform shadow-lg`}>
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
-                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-2 overflow-hidden">
-                    {shop.logo_url ? (
-                      <img src={shop.logo_url} alt={shop.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Store className="w-6 h-6 text-white" />
-                    )}
+                <Link key={shop.id} to={`/shops/${shop.id}`} className="relative overflow-hidden rounded-xl hover:scale-[1.02] transition-transform shadow-lg group">
+                  {/* Shop Banner Image as Background */}
+                  {shop.banner_url ? (
+                    <div className="absolute inset-0">
+                      <img src={shop.banner_url} alt={shop.name} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+                    </div>
+                  ) : (
+                    <div className={`absolute inset-0 bg-gradient-to-br ${shopColors[index % shopColors.length]}`}>
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
+                    </div>
+                  )}
+                  
+                  {/* Content */}
+                  <div className="relative z-10 p-6 text-white">
+                    {/* Shop Logo - Larger and more prominent */}
+                    <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mb-3 overflow-hidden shadow-md">
+                      {shop.logo_url ? (
+                        <img src={shop.logo_url} alt={shop.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Store className="w-8 h-8 text-gray-600" />
+                      )}
+                    </div>
+                    
+                    <h3 className="font-bold text-lg">{shop.name}</h3>
+                    <p className="text-white/90 text-sm mb-2">{shop.category || shop.city || 'Boutique'}</p>
+                    <div className="flex items-center gap-1 mt-2">
+                      <Star className="w-4 h-4 fill-yellow-300 text-yellow-300" />
+                      <span className="text-sm font-semibold">{shop.rating || 4.5}</span>
+                    </div>
                   </div>
-                  <h3 className="font-bold">{shop.name}</h3>
-                  <p className="text-white/80 text-xs">{shop.category || shop.city || 'Boutique'}</p>
-                  <div className="flex items-center gap-1 mt-2"><Star className="w-3 h-3 fill-yellow-300 text-yellow-300" /><span className="text-xs">{shop.rating || 4.5}</span></div>
                 </Link>
               ))}
             </div>
@@ -492,9 +662,10 @@ export function HomePage() {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Mobile: Horizontal Slider | Desktop: Grid */}
+          <div ref={setFlashDealsScrollRef} className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 scrollbar-hide snap-x snap-mandatory md:snap-none">
             {dealProducts.map((product: any, index: number) => (
-              <Link key={product.id} to={`/products/${product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-lg">
+              <Link key={product.id} to={`/products/${product.slug || product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-lg min-w-[160px] md:min-w-0 snap-start">
                 <div className="relative aspect-square bg-gray-100 overflow-hidden">
                   <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{20 + index * 10}%</div>
                   {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
@@ -514,40 +685,228 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Produits par catégorie avec tabs */}
+      {/* Produits Populaires - Horizontal Slider with Auto-scroll */}
       <section className="py-8 bg-white">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900">Produits Populaires</h2>
-            <div className="flex gap-2 overflow-x-auto">
-              {['Tous', 'Électronique', 'Mode', 'Sport', 'Maison'].map((cat) => (
-                <button key={cat} onClick={() => setSelectedCategory(cat === 'Tous' ? null : cat)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === cat || (cat === 'Tous' && !selectedCategory) ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>{cat}</button>
+            <Link to="/products" className="text-green-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+              Voir tout <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="relative group">
+            {/* Left Arrow */}
+            <button 
+              onClick={() => popularScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white rounded-full items-center justify-center shadow-lg hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            
+            {/* Right Arrow */}
+            <button 
+              onClick={() => popularScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white rounded-full items-center justify-center shadow-lg hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+            
+            <div ref={setPopularScrollRef} className="flex gap-4 overflow-x-scroll pb-4 snap-x snap-mandatory scrollbar-hide">
+              {trendingProducts.slice(0, 10).map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
               ))}
             </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {(selectedCategory ? trendingProducts.filter((p: any) => p.category === selectedCategory) : trendingProducts).slice(0, 10).map((product: any, index: number) => (
-              <ProductCard key={product.id} product={product} index={index} />
-            ))}
-          </div>
-          <div className="text-center mt-6">
-            <Link to="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 transition-colors">Voir tous les produits <ArrowRight className="w-5 h-5" /></Link>
           </div>
         </div>
       </section>
 
-      {/* Grande bannière promo */}
-      <section className="py-6">
+      {/* Section Hommes - Creative Design with Slider */}
+      <section className="py-8 bg-gradient-to-br from-slate-50 to-gray-100">
         <div className="container mx-auto px-4">
-          <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden bg-gradient-to-r from-indigo-600 to-purple-600">
-            <img src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&h=400&fit=crop" alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
-            <div className="relative z-10 h-full flex items-center px-8 md:px-16">
-              <div>
-                <span className="inline-block px-3 py-1 bg-yellow-400 text-gray-900 text-sm font-bold rounded-full mb-3">OFFRE SPÉCIALE</span>
-                <h2 className="text-2xl md:text-4xl font-black text-white mb-2">Jusqu'à 50% de réduction</h2>
-                <p className="text-white/80 mb-4">Sur une sélection de produits électroniques</p>
-                <Link to="/deals" className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-full font-bold hover:bg-yellow-400 transition-colors">Découvrir <ArrowRight className="w-5 h-5" /></Link>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Mode Homme
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">Style et élégance masculine</p>
+            </div>
+            <Link to="/products?category=mode-homme" className="text-slate-700 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+              Voir tout <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="relative">
+            <div ref={setMenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('homme') || p.name?.toLowerCase().includes('homme')).slice(0, 6).map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Femmes - New Creative Design */}
+      <section className="py-12 bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 relative overflow-hidden">
+        {/* Decorative Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-pink-200 rounded-full blur-3xl opacity-30"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-200 rounded-full blur-3xl opacity-20"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          {/* Banner Image */}
+          <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden mb-8 shadow-2xl">
+            <img 
+              src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=1200&h=400&fit=crop" 
+              alt="Mode Femme" 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-900/70 to-purple-900/50 flex items-center justify-center">
+              <div className="text-center text-white">
+                <h2 className="text-4xl md:text-5xl font-bold mb-3">Mode Femme</h2>
+                <p className="text-xl md:text-2xl font-light">Élégance & Raffinement</p>
               </div>
+            </div>
+          </div>
+          
+          <div className="text-center mb-8">
+            <p className="text-gray-700 text-lg">Découvrez notre collection exclusive pour femmes</p>
+          </div>
+          
+          <div className="relative group">
+            {/* Left Arrow */}
+            <button 
+              onClick={() => womenScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full items-center justify-center shadow-lg hover:bg-pink-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            
+            {/* Right Arrow */}
+            <button 
+              onClick={() => womenScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full items-center justify-center shadow-lg hover:bg-pink-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+            
+            <div ref={setWomenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory px-2">
+              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('femme') || p.category?.name?.toLowerCase().includes('mode')).slice(0, 6).map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[140px] md:min-w-[200px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="text-center mt-8">
+            <Link to="/products?category=mode-femme" className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all">
+              Découvrir la collection <ChevronRight className="w-5 h-5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Enfants - Creative Design with Slider */}
+      <section className="py-8 bg-gradient-to-br from-blue-50 to-cyan-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Univers Enfants
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">Jouets, vêtements et accessoires pour les petits</p>
+            </div>
+            <Link to="/products?category=enfants" className="text-blue-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+              Voir tout <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="relative">
+            <div ref={setKidsScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('enfant') || p.category?.name?.toLowerCase().includes('jouet')).slice(0, 6).map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Produits Alimentaires - Creative Design with Slider */}
+      <section className="py-8 bg-gradient-to-br from-green-50 to-emerald-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Produits Alimentaires
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">Frais, savoureux et de qualité</p>
+            </div>
+            <Link to="/products?category=alimentaire" className="text-green-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+              Voir tout <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="relative">
+            <div ref={setFoodScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('alimentaire') || p.category?.name?.toLowerCase().includes('nourriture') || p.category?.name?.toLowerCase().includes('food')).slice(0, 6).map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Beauté - Creative Design with Slider */}
+      <section className="py-8 bg-gradient-to-br from-purple-50 to-pink-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Beauté & Parfumerie
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">Sublimez votre beauté naturelle</p>
+            </div>
+            <Link to="/products?category=beaute" className="text-purple-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+              Voir tout <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="relative">
+            <div ref={setBeautyScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('beauté') || p.category?.name?.toLowerCase().includes('parfum')).slice(0, 6).map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Cuisine - Creative Design with Slider */}
+      <section className="py-8 bg-gradient-to-br from-orange-50 to-yellow-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Art Culinaire
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">Équipez votre cuisine comme un chef</p>
+            </div>
+            <Link to="/products?category=cuisine" className="text-orange-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+              Voir tout <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="relative">
+            <div ref={setKitchenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('cuisine') || p.category?.name?.toLowerCase().includes('ustensile')).slice(0, 6).map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
+              ))}
             </div>
           </div>
         </div>
