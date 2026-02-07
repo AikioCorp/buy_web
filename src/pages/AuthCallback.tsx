@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase/client';
 import { useAuthStore } from '@/store/authStore';
 import { apiClient } from '../lib/api';
 
@@ -30,7 +29,7 @@ export function AuthCallback() {
 
       console.log('✅ Access token found in hash');
 
-      // Utiliser le token Supabase directement pour notre backend
+      // Utiliser le token OAuth directement pour notre backend
       const token = accessToken;
       
       // Sauvegarder le token
