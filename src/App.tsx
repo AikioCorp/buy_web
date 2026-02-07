@@ -27,6 +27,7 @@ import { FAQPage } from './pages/FAQPage'
 import { TermsPage } from './pages/TermsPage'
 import { AuthCallback } from './pages/AuthCallback'
 import { AuthSuccess } from './pages/AuthSuccess'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -119,6 +120,7 @@ function App() {
         {/* OAuth Callback Routes */}
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/auth/success" element={<AuthSuccess />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Routes principales avec navbar */}
         <Route path="/" element={<Layout />}>

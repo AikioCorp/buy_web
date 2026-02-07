@@ -210,33 +210,48 @@ const SuperAdminUsersPage: React.FC = () => {
   }
 
   const handleResetPassword = async () => {
-    if (!userToResetPassword || !newPassword) return
+    if (!userToResetPassword) return
 
-    if (newPassword.length < 8) {
-      showToast('Le mot de passe doit contenir au moins 8 caractères', 'error')
-      return
-    }
-
-    try {
-      setActionLoading(true)
-      
-      if (sendByEmail) {
-        // Envoyer un lien de réinitialisation par email
+    // Validation différente selon le mode
+    if (sendByEmail) {
+      // Mode email : pas besoin de mot de passe
+      try {
+        setActionLoading(true)
         await usersService.sendPasswordResetLink(userToResetPassword.id)
         showToast('Lien de réinitialisation envoyé par email!', 'success')
-      } else {
-        // Réinitialiser directement avec le nouveau mot de passe
+        setIsResetPasswordModalOpen(false)
+        setUserToResetPassword(null)
+        setNewPassword('')
+        setSendByEmail(false)
+      } catch (err: any) {
+        showToast(err.message || 'Erreur lors de l\'envoi du lien', 'error')
+      } finally {
+        setActionLoading(false)
+      }
+    } else {
+      // Mode manuel : validation du mot de passe requise
+      if (!newPassword) {
+        showToast('Veuillez entrer un mot de passe', 'error')
+        return
+      }
+
+      if (newPassword.length < 8) {
+        showToast('Le mot de passe doit contenir au moins 8 caractères', 'error')
+        return
+      }
+
+      try {
+        setActionLoading(true)
         await usersService.resetPassword(userToResetPassword.id, newPassword)
         showToast('Mot de passe réinitialisé avec succès!', 'success')
+        setIsResetPasswordModalOpen(false)
+        setUserToResetPassword(null)
+        setNewPassword('')
+      } catch (err: any) {
+        showToast(err.message || 'Erreur lors de la réinitialisation du mot de passe', 'error')
+      } finally {
+        setActionLoading(false)
       }
-      
-      setIsResetPasswordModalOpen(false)
-      setUserToResetPassword(null)
-      setNewPassword('')
-    } catch (err: any) {
-      showToast(err.message || 'Erreur lors de la réinitialisation du mot de passe', 'error')
-    } finally {
-      setActionLoading(false)
     }
   }
 
@@ -1148,7 +1163,7 @@ const SuperAdminUsersPage: React.FC = () => {
                   </button>
                   <button
                     onClick={handleResetPassword}
-                    disabled={actionLoading || newPassword.length < 8}
+                    disabled={actionLoading || (!sendByEmail && newPassword.length < 8)}
                     className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
                   >
                     {actionLoading ? (

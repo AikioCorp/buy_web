@@ -3,6 +3,7 @@ import { X, Mail, Lock, Eye, EyeOff, LogIn, UserPlus, User, Phone } from 'lucide
 import { useAuthStore } from '@/store/authStore'
 import { useToast } from '@/components/Toast'
 import { PhoneInput } from '@/components/PhoneInput'
+import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
 
 interface LoginPopupProps {
   isOpen: boolean
@@ -181,6 +182,9 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
               {error}
             </div>
           )}
+
+          {/* Social Auth Buttons */}
+          <SocialAuthButtons mode={isRegister ? 'register' : 'login'} />
 
           {/* Méthode de connexion/inscription */}
           <div className="flex gap-2 mb-2">
