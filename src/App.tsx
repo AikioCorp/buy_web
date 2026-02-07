@@ -25,6 +25,8 @@ import { AboutPage } from './pages/AboutPage'
 import { ContactPage } from './pages/ContactPage'
 import { FAQPage } from './pages/FAQPage'
 import { TermsPage } from './pages/TermsPage'
+import { AuthCallback } from './pages/AuthCallback'
+import { AuthSuccess } from './pages/AuthSuccess'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -113,6 +115,10 @@ function App() {
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
         </Route>
+
+        {/* OAuth Callback Routes */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/success" element={<AuthSuccess />} />
 
         {/* Routes principales avec navbar */}
         <Route path="/" element={<Layout />}>

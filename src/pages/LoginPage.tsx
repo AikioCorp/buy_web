@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Mail, Lock, ArrowRight, ShoppingBag, Eye, EyeOff, Phone } from 'lucide-react'
+import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -9,9 +10,26 @@ export function LoginPage() {
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const { login, error, isLoading, clearError } = useAuthStore()
+  const { login, error, isLoading, clearError, isAuthenticated, user, role } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Rediriger si déjà connecté
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      let redirectPath = '/'
+      if (user.is_superuser || role === 'super_admin') {
+        redirectPath = '/superadmin'
+      } else if (user.is_staff || role === 'admin') {
+        redirectPath = '/admin'
+      } else if (user.is_seller || role === 'vendor') {
+        redirectPath = '/dashboard'
+      } else {
+        redirectPath = '/client'
+      }
+      navigate(redirectPath, { replace: true })
+    }
+  }, [isAuthenticated, user, role, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,6 +76,9 @@ export function LoginPage() {
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Bon retour !</h2>
             <p className="text-sm sm:text-base text-gray-600">Connectez-vous pour continuer vos achats</p>
           </div>
+
+          {/* Social Auth Buttons */}
+          <SocialAuthButtons mode="login" />
 
           {/* Formulaire */}
           <form onSubmit={handleSubmit} className="mt-6 sm:mt-8 space-y-5 sm:space-y-6">

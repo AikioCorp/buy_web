@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Phone } from 'lucide-react'
+import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
 
 export function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -18,9 +19,26 @@ export function RegisterPage() {
   const [shopEmail, setShopEmail] = useState('')
   const [useRegistrationPhone, setUseRegistrationPhone] = useState(true)
   
-  const { register, error, isLoading, clearError } = useAuthStore()
+  const { register, error, isLoading, clearError, isAuthenticated, user, role: userRole } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Rediriger si déjà connecté
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      let redirectPath = '/'
+      if (user.is_superuser || userRole === 'super_admin') {
+        redirectPath = '/superadmin'
+      } else if (user.is_staff || userRole === 'admin') {
+        redirectPath = '/admin'
+      } else if (user.is_seller || userRole === 'vendor') {
+        redirectPath = '/dashboard'
+      } else {
+        redirectPath = '/client'
+      }
+      navigate(redirectPath, { replace: true })
+    }
+  }, [isAuthenticated, user, userRole, navigate])
 
   // Formater un numéro de téléphone malien (8 chiffres) en +223 XX XX XX XX
   const formatMaliPhone = (digits: string) => {
@@ -144,6 +162,9 @@ export function RegisterPage() {
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Créer un compte</h2>
             <p className="text-sm sm:text-base text-gray-600">Rejoignez notre communauté dès aujourd'hui</p>
           </div>
+
+          {/* Social Auth Buttons */}
+          <SocialAuthButtons mode="register" />
 
           {/* Formulaire */}
           <form onSubmit={handleSubmit} className="mt-6 sm:mt-8 space-y-5 sm:space-y-6">

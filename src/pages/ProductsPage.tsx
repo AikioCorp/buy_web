@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Filter, Grid, List, ShoppingCart, Heart, X, SlidersHorizontal, Star, Package } from 'lucide-react'
 import { productsService, Product } from '../lib/api/productsService'
 import { categoriesService } from '../lib/api/categoriesService'
+import productCacheService from '../services/productCache.service'
 
 interface CategoryItem {
   id: number
@@ -37,6 +38,7 @@ export function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<CategoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
@@ -44,40 +46,88 @@ export function ProductsPage() {
   const [sortBy, setSortBy] = useState<string>('newest')
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000])
   const [searchParams, setSearchParams] = useSearchParams()
+  const [currentPage, setCurrentPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
+  const observerTarget = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    loadProducts()
+    setProducts([])
+    setCurrentPage(0)
+    setHasMore(true)
+    loadProducts(0)
     loadCategories()
   }, [searchParams])
 
-  const loadProducts = async () => {
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMoreProducts()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current)
+    }
+
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore, currentPage])
+
+  const loadProducts = async (page: number) => {
     try {
-      setLoading(true)
+      if (page === 0) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+      
       const category = searchParams.get('category') || ''
       const search = searchParams.get('search') || ''
       setSelectedCategory(category)
       setSearchQuery(search)
       
-      const response = await productsService.getProducts({ 
-        page: 1,
-        search,
-        category_slug: category || undefined
-      })
-      
-      if (response.data?.results) {
-        setProducts(response.data.results)
-      } else if (Array.isArray(response.data)) {
-        setProducts(response.data)
-      } else {
-        setProducts([])
+      // Utiliser le service de cache avec pagination
+      const filters: any = {}
+      if (search) filters.search = search
+      if (category) {
+        // Trouver l'ID de la catégorie depuis le slug
+        const cat = categories.find(c => c.slug === category)
+        if (cat) filters.category_id = cat.id
       }
+      
+      const response = await productCacheService.getProductsPage(page, filters)
+      
+      if (page === 0) {
+        setProducts(response.results as any)
+        setTotalCount(response.count)
+      } else {
+        setProducts(prev => [...prev, ...response.results] as any)
+      }
+      
+      setHasMore(response.results.length === 100)
+      setCurrentPage(page)
+      
     } catch (error) {
       console.error('Error loading products:', error)
-      setProducts([])
+      if (page === 0) {
+        setProducts([])
+      }
+      setHasMore(false)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
+
+  const loadMoreProducts = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      loadProducts(currentPage + 1)
+    }
+  }, [currentPage, loadingMore, hasMore])
 
   const loadCategories = async () => {
     try {
@@ -256,7 +306,7 @@ export function ProductsPage() {
                   Filtres
                 </button>
                 <span className="text-gray-600">
-                  <strong className="text-[#0f4c2b]">{sortedProducts.length}</strong> produits
+                  <strong className="text-[#0f4c2b]"> {totalCount} </strong>produits
                 </span>
               </div>
               
@@ -442,6 +492,30 @@ export function ProductsPage() {
                     </div>
                   </Link>
                 ))}
+              </div>
+            )}
+
+            {/* Infinite Scroll Loader */}
+            {!loading && hasMore && (
+              <div ref={observerTarget} className="py-8 text-center">
+                {loadingMore ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0f4c2b]"></div>
+                    <p className="text-gray-600">Chargement de plus de produits...</p>
+                  </div>
+                ) : (
+                  <div className="h-20"></div>
+                )}
+              </div>
+            )}
+
+            {/* End of products message */}
+            {!loading && !hasMore && products.length > 0 && (
+              <div className="py-8 text-center">
+                <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-50 text-green-700 rounded-full">
+                  <Package size={20} />
+                  <span className="font-medium">Tous les {products.length} produits ont été chargés</span>
+                </div>
               </div>
             )}
           </div>
