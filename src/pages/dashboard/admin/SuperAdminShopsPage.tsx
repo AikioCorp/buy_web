@@ -99,7 +99,7 @@ const SuperAdminShopsPage: React.FC = () => {
   const filteredShops = shops.filter(shop => {
     if (activeTab === 'all') return true
     if (activeTab === 'pending') return shop.status === 'pending' || (!shop.status && !shop.is_active)
-    if (activeTab === 'approved') return shop.status === 'approved' || (shop.is_active && (!shop.status || shop.status === 'approved'))
+    if (activeTab === 'approved') return shop.is_active && (!shop.status || shop.status !== 'pending' && shop.status !== 'rejected' && shop.status !== 'suspended')
     if (activeTab === 'rejected') return shop.status === 'rejected'
     if (activeTab === 'suspended') return shop.status === 'suspended'
     return true

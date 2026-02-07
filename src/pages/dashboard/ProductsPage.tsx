@@ -331,8 +331,8 @@ const ProductsPage: React.FC = () => {
         // Backend returns { results: [...], count: N } format
         if (Array.isArray(productsResponse.data)) {
           setProducts(productsResponse.data)
-        } else if (productsResponse.data.results && Array.isArray(productsResponse.data.results)) {
-          setProducts(productsResponse.data.results)
+        } else if ((productsResponse.data as any).results && Array.isArray((productsResponse.data as any).results)) {
+          setProducts((productsResponse.data as any).results)
         } else {
           setProducts([])
         }

@@ -23,7 +23,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const loadShop = async () => {
     try {
-      const response = await shopsService.getMyShop(user?.id)
+      const response = await shopsService.getMyShop(user?.id?.toString())
       if (response.data) {
         setShop(response.data)
       }

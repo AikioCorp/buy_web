@@ -283,7 +283,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               if (variant.imageFile) {
                 try {
                   const response = await productsService.uploadProductImage(savedProduct.id, variant.imageFile)
-                  return { ...variant, image_url: response.data?.image_url || response.data?.file }
+                  return { ...variant, image_url: (response.data as any)?.image_url || (response.data as any)?.file }
                 } catch (err) {
                   console.error('Erreur upload image variante:', err)
                   return variant
