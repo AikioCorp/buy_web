@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { Store, Plus, Edit2, Save, X, Loader2, MapPin, Phone, Truck, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { shopsService, Shop, CreateShopData } from '../lib/api/shopsService'
 import { useToast } from '../components/Toast'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuthStore } from '../store/authStore'
 
 const BAMAKO_COMMUNES = ['Commune I', 'Commune II', 'Commune III', 'Commune IV', 'Commune V', 'Commune VI', 'Kalaban-Coro', 'Autre']
 
 export function VendorShopsPage() {
   const { showToast } = useToast()
-  const { user } = useAuth()
+  const { user } = useAuthStore()
   const [shop, setShop] = useState<Shop | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -26,7 +26,7 @@ export function VendorShopsPage() {
   const loadMyShop = async () => {
     try {
       setLoading(true)
-      const response = await shopsService.getMyShop(user?.id)
+      const response = await shopsService.getMyShop(user?.id?.toString())
       if (response.data) {
         setShop(response.data)
         setFormData({
