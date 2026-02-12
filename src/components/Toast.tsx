@@ -3,7 +3,7 @@ import { CheckCircle, X, ShoppingCart } from 'lucide-react'
 
 interface ToastProps {
   message: string
-  type?: 'success' | 'error' | 'info'
+  type?: 'success' | 'error' | 'info' | 'warning'
   duration?: number
   onClose: () => void
 }
@@ -20,7 +20,7 @@ export function Toast({ message, type = 'success', duration = 3000, onClose }: T
     return () => clearTimeout(timer)
   }, [duration, onClose])
 
-  const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+  const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-yellow-600' : 'bg-blue-600'
 
   return (
     <div className={`fixed top-20 right-4 z-[200] transition-all duration-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
@@ -47,15 +47,15 @@ export function Toast({ message, type = 'success', duration = 3000, onClose }: T
 import { createContext, useContext, ReactNode, useCallback } from 'react'
 
 interface ToastContextType {
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void
+  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void
 }
 
 const ToastContext = createContext<ToastContextType | null>(null)
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([])
+  const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' | 'warning' }>>([])
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
     const id = Date.now()
     setToasts(prev => [...prev, { id, message, type }])
   }, [])

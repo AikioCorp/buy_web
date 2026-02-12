@@ -152,7 +152,12 @@ export function useMyProducts() {
       if (response.error) {
         setError(response.error);
       } else if (response.data) {
-        setProducts(response.data);
+        // Handle both ProductsResponse and Product[] types
+        if (Array.isArray(response.data)) {
+          setProducts(response.data);
+        } else if ('results' in response.data) {
+          setProducts(response.data.results);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des produits');
