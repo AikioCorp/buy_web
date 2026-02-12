@@ -116,6 +116,8 @@ export interface CreateProductData {
   meta_title?: string;
   meta_description?: string;
   tags?: string[];
+  // Images to delete on update
+  images_to_delete?: string[];
 }
 
 export const productsService = {

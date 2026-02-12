@@ -194,11 +194,16 @@ class ApiClient {
       formData.append(fieldName, file);
 
       const url = `${API_BASE_URL}${endpoint}`;
+      const headers: Record<string, string> = {};
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+      
+      console.log('📤 Upload request:', { url, fieldName, fileName: file.name, fileSize: file.size, hasToken: !!this.token });
+      
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Authorization': this.token ? `Bearer ${this.token}` : '',
-        },
+        headers,
         body: formData,
       });
 

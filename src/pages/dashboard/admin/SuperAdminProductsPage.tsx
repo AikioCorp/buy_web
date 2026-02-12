@@ -341,7 +341,8 @@ const SuperAdminProductsPage: React.FC = () => {
         is_authentic: (data as any).is_authentic,
         meta_title: data.meta_title,
         meta_description: data.meta_description,
-        tags: data.tags
+        tags: data.tags,
+        images_to_delete: (data as any).images_to_delete || []
       })
       
       // 2. Upload new images if any
@@ -687,153 +688,124 @@ const SuperAdminProductsPage: React.FC = () => {
         )}
       </div>
 
-      {/* View Product Modal */}
-      {isViewModalOpen && viewingProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Détails du produit</h2>
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
-            </div>
+      {/* View Product Modal - Enhanced */}
+      {isViewModalOpen && viewingProduct && (() => {
+        const getFullImageUrl = (url: string | undefined): string | null => {
+          if (!url) return null
+          if (url.startsWith('http://')) url = url.replace('http://', 'https://')
+          if (url.startsWith('https://')) return url
+          return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+        }
+        const allImages = (viewingProduct.media || viewingProduct.images || [])
+          .map(img => getFullImageUrl(img.image_url || img.file)).filter(Boolean) as string[]
+        const mainImage = getProductImageUrl(viewingProduct.media, viewingProduct.images)
+        const stockStatus = (viewingProduct as any).track_inventory === false ? 'illimité' : `${viewingProduct.stock ?? 0} unités`
+        const isInStock = (viewingProduct as any).track_inventory === false || (viewingProduct.stock ?? 0) > 0
+        
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-indigo-600 to-purple-600">
+                <div className="flex items-center gap-3">
+                  <Eye className="text-white" size={24} />
+                  <h2 className="text-xl font-bold text-white">Détails du produit</h2>
+                </div>
+                <button onClick={() => setIsViewModalOpen(false)} className="text-white/80 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
             
-            <div className="p-6">
-              <div className="flex gap-6">
-                <div className="w-48 h-48 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                  {getProductImageUrl(viewingProduct.media, viewingProduct.images) ? (
-                    <img 
-                      src={getProductImageUrl(viewingProduct.media, viewingProduct.images)!} 
-                      alt={viewingProduct.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center">
-                      <Package className="text-gray-400" size={48} />
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Image Section */}
+                <div>
+                  <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden">
+                    {mainImage ? (
+                      <img src={mainImage} alt={viewingProduct.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-300" size={64} /></div>
+                    )}
+                  </div>
+                  {allImages.length > 1 && (
+                    <div className="grid grid-cols-4 gap-2 mt-3">
+                      {allImages.slice(0, 4).map((imgUrl, idx) => (
+                        <div key={idx} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                          <img src={imgUrl} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900">{viewingProduct.name}</h3>
-                  <p className="text-gray-500 mt-1">{viewingProduct.slug}</p>
-                  
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Store size={16} className="text-gray-400" />
-                      <span className="text-sm text-gray-700">
-                        Boutique: <strong>{viewingProduct.shop?.name || viewingProduct.store?.name || '-'}</strong>
+                {/* Info Section */}
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-xl font-bold text-gray-900">{viewingProduct.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${viewingProduct.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {viewingProduct.is_active !== false ? 'Actif' : 'Inactif'}
                       </span>
                     </div>
+                    <p className="text-gray-500 text-sm font-mono">{viewingProduct.slug}</p>
+                    <p className="text-gray-400 text-xs">ID: {viewingProduct.id}</p>
+                  </div>
+                  <div className="bg-indigo-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500">Prix</p>
+                    <span className="text-2xl font-bold text-indigo-600">{formatPrice(viewingProduct.base_price)}</span>
+                  </div>
+                  <div className={`rounded-xl p-4 ${isInStock ? 'bg-green-50' : 'bg-red-50'}`}>
                     <div className="flex items-center gap-2">
-                      <Tag size={16} className="text-gray-400" />
-                      <span className="text-sm text-gray-700">
-                        Catégorie: <strong>{viewingProduct.category?.name || '-'}</strong>
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Package size={16} className="text-gray-400" />
-                      <span className="text-sm text-gray-700">
-                        Stock: <strong>{viewingProduct.stock ?? 0}</strong>
-                      </span>
+                      {isInStock ? <CheckCircle className="text-green-600" size={20} /> : <AlertTriangle className="text-red-600" size={20} />}
+                      <div>
+                        <p className={`font-medium ${isInStock ? 'text-green-700' : 'text-red-700'}`}>{isInStock ? 'En stock' : 'Rupture'}</p>
+                        <p className="text-xs text-gray-600">Stock: {stockStatus}</p>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="mt-4">
-                    <span className="text-2xl font-bold text-indigo-600">
-                      {formatPrice(viewingProduct.base_price)}
-                    </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center gap-1 mb-1"><Store size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Boutique</span></div>
+                      <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.shop?.name || viewingProduct.store?.name || '-'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center gap-1 mb-1"><Tag size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Catégorie</span></div>
+                      <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.category?.name || '-'}</p>
+                    </div>
                   </div>
+                  {(viewingProduct as any).tags && (viewingProduct as any).tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {(viewingProduct as any).tags.map((tag: string, idx: number) => (
+                        <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">#{tag}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-              
               {viewingProduct.description && (
-                <div className="mt-6">
+                <div className="mt-6 bg-gray-50 rounded-xl p-4">
                   <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                  <p className="text-gray-600">{viewingProduct.description}</p>
+                  <p className="text-gray-600 text-sm whitespace-pre-wrap">{viewingProduct.description}</p>
                 </div>
               )}
-
-              {/* Product Options/Characteristics */}
-              {viewingProduct.options && viewingProduct.options.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-900 mb-2">Caractéristiques</h4>
-                  <div className="space-y-2">
-                    {viewingProduct.options.map((option, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
-                        <span className="text-sm font-medium text-gray-700">{option.name}:</span>
-                        <span className="text-sm text-gray-600">
-                          {Array.isArray(option.values) ? option.values.join(', ') : option.values}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Product Variants */}
-              {viewingProduct.variants && viewingProduct.variants.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-900 mb-2">Variantes</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {viewingProduct.variants.map((variant, idx) => (
-                      <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="text-sm">
-                          {Object.entries(variant.option_values || {}).map(([key, value]) => (
-                            <span key={key} className="mr-2">
-                              <strong>{key}:</strong> {value}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="mt-1 flex items-center justify-between">
-                          <span className="text-sm text-gray-600">
-                            Stock: {variant.stock}
-                          </span>
-                          {variant.price_modifier !== 0 && (
-                            <span className="text-sm font-medium text-indigo-600">
-                              {variant.price_modifier > 0 ? '+' : ''}{formatPrice(String(variant.price_modifier))}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Product Images Gallery */}
-              {((viewingProduct.media && viewingProduct.media.length > 1) || 
-                (viewingProduct.images && viewingProduct.images.length > 1)) && (
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-900 mb-2">Galerie d'images</h4>
-                  <div className="flex gap-2 flex-wrap">
-                    {(viewingProduct.media || viewingProduct.images || []).map((img, idx) => (
-                      <div key={idx} className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
-                        <img 
-                          src={img.image_url || img.file || ''} 
-                          alt={`Image ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
+              {((viewingProduct as any).meta_title || (viewingProduct as any).meta_description) && (
+                <div className="mt-4 bg-purple-50 rounded-xl p-4">
+                  <p className="text-xs font-medium text-purple-600 mb-2">SEO</p>
+                  {(viewingProduct as any).meta_title && <p className="text-sm text-gray-700"><strong>Titre:</strong> {(viewingProduct as any).meta_title}</p>}
+                  {(viewingProduct as any).meta_description && <p className="text-sm text-gray-600 mt-1"><strong>Description:</strong> {(viewingProduct as any).meta_description}</p>}
                 </div>
               )}
             </div>
-
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end">
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-              >
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+              <button onClick={() => { setIsViewModalOpen(false); handleEditProduct(viewingProduct) }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2">
+                <Edit2 size={16} /> Modifier
+              </button>
+              <button onClick={() => setIsViewModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
                 Fermer
               </button>
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Edit Product Modal */}
       {isEditModalOpen && editingProduct && (
@@ -1022,7 +994,13 @@ const SuperAdminProductsPage: React.FC = () => {
             track_inventory: (editingProduct as any).track_inventory ?? false,
             is_active: editingProduct.is_active !== false,
             existing_images: (editingProduct.media || (editingProduct as any).images || [])
-              .map((m: any) => m.image_url || m.file || '')
+              .map((m: any) => {
+                let url = m.image_url || m.file || ''
+                if (!url) return ''
+                if (url.startsWith('http://')) url = url.replace('http://', 'https://')
+                if (url.startsWith('https://')) return url
+                return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+              })
               .filter(Boolean),
             delivery_time: (editingProduct as any).delivery_time,
             warranty_duration: (editingProduct as any).warranty_duration,

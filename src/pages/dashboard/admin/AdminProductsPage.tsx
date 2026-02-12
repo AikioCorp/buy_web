@@ -143,24 +143,28 @@ const AdminProductsPage: React.FC = () => {
       setActionLoading(true)
       
       if (editingProduct) {
-        // Update existing product
-        await productsService.updateProduct(editingProduct.id, {
+        // Update existing product - Use ADMIN endpoint
+        await productsService.updateProductAdmin(editingProduct.id, {
           name: data.name,
           slug: data.slug,
           description: data.description,
           base_price: data.base_price,
           stock: data.stock_quantity,
+          track_inventory: data.track_inventory,
           is_active: data.is_active,
-          category_id: data.category_id,
-          store_id: data.store_id
+          category_id: data.category_ids && data.category_ids.length > 0 ? data.category_ids[0] : data.category_id,
+          category_ids: data.category_ids || [],
+          store_id: data.store_id,
+          meta_title: data.meta_title,
+          meta_description: data.meta_description,
+          tags: data.tags,
+          images_to_delete: (data as any).images_to_delete || []
         } as any)
         
-        // Upload new images if any
+        // Upload new images if any - Use ADMIN endpoint
         if (data.images && data.images.length > 0) {
           try {
-            for (const image of data.images) {
-              await productsService.uploadProductImage(editingProduct.id, image)
-            }
+            await productsService.uploadProductImagesAdmin(editingProduct.id, data.images)
           } catch (imgErr: any) {
             console.error('Erreur upload images:', imgErr)
             showToast('Produit mis à jour mais erreur lors de l\'upload des images', 'warning')
@@ -169,24 +173,27 @@ const AdminProductsPage: React.FC = () => {
         
         showToast('Produit mis à jour avec succès', 'success')
       } else {
-        // Create new product
-        const result = await productsService.createProduct({
+        // Create new product - Use ADMIN endpoint
+        const result = await productsService.createProductAdmin({
           name: data.name,
           slug: data.slug,
           description: data.description,
           base_price: data.base_price,
           stock: data.stock_quantity,
+          track_inventory: data.track_inventory,
           is_active: data.is_active,
-          category_id: data.category_id,
-          store_id: data.store_id
+          category_id: data.category_ids && data.category_ids.length > 0 ? data.category_ids[0] : data.category_id,
+          category_ids: data.category_ids || [],
+          store_id: data.store_id,
+          meta_title: data.meta_title,
+          meta_description: data.meta_description,
+          tags: data.tags
         } as any)
         
-        // Upload images if any
+        // Upload images if any - Use ADMIN endpoint
         if (result.data?.id && data.images && data.images.length > 0) {
           try {
-            for (const image of data.images) {
-              await productsService.uploadProductImage(result.data.id, image)
-            }
+            await productsService.uploadProductImagesAdmin(result.data.id, data.images)
           } catch (imgErr: any) {
             console.error('Erreur upload images:', imgErr)
             showToast('Produit créé mais erreur lors de l\'upload des images', 'warning')
@@ -217,8 +224,9 @@ const AdminProductsPage: React.FC = () => {
     if (!productToDelete || !canDeleteProducts()) return
     try {
       setActionLoading(true)
-      await productsService.deleteProduct(productToDelete.id)
+      await productsService.deleteProductAdmin(productToDelete.id)
       setIsDeleteModalOpen(false)
+      showToast('Produit supprimé avec succès', 'success')
       loadProducts()
     } catch (err: any) {
       showToast(err.message || 'Erreur lors de la suppression', 'error')
@@ -230,7 +238,8 @@ const AdminProductsPage: React.FC = () => {
   const handleToggleActive = async (product: Product) => {
     if (!canModerateProducts()) return
     try {
-      await productsService.updateProduct(product.id, { is_active: !product.is_active } as any)
+      await productsService.updateProductAdmin(product.id, { is_active: !product.is_active } as any)
+      showToast(product.is_active ? 'Produit désactivé' : 'Produit activé', 'success')
       loadProducts()
     } catch (err: any) {
       showToast(err.message || 'Erreur lors de la modification', 'error')
@@ -491,45 +500,116 @@ const AdminProductsPage: React.FC = () => {
         </div>
       )}
 
-      {/* View Modal */}
-      {isViewModalOpen && viewingProduct && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="relative h-60 bg-gray-100">
-              {(viewingProduct.media?.[0] as any)?.image_url ? (
-                <img src={(viewingProduct.media?.[0] as any)?.image_url} alt={viewingProduct.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Package className="w-16 h-16 text-gray-300" />
+      {/* View Modal - Enhanced */}
+      {isViewModalOpen && viewingProduct && (() => {
+        const mainImage = getProductImageUrl(viewingProduct.media, viewingProduct.images)
+        const allImages = (viewingProduct.media || viewingProduct.images || [])
+          .map((img: any) => {
+            let url = img.image_url || img.file
+            if (!url) return null
+            if (url.startsWith('http://')) url = url.replace('http://', 'https://')
+            if (url.startsWith('https://')) return url
+            return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+          }).filter(Boolean) as string[]
+        const stockStatus = (viewingProduct as any).track_inventory === false ? 'illimité' : `${viewingProduct.stock ?? 0} unités`
+        const isInStock = (viewingProduct as any).track_inventory === false || (viewingProduct.stock ?? 0) > 0
+        
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600">
+                <div className="flex items-center gap-3">
+                  <Eye className="text-white" size={24} />
+                  <h2 className="text-xl font-bold text-white">Détails du produit</h2>
                 </div>
-              )}
-              <button onClick={() => setIsViewModalOpen(false)} className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-900">{viewingProduct.name}</h2>
-              <p className="text-2xl font-bold text-blue-600 mt-2">{parseFloat(viewingProduct.base_price || '0').toLocaleString()} FCFA</p>
-              {viewingProduct.description && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-500 mb-1">Description</p>
-                  <p className="text-gray-700">{viewingProduct.description}</p>
+                <button onClick={() => setIsViewModalOpen(false)} className="text-white/80 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden">
+                      {mainImage ? (
+                        <img src={mainImage} alt={viewingProduct.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-300" size={64} /></div>
+                      )}
+                    </div>
+                    {allImages.length > 1 && (
+                      <div className="grid grid-cols-4 gap-2 mt-3">
+                        {allImages.slice(0, 4).map((imgUrl, idx) => (
+                          <div key={idx} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                            <img src={imgUrl} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-xl font-bold text-gray-900">{viewingProduct.name}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${viewingProduct.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {viewingProduct.is_active !== false ? 'Actif' : 'Inactif'}
+                        </span>
+                      </div>
+                      <p className="text-gray-500 text-sm font-mono">{viewingProduct.slug}</p>
+                      <p className="text-gray-400 text-xs">ID: {viewingProduct.id}</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <p className="text-xs text-gray-500">Prix</p>
+                      <span className="text-2xl font-bold text-blue-600">{parseFloat(viewingProduct.base_price || '0').toLocaleString()} FCFA</span>
+                    </div>
+                    <div className={`rounded-xl p-4 ${isInStock ? 'bg-green-50' : 'bg-red-50'}`}>
+                      <div className="flex items-center gap-2">
+                        {isInStock ? <CheckCircle className="text-green-600" size={20} /> : <AlertTriangle className="text-red-600" size={20} />}
+                        <div>
+                          <p className={`font-medium ${isInStock ? 'text-green-700' : 'text-red-700'}`}>{isInStock ? 'En stock' : 'Rupture'}</p>
+                          <p className="text-xs text-gray-600">Stock: {stockStatus}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1 mb-1"><Store size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Boutique</span></div>
+                        <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.shop?.name || viewingProduct.store?.name || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1 mb-1"><Package size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Catégorie</span></div>
+                        <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.category?.name || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-sm text-gray-500 mb-1">Stock</p>
-                  <p className="font-medium text-gray-900">{viewingProduct.stock || 0} unités</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-sm text-gray-500 mb-1">Statut</p>
-                  <p className="font-medium text-gray-900">{viewingProduct.is_active ? 'Actif' : 'Inactif'}</p>
-                </div>
+                {viewingProduct.description && (
+                  <div className="mt-6 bg-gray-50 rounded-xl p-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Description</h4>
+                    <p className="text-gray-600 text-sm whitespace-pre-wrap">{viewingProduct.description}</p>
+                  </div>
+                )}
+                {((viewingProduct as any).meta_title || (viewingProduct as any).meta_description) && (
+                  <div className="mt-4 bg-purple-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-purple-600 mb-2">SEO</p>
+                    {(viewingProduct as any).meta_title && <p className="text-sm text-gray-700"><strong>Titre:</strong> {(viewingProduct as any).meta_title}</p>}
+                    {(viewingProduct as any).meta_description && <p className="text-sm text-gray-600 mt-1"><strong>Description:</strong> {(viewingProduct as any).meta_description}</p>}
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                {canEditProducts() && (
+                  <button onClick={() => { setIsViewModalOpen(false); handleEditProduct(viewingProduct) }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                    <Edit2 size={16} /> Modifier
+                  </button>
+                )}
+                <button onClick={() => setIsViewModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                  Fermer
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Edit Modal */}
       <ProductFormModal
@@ -567,11 +647,21 @@ const AdminProductsPage: React.FC = () => {
           })(),
           store_id: (editingProduct.store?.id || editingProduct.shop?.id) || null,
           stock_quantity: editingProduct.stock || 0,
+          track_inventory: (editingProduct as any).track_inventory ?? false,
           sku: '',
           is_active: editingProduct.is_active ?? true,
           variants: [],
           images: [],
-          existing_images: editingProduct.media?.map(m => m.image_url || m.file || '').filter(Boolean) || []
+          existing_images: (editingProduct.media || editingProduct.images || []).map((m: any) => {
+            let url = m.image_url || m.file || ''
+            if (!url) return ''
+            if (url.startsWith('http://')) url = url.replace('http://', 'https://')
+            if (url.startsWith('https://')) return url
+            return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+          }).filter(Boolean) || [],
+          meta_title: (editingProduct as any).meta_title || '',
+          meta_description: (editingProduct as any).meta_description || '',
+          tags: (editingProduct as any).tags || []
         } : undefined}
         categories={categories}
         shops={shops}

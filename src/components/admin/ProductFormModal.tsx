@@ -86,7 +86,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     tags: []
   })
 
-  const [activeTab, setActiveTab] = useState<'general' | 'features' | 'seo' | 'variants' | 'images'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'features' | 'variants' | 'images' | 'seo'>('general')
   const [features, setFeatures] = useState<ProductFeatures>({
     delivery_time: '24-48h',
     warranty_duration: '12 mois',
@@ -94,6 +94,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     is_authentic: true,
   })
   const [imagePreview, setImagePreview] = useState<string[]>([])
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isInStock, setIsInStock] = useState(true)
   const [showStockInput, setShowStockInput] = useState(false)
@@ -167,21 +168,34 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   }
 
   const removeImage = (index: number) => {
+    console.log('removeImage called:', { index, existingCount: formData.existing_images?.length, imagePreviewLength: imagePreview.length })
+    
     const existingCount = formData.existing_images?.length || 0
     
+    // Update formData
     if (index < existingCount) {
+      // This is an existing image from the server - track it for deletion
+      const imageUrl = formData.existing_images?.[index]
+      if (imageUrl) {
+        setImagesToDelete(prev => [...prev, imageUrl])
+        console.log('Image marked for deletion:', imageUrl)
+      }
       const newExisting = [...(formData.existing_images || [])]
       newExisting.splice(index, 1)
-      setFormData({ ...formData, existing_images: newExisting })
+      setFormData(prev => ({ ...prev, existing_images: newExisting }))
     } else {
+      // This is a new image not yet uploaded
       const newImages = [...formData.images]
       newImages.splice(index - existingCount, 1)
-      setFormData({ ...formData, images: newImages })
+      setFormData(prev => ({ ...prev, images: newImages }))
     }
     
-    const newPreviews = [...imagePreview]
-    newPreviews.splice(index, 1)
-    setImagePreview(newPreviews)
+    // Update preview
+    setImagePreview(prev => {
+      const newPreviews = [...prev]
+      newPreviews.splice(index, 1)
+      return newPreviews
+    })
   }
 
   const addVariant = () => {
@@ -240,9 +254,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         delivery_time: features.delivery_time,
         warranty_duration: features.warranty_duration,
         return_policy: features.return_policy,
-        is_authentic: features.is_authentic
+        is_authentic: features.is_authentic,
+        // Images to delete from server
+        images_to_delete: imagesToDelete
       }
+      console.log('Saving with images_to_delete:', imagesToDelete)
       await onSave(dataToSave)
+      // Reset images to delete after successful save
+      setImagesToDelete([])
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error)
     }
@@ -312,19 +331,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </span>
             </button>
             <button
-              onClick={() => setActiveTab('seo')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                activeTab === 'seo'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Search size={16} />
-                SEO
-              </span>
-            </button>
-            <button
               onClick={() => setActiveTab('variants')}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                 activeTab === 'variants'
@@ -348,6 +354,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <span className="flex items-center gap-2">
                 <ImageIcon size={16} />
                 Images
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('seo')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'seo'
+                  ? 'bg-white text-green-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Search size={16} />
+                SEO
               </span>
             </button>
           </div>
@@ -875,11 +894,45 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           {/* SEO Tab */}
           {activeTab === 'seo' && (
             <div className="space-y-6">
-              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-start justify-between gap-4">
                 <p className="text-sm text-purple-800">
                   <strong>Référencement (SEO) :</strong> Optimisez votre produit pour les moteurs de recherche comme Google. 
                   Ces informations aident votre produit à apparaître dans les résultats de recherche.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Générer le titre SEO à partir du nom du produit
+                    const generatedTitle = formData.name ? `${formData.name} - Achat en ligne au Mali` : ''
+                    
+                    // Générer la description à partir de la description du produit ou du nom
+                    let generatedDesc = ''
+                    if (formData.description) {
+                      generatedDesc = formData.description.slice(0, 140) + (formData.description.length > 140 ? '...' : '')
+                    } else if (formData.name) {
+                      generatedDesc = `Achetez ${formData.name} au meilleur prix sur BuyMore Mali. Livraison rapide et paiement sécurisé.`
+                    }
+                    
+                    // Générer les tags à partir du nom et de la catégorie
+                    const generatedTags: string[] = []
+                    if (formData.name) {
+                      const words = formData.name.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+                      generatedTags.push(...words.slice(0, 5))
+                    }
+                    generatedTags.push('achat', 'mali', 'buymore')
+                    
+                    setFormData({
+                      ...formData,
+                      meta_title: generatedTitle.slice(0, 60),
+                      meta_description: generatedDesc.slice(0, 160),
+                      tags: [...new Set(generatedTags)]
+                    })
+                  }}
+                  className="flex-shrink-0 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
+                >
+                  <RefreshCw size={16} />
+                  Générer auto
+                </button>
               </div>
 
               {/* Meta Title */}
@@ -1112,22 +1165,28 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               {imagePreview.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {imagePreview.map((src, index) => (
-                    <div key={index} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100">
+                    <div key={`img-${index}-${src.slice(-20)}`} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
                       <img
                         src={src}
                         alt={`Preview ${index + 1}`}
                         className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23f3f4f6" width="100" height="100"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-size="12">Image</text></svg>' }}
                       />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button
-                          onClick={() => removeImage(index)}
-                          className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                      {/* Delete button - always visible */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          removeImage(index)
+                        }}
+                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg z-10"
+                        title="Supprimer cette image"
+                      >
+                        <X size={16} />
+                      </button>
                       {index === 0 && (
-                        <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                        <div className="absolute bottom-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
                           Principale
                         </div>
                       )}
@@ -1144,9 +1203,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <div className="text-sm text-gray-500">
             {activeTab === 'general' && 'Étape 1/5 - Informations générales'}
             {activeTab === 'features' && 'Étape 2/5 - Caractéristiques'}
-            {activeTab === 'seo' && 'Étape 3/5 - Référencement SEO'}
-            {activeTab === 'variants' && 'Étape 4/5 - Variantes et stock'}
-            {activeTab === 'images' && 'Étape 5/5 - Images du produit'}
+            {activeTab === 'variants' && 'Étape 3/5 - Variantes et stock'}
+            {activeTab === 'images' && 'Étape 4/5 - Images du produit'}
+            {activeTab === 'seo' && 'Étape 5/5 - Référencement SEO'}
           </div>
           <div className="flex items-center gap-3">
             <button
