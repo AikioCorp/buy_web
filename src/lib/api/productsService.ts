@@ -11,10 +11,15 @@ export interface Product {
   description?: string;
   base_price: string;
   stock?: number;
+  track_inventory?: boolean;
   low_stock_threshold?: number;
   is_active?: boolean;
   is_in_stock?: boolean;
   is_low_stock?: boolean;
+  // SEO fields
+  meta_title?: string;
+  meta_description?: string;
+  tags?: string[];
   category: Category;
   store: Store;
   shop?: Store;
@@ -99,6 +104,7 @@ export interface CreateProductData {
   category_ids?: number[];
   store_id?: number;
   stock?: number;
+  track_inventory?: boolean;
   low_stock_threshold?: number;
   is_active?: boolean;
   // Product features
@@ -106,6 +112,10 @@ export interface CreateProductData {
   warranty_duration?: string;
   return_policy?: string;
   is_authentic?: boolean;
+  // SEO fields
+  meta_title?: string;
+  meta_description?: string;
+  tags?: string[];
 }
 
 export const productsService = {
@@ -217,6 +227,11 @@ export const productsService = {
       if (params?.page_size) {
         queryParams.append('page_size', params.page_size.toString());
         queryParams.append('limit', params.page_size.toString());
+        // Ajouter offset pour les backends qui utilisent offset au lieu de page
+        if (params?.page && params.page > 1) {
+          const offset = (params.page - 1) * params.page_size;
+          queryParams.append('offset', offset.toString());
+        }
       }
       if (params?.search) queryParams.append('search', params.search);
       if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
@@ -224,7 +239,9 @@ export const productsService = {
 
       // Essayer l'endpoint admin d'abord
       const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
+      console.log('📡 API Request:', endpoint);
       const response = await apiClient.get<ProductsResponse | Product[]>(endpoint);
+      console.log('📦 API Raw Response:', response.data);
 
       if (response.error) {
         return {

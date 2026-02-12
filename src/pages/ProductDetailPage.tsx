@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { productsService, Product } from '@/lib/api/productsService'
+import { SEO } from '@/components/SEO'
 import { useCartStore } from '@/store/cartStore'
 import { useFavoritesStore } from '@/store/favoritesStore'
 import { useAuthStore } from '@/store/authStore'
@@ -271,8 +272,40 @@ export function ProductDetailPage() {
     )
   }
 
+  // Get first image URL for SEO
+  const getFirstImageUrl = () => {
+    const mediaArray = product?.media || (product as any)?.images || []
+    if (!mediaArray || mediaArray.length === 0) return null
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+    const firstMedia = mediaArray[0]
+    let url = firstMedia?.image_url || firstMedia?.file
+    if (!url) return null
+    if (url.startsWith('http://')) url = url.replace('http://', 'https://')
+    if (url.startsWith('https://')) return url
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* SEO Component */}
+      <SEO
+        title={product?.meta_title || product.name}
+        description={product?.meta_description || product.description?.slice(0, 160) || `Achetez ${product.name} sur BuyMore Mali`}
+        image={getFirstImageUrl() || undefined}
+        url={`${window.location.origin}/products/${product.slug || product.id}`}
+        type="product"
+        product={{
+          name: product.name,
+          price: parseFloat(product.base_price),
+          currency: 'XOF',
+          availability: (product.stock ?? 0) > 0 || product.track_inventory === false ? 'in_stock' : 'out_of_stock',
+          category: product.category?.name,
+          brand: product.store?.name || product.shop?.name,
+          rating: product.average_rating,
+          reviewCount: product.total_reviews
+        }}
+      />
+
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-gray-500 mb-6">

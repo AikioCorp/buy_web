@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Package, Edit2, Trash2, X, Eye, Store, Tag, Plus, Save, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Search, Package, Edit2, Trash2, X, Eye, Store, Tag, Plus, Save, TrendingUp, AlertTriangle, CheckCircle, PackageCheck, PackageMinus } from 'lucide-react'
 import { productsService, Product, ProductMedia } from '../../../lib/api/productsService'
 import { categoriesService, Category } from '../../../lib/api/categoriesService'
 import { shopsService, Shop } from '../../../lib/api/shopsService'
@@ -45,6 +45,9 @@ const SuperAdminProductsPage: React.FC = () => {
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null)
   const [formData, setFormData] = useState<Partial<Product>>({})
   const [actionLoading, setActionLoading] = useState(false)
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false)
+  const [stockProduct, setStockProduct] = useState<Product | null>(null)
+  const [stockValue, setStockValue] = useState<number>(0)
 
   const pageSize = 50
 
@@ -205,6 +208,42 @@ const SuperAdminProductsPage: React.FC = () => {
     return new Intl.NumberFormat('fr-FR').format(Number(price)) + ' FCFA'
   }
 
+  // Gestion rapide du stock - Toggle "En stock"
+  const handleToggleInStock = async (product: Product) => {
+    try {
+      const newStock = (product.stock ?? 0) > 0 ? 0 : 100
+      await productsService.updateProductAdmin(product.id, { stock: newStock })
+      loadProducts()
+      showToast(newStock > 0 ? 'Produit marqué en stock' : 'Produit marqué en rupture', 'success')
+    } catch (err: any) {
+      showToast(err.message || 'Erreur lors de la mise à jour du stock', 'error')
+    }
+  }
+
+  // Ouvrir le modal de gestion de stock
+  const handleOpenStockModal = (product: Product) => {
+    setStockProduct(product)
+    setStockValue(product.stock ?? 0)
+    setIsStockModalOpen(true)
+  }
+
+  // Sauvegarder le stock
+  const handleSaveStock = async () => {
+    if (!stockProduct) return
+    try {
+      setActionLoading(true)
+      await productsService.updateProductAdmin(stockProduct.id, { stock: stockValue })
+      setIsStockModalOpen(false)
+      setStockProduct(null)
+      loadProducts()
+      showToast('Stock mis à jour avec succès', 'success')
+    } catch (err: any) {
+      showToast(err.message || 'Erreur lors de la mise à jour du stock', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const totalPages = Math.ceil(totalCount / pageSize)
 
   // Flatten categories for select
@@ -247,11 +286,15 @@ const SuperAdminProductsPage: React.FC = () => {
         category_ids: data.category_ids || [],
         store_id: data.store_id || undefined,
         stock: data.stock_quantity || 0,
+        track_inventory: data.track_inventory,
         is_active: data.is_active,
         delivery_time: (data as any).delivery_time,
         warranty_duration: (data as any).warranty_duration,
         return_policy: (data as any).return_policy,
-        is_authentic: (data as any).is_authentic
+        is_authentic: (data as any).is_authentic,
+        meta_title: data.meta_title,
+        meta_description: data.meta_description,
+        tags: data.tags
       })
       
       // 2. Uploader les images si présentes
@@ -290,11 +333,15 @@ const SuperAdminProductsPage: React.FC = () => {
         category_ids: data.category_ids || [],
         store_id: data.store_id || undefined,
         stock: data.stock_quantity || 0,
+        track_inventory: data.track_inventory,
         is_active: data.is_active,
         delivery_time: (data as any).delivery_time,
         warranty_duration: (data as any).warranty_duration,
         return_policy: (data as any).return_policy,
-        is_authentic: (data as any).is_authentic
+        is_authentic: (data as any).is_authentic,
+        meta_title: data.meta_title,
+        meta_description: data.meta_description,
+        tags: data.tags
       })
       
       // 2. Upload new images if any
@@ -565,13 +612,46 @@ const SuperAdminProductsPage: React.FC = () => {
                       </h3>
 
                       {/* Price & Stock */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-2">
                         <span className="font-bold text-green-600">
                           {formatPrice(product.base_price)}
                         </span>
                         <span className={`text-xs ${stockStatus === 'out' ? 'text-red-500' : stockStatus === 'low' ? 'text-yellow-600' : 'text-gray-500'}`}>
                           {stockLevel} en stock
                         </span>
+                      </div>
+
+                      {/* Stock Management Buttons */}
+                      <div className="flex gap-2 pt-2 border-t border-gray-100">
+                        <button
+                          onClick={() => handleToggleInStock(product)}
+                          className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            stockLevel > 0 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                          }`}
+                          title={stockLevel > 0 ? 'Marquer en rupture' : 'Marquer en stock'}
+                        >
+                          {stockLevel > 0 ? (
+                            <>
+                              <PackageCheck size={14} />
+                              En stock
+                            </>
+                          ) : (
+                            <>
+                              <PackageMinus size={14} />
+                              Rupture
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleOpenStockModal(product)}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors"
+                          title="Gérer le stock"
+                        >
+                          <Package size={14} />
+                          Gérer stock
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -939,6 +1019,7 @@ const SuperAdminProductsPage: React.FC = () => {
             })(),
             store_id: editingProduct.store?.id || editingProduct.shop?.id || (editingProduct as any).store_id || null,
             stock_quantity: editingProduct.stock || 0,
+            track_inventory: (editingProduct as any).track_inventory ?? false,
             is_active: editingProduct.is_active !== false,
             existing_images: (editingProduct.media || (editingProduct as any).images || [])
               .map((m: any) => m.image_url || m.file || '')
@@ -946,13 +1027,107 @@ const SuperAdminProductsPage: React.FC = () => {
             delivery_time: (editingProduct as any).delivery_time,
             warranty_duration: (editingProduct as any).warranty_duration,
             return_policy: (editingProduct as any).return_policy,
-            is_authentic: (editingProduct as any).is_authentic
+            is_authentic: (editingProduct as any).is_authentic,
+            meta_title: (editingProduct as any).meta_title || '',
+            meta_description: (editingProduct as any).meta_description || '',
+            tags: (editingProduct as any).tags || []
           } as any}
           categories={categories}
           shops={shops}
           isLoading={actionLoading}
           title="Modifier le Produit"
         />
+      )}
+
+      {/* Stock Management Modal */}
+      {isStockModalOpen && stockProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Gérer le stock</h2>
+              <button
+                onClick={() => {
+                  setIsStockModalOpen(false)
+                  setStockProduct(null)
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">Produit:</p>
+                <p className="font-medium text-gray-900">{stockProduct.name}</p>
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantité en stock
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={stockValue}
+                  onChange={(e) => setStockValue(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-semibold text-center"
+                />
+              </div>
+
+              {/* Quick stock buttons */}
+              <div className="flex gap-2 mb-6">
+                <button
+                  onClick={() => setStockValue(0)}
+                  className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
+                >
+                  Rupture (0)
+                </button>
+                <button
+                  onClick={() => setStockValue(10)}
+                  className="flex-1 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-200 transition-colors"
+                >
+                  Faible (10)
+                </button>
+                <button
+                  onClick={() => setStockValue(100)}
+                  className="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors"
+                >
+                  Normal (100)
+                </button>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setIsStockModalOpen(false)
+                    setStockProduct(null)
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveStock}
+                  disabled={actionLoading}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  {actionLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Enregistrement...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Enregistrer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

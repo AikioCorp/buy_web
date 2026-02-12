@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
   X, Save, Plus, Trash2, Upload, Image as ImageIcon, 
-  Package, Tag, DollarSign, Layers, Box, Info, Truck, Shield, RefreshCw, Check, Settings, AlertCircle
+  Package, Tag, DollarSign, Layers, Box, Info, Truck, Shield, RefreshCw, Check, Settings, AlertCircle, Search
 } from 'lucide-react'
 import { Category } from '../../lib/api/categoriesService'
 import { Shop } from '../../lib/api/shopsService'
@@ -31,12 +31,17 @@ export interface ProductFormData {
   category_ids?: number[]
   store_id: number | null
   stock_quantity: number
+  track_inventory: boolean
   sku: string
   is_active: boolean
   variants: ProductVariant[]
   images: File[]
   existing_images?: string[]
   features?: ProductFeatures
+  // SEO fields
+  meta_title?: string
+  meta_description?: string
+  tags?: string[]
 }
 
 interface ProductFormModalProps {
@@ -70,14 +75,18 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     category_ids: [],
     store_id: null,
     stock_quantity: 0,
+    track_inventory: false,
     sku: '',
     is_active: true,
     variants: [],
     images: [],
-    existing_images: []
+    existing_images: [],
+    meta_title: '',
+    meta_description: '',
+    tags: []
   })
 
-  const [activeTab, setActiveTab] = useState<'general' | 'features' | 'variants' | 'images'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'features' | 'seo' | 'variants' | 'images'>('general')
   const [features, setFeatures] = useState<ProductFeatures>({
     delivery_time: '24-48h',
     warranty_duration: '12 mois',
@@ -86,9 +95,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   })
   const [imagePreview, setImagePreview] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isInStock, setIsInStock] = useState(true)
+  const [showStockInput, setShowStockInput] = useState(false)
+  const [categorySearch, setCategorySearch] = useState('')
 
   useEffect(() => {
     if (initialData) {
+      const trackInventory = initialData.track_inventory ?? (initialData as any).track_inventory ?? false
       setFormData({
         name: initialData.name || '',
         slug: initialData.slug || '',
@@ -99,13 +112,20 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         category_ids: initialData.category_ids || [],
         store_id: initialData.store_id || null,
         stock_quantity: initialData.stock_quantity || 0,
+        track_inventory: trackInventory,
         sku: initialData.sku || '',
         is_active: initialData.is_active ?? true,
         variants: initialData.variants || [],
         images: [],
-        existing_images: initialData.existing_images || []
+        existing_images: initialData.existing_images || [],
+        meta_title: initialData.meta_title || (initialData as any).meta_title || '',
+        meta_description: initialData.meta_description || (initialData as any).meta_description || '',
+        tags: initialData.tags || (initialData as any).tags || []
       })
       setImagePreview(initialData.existing_images || [])
+      // Load stock state: en stock si track_inventory=false OU si stock > 0
+      setIsInStock(!trackInventory || (initialData.stock_quantity ?? 0) > 0)
+      setShowStockInput(trackInventory)
       // Load features from initialData
       if (initialData.features || (initialData as any).delivery_time) {
         setFeatures({
@@ -209,9 +229,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!validateForm()) return
     
     try {
-      // Include features in the form data
+      // Include features and stock management in the form data
       const dataToSave = {
         ...formData,
+        // track_inventory: true = stock géré avec quantité, false = illimité
+        track_inventory: showStockInput,
+        // Si pas de gestion de stock (illimité), on met un stock élevé pour éviter les ruptures
+        stock_quantity: showStockInput ? formData.stock_quantity : (isInStock ? 999999 : 0),
         features,
         delivery_time: features.delivery_time,
         warranty_duration: features.warranty_duration,
@@ -285,6 +309,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <span className="flex items-center gap-2">
                 <Settings size={16} />
                 Caractéristiques
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('seo')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'seo'
+                  ? 'bg-white text-green-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Search size={16} />
+                SEO
               </span>
             </button>
             <button
@@ -438,59 +475,124 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 {/* Stock */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quantité en stock
+                    Gestion du stock
                   </label>
-                  <div className="relative">
-                    <Box className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="number"
-                      value={formData.stock_quantity}
-                      onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="100"
-                      min="0"
-                    />
+                  <div className="space-y-3">
+                    {/* Checkbox En stock (illimité) */}
+                    <label className="flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={isInStock}
+                        onChange={(e) => {
+                          setIsInStock(e.target.checked)
+                          if (e.target.checked) {
+                            // En stock = track_inventory false (illimité)
+                            setShowStockInput(false)
+                          }
+                        }}
+                        className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      <div className="flex-1">
+                        <span className={`font-medium ${isInStock ? 'text-green-600' : 'text-red-600'}`}>
+                          {isInStock ? '✓ En stock' : '✗ Rupture de stock'}
+                        </span>
+                        {isInStock && !showStockInput && (
+                          <span className="text-sm text-gray-500 ml-2">(illimité)</span>
+                        )}
+                        {showStockInput && formData.stock_quantity > 0 && (
+                          <span className="text-sm text-gray-500 ml-2">({formData.stock_quantity} unités)</span>
+                        )}
+                      </div>
+                    </label>
+
+                    {/* Bouton Gérer le stock */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowStockInput(!showStockInput)
+                        if (!showStockInput && formData.stock_quantity === 0) {
+                          setFormData({ ...formData, stock_quantity: 100 })
+                        }
+                      }}
+                      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-colors text-sm font-medium ${
+                        showStockInput 
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      }`}
+                    >
+                      <Box size={16} />
+                      {showStockInput ? 'Désactiver la gestion de stock' : 'Gérer le stock (quantité limitée)'}
+                    </button>
+
+                    {/* Champ de quantité (affiché si showStockInput) */}
+                    {showStockInput && (
+                      <div className="relative animate-in slide-in-from-top-2 p-3 bg-blue-50 rounded-xl">
+                        <p className="text-xs text-blue-600 mb-2">Stock géré avec quantité limitée</p>
+                        <div className="relative">
+                          <Box className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                          <input
+                            type="number"
+                            value={formData.stock_quantity}
+                            onChange={(e) => {
+                              const qty = parseInt(e.target.value) || 0
+                              setFormData({ ...formData, stock_quantity: qty })
+                              setIsInStock(qty > 0)
+                            }}
+                            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                            placeholder="Quantité en stock"
+                            min="0"
+                          />
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => { setFormData({ ...formData, stock_quantity: 0 }); setIsInStock(false) }}
+                            className="flex-1 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium hover:bg-red-200"
+                          >
+                            Rupture (0)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setFormData({ ...formData, stock_quantity: 10 }); setIsInStock(true) }}
+                            className="flex-1 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-medium hover:bg-yellow-200"
+                          >
+                            Faible (10)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setFormData({ ...formData, stock_quantity: 100 }); setIsInStock(true) }}
+                            className="flex-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200"
+                          >
+                            Normal (100)
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Catégories (Multiple) */}
+                {/* Catégories (Multiple) avec recherche */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Catégories <span className="text-red-500">*</span>
+                    {formData.category_ids && formData.category_ids.length > 0 && (
+                      <span className="ml-2 text-green-600 font-normal">({formData.category_ids.length} sélectionnée{formData.category_ids.length > 1 ? 's' : ''})</span>
+                    )}
                   </label>
-                  <div className="border rounded-xl p-4 bg-gray-50 max-h-60 overflow-y-auto">
-                    <div className="space-y-2">
-                      {flatCategories.map(cat => (
-                        <label key={cat.id} className="flex items-center gap-3 cursor-pointer hover:bg-white p-2 rounded-lg transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={formData.category_ids?.includes(cat.id) || false}
-                            onChange={(e) => {
-                              const currentIds = formData.category_ids || []
-                              if (e.target.checked) {
-                                setFormData({ ...formData, category_ids: [...currentIds, cat.id] })
-                              } else {
-                                setFormData({ ...formData, category_ids: currentIds.filter(id => id !== cat.id) })
-                              }
-                            }}
-                            className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                          />
-                          <span className="text-sm text-gray-700">{cat.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                  
+                  {/* Catégories sélectionnées en haut */}
                   {formData.category_ids && formData.category_ids.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mb-3 flex flex-wrap gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
                       {formData.category_ids.map(catId => {
                         const cat = flatCategories.find(c => c.id === catId)
                         return cat ? (
-                          <span key={catId} className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                            {cat.name}
+                          <span key={catId} className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium shadow-sm">
+                            <Tag size={12} />
+                            {cat.name.replace(/^—\s*/, '').replace(/^—\s*/, '')}
                             <button
                               type="button"
                               onClick={() => setFormData({ ...formData, category_ids: formData.category_ids?.filter(id => id !== catId) })}
-                              className="hover:text-green-900"
+                              className="ml-1 hover:bg-green-700 rounded p-0.5 transition-colors"
                             >
                               <X size={14} />
                             </button>
@@ -499,6 +601,75 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       })}
                     </div>
                   )}
+
+                  {/* Barre de recherche */}
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      placeholder="Rechercher une catégorie..."
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    {categorySearch && (
+                      <button
+                        type="button"
+                        onClick={() => setCategorySearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Liste des catégories filtrées */}
+                  <div className="border rounded-xl bg-white max-h-48 overflow-y-auto">
+                    {flatCategories
+                      .filter(cat => 
+                        categorySearch === '' || 
+                        cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+                      )
+                      .map(cat => {
+                        const isSelected = formData.category_ids?.includes(cat.id) || false
+                        const isSubCategory = cat.name.startsWith('—')
+                        return (
+                          <label 
+                            key={cat.id} 
+                            className={`flex items-center gap-3 cursor-pointer px-4 py-2.5 border-b border-gray-100 last:border-b-0 transition-colors ${
+                              isSelected ? 'bg-green-50' : 'hover:bg-gray-50'
+                            } ${isSubCategory ? 'pl-8' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const currentIds = formData.category_ids || []
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, category_ids: [...currentIds, cat.id] })
+                                } else {
+                                  setFormData({ ...formData, category_ids: currentIds.filter(id => id !== cat.id) })
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            />
+                            <span className={`text-sm ${isSelected ? 'text-green-700 font-medium' : 'text-gray-700'}`}>
+                              {cat.name}
+                            </span>
+                            {isSelected && <Check size={16} className="ml-auto text-green-600" />}
+                          </label>
+                        )
+                      })}
+                    {flatCategories.filter(cat => 
+                      categorySearch === '' || 
+                      cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+                    ).length === 0 && (
+                      <div className="px-4 py-6 text-center text-gray-500">
+                        <Search size={24} className="mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">Aucune catégorie trouvée pour "{categorySearch}"</p>
+                      </div>
+                    )}
+                  </div>
                   {errors.category_ids && <p className="text-red-500 text-sm mt-1">{errors.category_ids}</p>}
                 </div>
 
@@ -701,6 +872,110 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
+          {/* SEO Tab */}
+          {activeTab === 'seo' && (
+            <div className="space-y-6">
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <p className="text-sm text-purple-800">
+                  <strong>Référencement (SEO) :</strong> Optimisez votre produit pour les moteurs de recherche comme Google. 
+                  Ces informations aident votre produit à apparaître dans les résultats de recherche.
+                </p>
+              </div>
+
+              {/* Meta Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre SEO (Meta Title)
+                </label>
+                <input
+                  type="text"
+                  value={formData.meta_title || ''}
+                  onChange={(e) => setFormData({ ...formData, meta_title: e.target.value })}
+                  placeholder={formData.name || 'Titre optimisé pour Google'}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  maxLength={60}
+                />
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-gray-500">Laissez vide pour utiliser le nom du produit</p>
+                  <p className={`text-xs ${(formData.meta_title?.length || 0) > 60 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {formData.meta_title?.length || 0}/60
+                  </p>
+                </div>
+              </div>
+
+              {/* Meta Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description SEO (Meta Description)
+                </label>
+                <textarea
+                  value={formData.meta_description || ''}
+                  onChange={(e) => setFormData({ ...formData, meta_description: e.target.value })}
+                  placeholder="Description courte et attrayante pour les résultats Google (160 caractères max)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                  rows={3}
+                  maxLength={160}
+                />
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-gray-500">Apparaît sous le titre dans les résultats Google</p>
+                  <p className={`text-xs ${(formData.meta_description?.length || 0) > 160 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {formData.meta_description?.length || 0}/160
+                  </p>
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags / Mots-clés
+                </label>
+                <input
+                  type="text"
+                  value={(formData.tags || []).join(', ')}
+                  onChange={(e) => {
+                    const tagsArray = e.target.value.split(',').map(t => t.trim()).filter(Boolean)
+                    setFormData({ ...formData, tags: tagsArray })
+                  }}
+                  placeholder="smartphone, téléphone, mobile, samsung (séparés par des virgules)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Séparez les mots-clés par des virgules</p>
+                {formData.tags && formData.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.tags.map((tag, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs">
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, tags: formData.tags?.filter((_, i) => i !== idx) })}
+                          className="hover:text-purple-900"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SEO Preview */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-3 font-medium">Aperçu Google</p>
+                <div className="space-y-1">
+                  <p className="text-blue-700 text-lg hover:underline cursor-pointer truncate">
+                    {formData.meta_title || formData.name || 'Titre du produit'} | BuyMore
+                  </p>
+                  <p className="text-green-700 text-sm">
+                    buymore.ml › produits › {formData.slug || 'nom-du-produit'}
+                  </p>
+                  <p className="text-gray-600 text-sm line-clamp-2">
+                    {formData.meta_description || formData.description?.slice(0, 160) || 'Description du produit qui apparaîtra dans les résultats de recherche Google...'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Variants Tab */}
           {activeTab === 'variants' && (
             <div className="space-y-6">
@@ -867,10 +1142,11 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            {activeTab === 'general' && 'Étape 1/4 - Informations générales'}
-            {activeTab === 'features' && 'Étape 2/4 - Caractéristiques'}
-            {activeTab === 'variants' && 'Étape 3/4 - Variantes et stock'}
-            {activeTab === 'images' && 'Étape 4/4 - Images du produit'}
+            {activeTab === 'general' && 'Étape 1/5 - Informations générales'}
+            {activeTab === 'features' && 'Étape 2/5 - Caractéristiques'}
+            {activeTab === 'seo' && 'Étape 3/5 - Référencement SEO'}
+            {activeTab === 'variants' && 'Étape 4/5 - Variantes et stock'}
+            {activeTab === 'images' && 'Étape 5/5 - Images du produit'}
           </div>
           <div className="flex items-center gap-3">
             <button
