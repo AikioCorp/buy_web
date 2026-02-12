@@ -29,17 +29,154 @@ const getImageUrl = (product: Product): string | null => {
   return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
-// 8 Catégories principales
-const mainCategories = [
-  { name: 'Mode', slug: 'mode', icon: Shirt, color: 'bg-pink-500', image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop' },
-  { name: 'Alimentaire', slug: 'alimentaire', icon: ShoppingBag, color: 'bg-green-500', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&h=200&fit=crop' },
-  { name: 'Parfumerie', slug: 'parfumerie', icon: Sparkles, color: 'bg-purple-500', image: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop' },
-  { name: 'Cuisine', slug: 'cuisine', icon: UtensilsCrossed, color: 'bg-orange-500', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop' },
-  { name: 'Électronique', slug: 'electronique', icon: Laptop, color: 'bg-blue-500', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop' },
-  { name: 'Téléphones', slug: 'telephones', icon: Smartphone, color: 'bg-cyan-500', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&h=200&fit=crop' },
-  { name: 'Sport', slug: 'sport', icon: Dumbbell, color: 'bg-red-500', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=200&fit=crop' },
-  { name: 'Maison', slug: 'maison', icon: Home, color: 'bg-teal-500', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop' },
+// Grandes catégories BuyMore avec sous-catégories
+const megaMenuCategories = [
+  { 
+    id: 1, 
+    name: 'Électronique', 
+    slug: 'electronique', 
+    icon: '💻',
+    image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Smartphones', slug: 'smartphones' },
+      { name: 'Ordinateurs', slug: 'ordinateurs' },
+      { name: 'Tablettes', slug: 'tablettes' },
+      { name: 'TV & Écrans', slug: 'tv-ecrans' },
+      { name: 'Audio & Casques', slug: 'audio-casques' },
+      { name: 'Appareils Photo', slug: 'appareils-photo' },
+      { name: 'Accessoires', slug: 'accessoires-electronique' },
+      { name: 'Jeux Vidéo', slug: 'jeux-video' },
+    ]
+  },
+  { 
+    id: 2, 
+    name: 'Mode & Vêtements', 
+    slug: 'mode-vetements', 
+    icon: '👕',
+    image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Homme', slug: 'homme' },
+      { name: 'Femme', slug: 'femme' },
+      { name: 'Enfants', slug: 'enfants' },
+      { name: 'Chaussures', slug: 'chaussures' },
+      { name: 'Sacs & Bagages', slug: 'sacs-bagages' },
+      { name: 'Montres', slug: 'montres' },
+      { name: 'Bijoux', slug: 'bijoux' },
+      { name: 'Accessoires', slug: 'accessoires-mode' },
+    ]
+  },
+  { 
+    id: 3, 
+    name: 'Maison & Jardin', 
+    slug: 'maison-jardin', 
+    icon: '🏠',
+    image: 'https://images.unsplash.com/photo-1556912173-46c336c7fd55?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Meubles', slug: 'meubles' },
+      { name: 'Décoration', slug: 'decoration' },
+      { name: 'Literie', slug: 'literie' },
+      { name: 'Cuisine', slug: 'cuisine' },
+      { name: 'Salle de bain', slug: 'salle-de-bain' },
+      { name: 'Jardin', slug: 'jardin' },
+      { name: 'Éclairage', slug: 'eclairage' },
+      { name: 'Rangement', slug: 'rangement' },
+    ]
+  },
+  { 
+    id: 4, 
+    name: 'Beauté & Santé', 
+    slug: 'beaute-sante', 
+    icon: '💄',
+    image: 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Maquillage', slug: 'maquillage' },
+      { name: 'Soins Visage', slug: 'soins-visage' },
+      { name: 'Soins Corps', slug: 'soins-corps' },
+      { name: 'Parfums', slug: 'parfums' },
+      { name: 'Cheveux', slug: 'cheveux' },
+      { name: 'Santé', slug: 'sante' },
+      { name: 'Bien-être', slug: 'bien-etre' },
+      { name: 'Hygiène', slug: 'hygiene' },
+    ]
+  },
+  { 
+    id: 5, 
+    name: 'Sport & Loisirs', 
+    slug: 'sport-loisirs', 
+    icon: '⚽',
+    image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Fitness', slug: 'fitness' },
+      { name: 'Football', slug: 'football' },
+      { name: 'Basketball', slug: 'basketball' },
+      { name: 'Natation', slug: 'natation' },
+      { name: 'Cyclisme', slug: 'cyclisme' },
+      { name: 'Camping', slug: 'camping' },
+      { name: 'Yoga', slug: 'yoga' },
+      { name: 'Équipements', slug: 'equipements-sport' },
+    ]
+  },
+  { 
+    id: 6, 
+    name: 'Alimentation', 
+    slug: 'alimentation', 
+    icon: '🍎',
+    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Épicerie', slug: 'epicerie' },
+      { name: 'Boissons', slug: 'boissons' },
+      { name: 'Fruits & Légumes', slug: 'fruits-legumes' },
+      { name: 'Produits Frais', slug: 'produits-frais' },
+      { name: 'Surgelés', slug: 'surgeles' },
+      { name: 'Bio', slug: 'bio' },
+      { name: 'Snacks', slug: 'snacks' },
+      { name: 'Bébé', slug: 'alimentation-bebe' },
+    ]
+  },
+  { 
+    id: 7, 
+    name: 'Bébé & Enfant', 
+    slug: 'bebe-enfant', 
+    icon: '👶',
+    image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Vêtements Bébé', slug: 'vetements-bebe' },
+      { name: 'Jouets', slug: 'jouets' },
+      { name: 'Puériculture', slug: 'puericulture' },
+      { name: 'Alimentation', slug: 'alimentation-bebe' },
+      { name: 'Hygiène Bébé', slug: 'hygiene-bebe' },
+      { name: 'Mobilier Bébé', slug: 'mobilier-bebe' },
+      { name: 'Jeux Éducatifs', slug: 'jeux-educatifs' },
+      { name: 'Sécurité', slug: 'securite-bebe' },
+    ]
+  },
+  { 
+    id: 8, 
+    name: 'Auto & Moto', 
+    slug: 'auto-moto', 
+    icon: '🚗',
+    image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=500&h=400&fit=crop',
+    subcategories: [
+      { name: 'Pièces Auto', slug: 'pieces-auto' },
+      { name: 'Accessoires Auto', slug: 'accessoires-auto' },
+      { name: 'Pneus', slug: 'pneus' },
+      { name: 'Entretien', slug: 'entretien-auto' },
+      { name: 'Pièces Moto', slug: 'pieces-moto' },
+      { name: 'Casques', slug: 'casques' },
+      { name: 'GPS & Navigation', slug: 'gps-navigation' },
+      { name: 'Outillage', slug: 'outillage-auto' },
+    ]
+  },
 ]
+
+// Format pour compatibilité mobile
+const mainCategories = megaMenuCategories.map(cat => ({
+  name: cat.name,
+  slug: cat.slug,
+  icon: Laptop,
+  color: 'bg-green-600',
+  image: cat.image
+}))
 
 // Couleurs pour les boutiques en vedette
 const shopColors = [
@@ -74,6 +211,8 @@ interface DynamicCategory {
   slug: string
   icon?: string
   image?: string
+  parent?: number | null
+  children?: DynamicCategory[]
 }
 
 export function HomePage() {
@@ -83,6 +222,7 @@ export function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>([])
   const [shops, setShops] = useState<Shop[]>([])
+  const [hoveredCategory, setHoveredCategory] = useState<DynamicCategory | null>(null)
   const navigate = useNavigate()
   const addItem = useCartStore((state) => state.addItem)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
@@ -286,6 +426,19 @@ export function HomePage() {
     return fallbackImages[cat.slug] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&h=200&fit=crop'
   }
 
+  // Filtrer uniquement les catégories parentes (parent === null)
+  const parentCategories = dynamicCategories.filter(cat => cat.parent === null || cat.parent === undefined)
+
+  // Obtenir les produits d'une catégorie (incluant les sous-catégories)
+  const getCategoryProducts = (cat: DynamicCategory) => {
+    const childSlugs = cat.children?.map(c => c.slug) || []
+    return allProducts.filter((p: any) => 
+      p.category?.slug === cat.slug || 
+      p.category?.id === cat.id ||
+      childSlugs.includes(p.category?.slug)
+    ).slice(0, 6)
+  }
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(prev => {
@@ -405,59 +558,134 @@ export function HomePage() {
       <section className="bg-white">
         <div className="container mx-auto px-4 py-4">
           <div className="flex gap-4">
-            {/* Sidebar Catégories - Desktop avec Mega Menu */}
-            <div className="hidden lg:block w-64 flex-shrink-0 relative">
-              <div className="bg-[#0f4c2b] text-white rounded-t-xl px-4 py-3">
-                <h3 className="font-bold flex items-center gap-2"><ShoppingBag className="w-5 h-5" /> Catégories</h3>
+            {/* Sidebar Catégories - Design BuyMore Moderne */}
+            <div className="hidden lg:block w-60 flex-shrink-0 relative" onMouseLeave={() => setHoveredCategory(null)}>
+              {/* Header avec couleurs BuyMore */}
+              <div className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-xl px-4 py-3 flex items-center gap-2 shadow-lg">
+                <div className="grid grid-cols-3 gap-0.5">
+                  {[...Array(9)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-white/60 rounded-full" />)}
+                </div>
+                <span className="font-bold text-sm">Nos Catégories</span>
               </div>
-              <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm">
-                {(dynamicCategories.length > 0 ? dynamicCategories.slice(0, 8) : mainCategories).map((cat: any) => {
-                  const catImage = dynamicCategories.length > 0 ? getCategoryImage(cat) : cat.image
+              
+              {/* Liste des grandes catégories */}
+              <div className="bg-white border-x border-b border-gray-200 rounded-b-xl shadow-lg">
+                {megaMenuCategories.map((cat) => {
+                  const isHovered = (hoveredCategory as any)?.id === cat.id
+                  
                   return (
-                    <div key={cat.slug || cat.id} className="relative group/cat">
-                      <Link to={`/products?category=${cat.slug}`} className="flex items-center gap-3 px-4 py-3 hover:bg-green-50 border-b border-gray-100 last:border-b-0 transition-colors">
-                        <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                          <img src={catImage} alt={cat.name} className="w-full h-full object-cover" />
-                        </div>
-                        <span className="text-gray-700 group-hover/cat:text-green-600 font-medium text-sm">{cat.name}</span>
-                        <ChevronRight className="w-4 h-4 text-gray-400 ml-auto group-hover/cat:text-green-600 group-hover/cat:translate-x-1 transition-transform" />
+                    <div 
+                      key={cat.id}
+                      className="relative"
+                      onMouseEnter={() => setHoveredCategory(cat as any)}
+                    >
+                      <Link 
+                        to={`/products?category=${cat.slug}`}
+                        className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 transition-all duration-200 ${
+                          isHovered 
+                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-l-green-500' 
+                            : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                        }`}
+                      >
+                        <span className={`text-xl flex-shrink-0 transition-transform duration-200 ${isHovered ? 'scale-125' : ''}`}>
+                          {cat.icon}
+                        </span>
+                        <span className={`text-sm flex-1 font-medium transition-colors ${
+                          isHovered ? 'text-green-700' : 'text-gray-700'
+                        }`}>
+                          {cat.name}
+                        </span>
+                        <ChevronRight className={`w-4 h-4 transition-all duration-200 ${
+                          isHovered ? 'text-green-600 translate-x-1' : 'text-gray-400'
+                        }`} />
                       </Link>
-                      {/* Mega Menu au survol */}
-                      <div className="absolute left-full top-0 ml-1 w-[500px] bg-white rounded-xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible transition-all z-50">
-                        <div className="p-4">
-                          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
-                            <div className="w-12 h-12 rounded-xl overflow-hidden">
-                              <img src={catImage} alt={cat.name} className="w-full h-full object-cover" />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-gray-900">{cat.name}</h4>
-                              <p className="text-sm text-gray-500">Découvrez nos produits</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {allProducts.filter((p: any) => p.category?.name === cat.name || p.category?.slug === cat.slug || p.category?.name?.includes(cat.name.split(' ')[0])).slice(0, 4).map((product: any) => (
-                              <Link key={product.id} to={`/products/${product.slug || product.id}`} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                                {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
-                                  <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center"><Package className="w-6 h-6 text-gray-400" /></div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <h5 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h5>
-                                  <p className="text-green-600 font-bold text-xs mt-1">{formatPrice(product.base_price)} FCFA</p>
-                                </div>
-                              </Link>
-                            ))}
-                          </div>
-                          <Link to={`/products?category=${cat.slug}`} className="mt-3 flex items-center justify-center gap-2 w-full py-2 bg-green-50 text-green-600 rounded-lg font-medium text-sm hover:bg-green-100 transition-colors">
-                            Voir tous les produits <ArrowRight className="w-4 h-4" />
-                          </Link>
-                        </div>
-                      </div>
                     </div>
                   )
                 })}
+                
+                {/* Voir toutes les catégories */}
+                <Link 
+                  to="/categories" 
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 text-green-600 font-semibold text-sm hover:bg-green-50 transition-colors rounded-b-xl"
+                >
+                  <FolderTree className="w-4 h-4" />
+                  Toutes les catégories
+                </Link>
               </div>
+              
+              {/* Mega Menu Moderne - Couleurs BuyMore */}
+              {hoveredCategory && (
+                <div 
+                  className="absolute left-full top-0 ml-1 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
+                  style={{ width: '580px' }}
+                  onMouseEnter={() => setHoveredCategory(hoveredCategory)}
+                  onMouseLeave={() => setHoveredCategory(null)}
+                >
+                  {/* Header du Mega Menu */}
+                  <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{(hoveredCategory as any).icon}</span>
+                      <div>
+                        <h3 className="text-white font-bold text-lg">{(hoveredCategory as any).name}</h3>
+                        <p className="text-white/80 text-sm">Découvrez notre sélection</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex">
+                    {/* Sous-catégories */}
+                    <div className="flex-1 p-5">
+                      {/* Liens rapides */}
+                      <div className="flex gap-4 mb-4 pb-3 border-b border-gray-100">
+                        <Link 
+                          to={`/products?category=${(hoveredCategory as any).slug}&sort=newest`} 
+                          className="inline-flex items-center gap-1 text-sm font-medium text-green-600 hover:text-green-700 hover:underline"
+                        >
+                          <Sparkles className="w-3 h-3" /> Nouveautés
+                        </Link>
+                        <Link 
+                          to={`/products?category=${(hoveredCategory as any).slug}&promo=true`} 
+                          className="inline-flex items-center gap-1 text-sm font-medium text-orange-500 hover:text-orange-600 hover:underline"
+                        >
+                          <Zap className="w-3 h-3" /> Promotions
+                        </Link>
+                      </div>
+                      
+                      {/* Sous-catégories en 2 colonnes */}
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                        {((hoveredCategory as any).subcategories || []).map((sub: any, idx: number) => (
+                          <Link 
+                            key={idx}
+                            to={`/products?category=${sub.slug}`}
+                            className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors group"
+                          >
+                            <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-green-500 group-hover:translate-x-0.5 transition-all" />
+                            {sub.name}
+                          </Link>
+                        ))}
+                      </div>
+                      
+                      {/* Bouton voir tout */}
+                      <Link 
+                        to={`/products?category=${(hoveredCategory as any).slug}`}
+                        className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-green-600 hover:text-green-700 hover:underline"
+                      >
+                        Voir tous les produits
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+                    
+                    {/* Image grande à droite */}
+                    <div className="w-52 flex-shrink-0 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+                      <img 
+                        src={(hoveredCategory as any).image} 
+                        alt={(hoveredCategory as any).name}
+                        className="w-full h-auto object-cover rounded-xl shadow-lg max-h-[260px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Hero Carousel */}
@@ -547,19 +775,35 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Catégories Mobile */}
+      {/* Catégories Mobile - Utilise les vraies catégories parentes */}
       <section className="lg:hidden py-4 bg-white">
         <div className="container mx-auto px-4">
-          <div className="mb-3">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-gray-900">Catégories</h2>
+            <Link to="/categories" className="text-green-600 text-sm font-medium flex items-center gap-1">
+              Voir tout <ChevronRight className="w-4 h-4" />
+            </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {mainCategories.map((cat) => {
-              const IconComponent = cat.icon
+            {(parentCategories.length > 0 ? parentCategories : mainCategories).slice(0, 12).map((cat: any, index: number) => {
+              const catImage = parentCategories.length > 0 ? getCategoryImage(cat) : cat.image
+              const colors = ['bg-pink-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-blue-500', 'bg-cyan-500', 'bg-red-500', 'bg-teal-500', 'bg-indigo-500', 'bg-amber-500', 'bg-rose-500', 'bg-emerald-500']
+              const bgColor = cat.color || colors[index % colors.length]
+              
               return (
-                <Link key={cat.slug} to={`/categories?cat=${cat.slug}`} className="flex flex-col items-center gap-2 min-w-[70px]">
-                  <div className={`w-14 h-14 rounded-full ${cat.color} flex items-center justify-center text-white shadow-lg`}><IconComponent className="w-6 h-6" /></div>
-                  <span className="text-xs text-gray-700 font-medium text-center">{cat.name}</span>
+                <Link 
+                  key={cat.slug || cat.id} 
+                  to={`/products?category=${cat.slug}`} 
+                  className="flex flex-col items-center gap-2 min-w-[70px]"
+                >
+                  <div className={`w-14 h-14 rounded-full ${bgColor} flex items-center justify-center shadow-lg overflow-hidden ring-2 ring-white`}>
+                    {catImage ? (
+                      <img src={catImage} alt={cat.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Package className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-700 font-medium text-center line-clamp-1 w-16">{cat.name}</span>
                 </Link>
               )
             })}

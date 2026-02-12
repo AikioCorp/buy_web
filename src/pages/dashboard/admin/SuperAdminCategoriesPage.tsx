@@ -23,6 +23,7 @@ const SuperAdminCategoriesPage: React.FC = () => {
   })
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
+  const [removeExistingIcon, setRemoveExistingIcon] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
@@ -69,6 +70,7 @@ const SuperAdminCategoriesPage: React.FC = () => {
     })
     setIconFile(null)
     setIconPreview(category.icon || null)
+    setRemoveExistingIcon(false)
     setIsEditModalOpen(true)
   }
 
@@ -77,14 +79,17 @@ const SuperAdminCategoriesPage: React.FC = () => {
     
     try {
       setActionLoading(true)
+      console.log('Saving category with removeExistingIcon:', removeExistingIcon)
       await categoriesService.updateCategory(editingCategory.slug, {
         ...formData,
-        icon: iconFile || undefined
+        icon: iconFile || undefined,
+        remove_image: removeExistingIcon
       })
       setIsEditModalOpen(false)
       setEditingCategory(null)
       setIconFile(null)
       setIconPreview(null)
+      setRemoveExistingIcon(false)
       loadCategories()
       showToast('Catégorie mise à jour avec succès', 'success')
     } catch (err: any) {
@@ -185,6 +190,8 @@ const SuperAdminCategoriesPage: React.FC = () => {
   const removeIcon = () => {
     setIconFile(null)
     setIconPreview(null)
+    setRemoveExistingIcon(true)
+    console.log('Icon marked for removal')
   }
 
   // Flatten categories for display with hierarchy
@@ -395,10 +402,15 @@ const SuperAdminCategoriesPage: React.FC = () => {
                       <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
                       <button
                         type="button"
-                        onClick={removeIcon}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          removeIcon()
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg z-10"
+                        title="Supprimer l'image"
                       >
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                     </div>
                   ) : (
@@ -516,10 +528,15 @@ const SuperAdminCategoriesPage: React.FC = () => {
                       <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
                       <button
                         type="button"
-                        onClick={removeIcon}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          removeIcon()
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg z-10"
+                        title="Supprimer l'image"
                       >
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                     </div>
                   ) : (

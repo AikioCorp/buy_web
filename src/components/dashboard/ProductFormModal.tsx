@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { 
   X, Upload, Plus, Trash2, Image as ImageIcon, Loader2,
   AlertCircle, CheckCircle, DollarSign, Package, Tag, Info, Layers, Box, Save,
-  Truck, Shield, RefreshCw, Check, Settings
+  Truck, Shield, RefreshCw, Check, Settings, Search
 } from 'lucide-react'
 import { productsService, Product, CreateProductData, Category } from '../../lib/api/productsService'
 import { categoriesService } from '../../lib/api/categoriesService'
@@ -32,7 +32,12 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [categories, setCategories] = useState<Category[]>([])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'general' | 'features' | 'variants' | 'images'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'features' | 'variants' | 'images' | 'seo'>('general')
+  const [categorySearch, setCategorySearch] = useState('')
+  const [categoryIds, setCategoryIds] = useState<number[]>([])
+  const [isInStock, setIsInStock] = useState(true)
+  const [showStockInput, setShowStockInput] = useState(false)
+  const [seoData, setSeoData] = useState({ meta_title: '', meta_description: '', tags: [] as string[] })
 
   const [formData, setFormData] = useState({
     name: '',
@@ -58,6 +63,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [images, setImages] = useState<File[]>([])
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<any[]>([])
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
 
   useEffect(() => {
     if (isOpen) {
@@ -78,7 +84,20 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         })
         // Backend returns 'images' but interface uses 'media'
         setExistingImages((product as any).images || product.media || [])
+        setImagesToDelete([])
         setVariants([])
+        // Catégories multiples
+        const productCatIds = (product as any).category_ids || (product.category?.id ? [product.category.id] : [])
+        setCategoryIds(productCatIds)
+        // Stock
+        setIsInStock((product.stock || 0) > 0)
+        setShowStockInput(product.track_inventory === true)
+        // SEO
+        setSeoData({
+          meta_title: (product as any).meta_title || '',
+          meta_description: (product as any).meta_description || '',
+          tags: (product as any).tags || []
+        })
         setFeatures({
           delivery_time: (product as any).delivery_time || '24-48h',
           warranty_duration: (product as any).warranty_duration || '12 mois',
@@ -101,6 +120,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         setImages([])
         setImagePreviewUrls([])
         setExistingImages([])
+        setImagesToDelete([])
         setVariants([])
         setFeatures({
           delivery_time: '24-48h',
@@ -108,6 +128,11 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           return_policy: '7 jours',
           is_authentic: true,
         })
+        setCategoryIds([])
+        setCategorySearch('')
+        setIsInStock(true)
+        setShowStockInput(false)
+        setSeoData({ meta_title: '', meta_description: '', tags: [] })
       }
       setError(null)
       setSuccess(null)
@@ -170,6 +195,15 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   }
 
   const removeExistingImage = (index: number) => {
+    const imageToRemove = existingImages[index]
+    if (imageToRemove) {
+      // Suivre l'URL de l'image pour la supprimer côté serveur
+      const imageUrl = imageToRemove.file || imageToRemove.image_url
+      if (imageUrl) {
+        setImagesToDelete(prev => [...prev, imageUrl])
+        console.log('Image marquée pour suppression:', imageUrl)
+      }
+    }
     setExistingImages(prev => prev.filter((_, i) => i !== index))
   }
 
@@ -198,13 +232,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setError('Le prix doit être supérieur à 0')
       return false
     }
-    if (!formData.category) {
-      setError('Veuillez sélectionner une catégorie')
+    if (categoryIds.length === 0 && !formData.category) {
+      setError('Veuillez sélectionner au moins une catégorie')
       return false
     }
     
     // Validate variant stocks don't exceed total product stock
-    if (variants.length > 0) {
+    if (variants.length > 0 && showStockInput) {
       const totalVariantStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0)
       const productStock = parseInt(formData.stock) || 0
       
@@ -226,14 +260,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     try {
       setLoading(true)
 
-      const productData: CreateProductData & { stock?: number; low_stock_threshold?: number; is_active?: boolean; promo_price?: string } = {
+      // Déterminer le stock basé sur la gestion
+      const stockValue = showStockInput ? (parseInt(formData.stock) || 0) : (isInStock ? 999999 : 0)
+      
+      const productData: CreateProductData & { stock?: number; low_stock_threshold?: number; is_active?: boolean; promo_price?: string; track_inventory?: boolean; category_ids?: number[]; meta_title?: string; meta_description?: string; tags?: string[] } = {
         name: formData.name,
         slug: formData.slug || generateSlug(formData.name),
         description: formData.description,
         base_price: formData.base_price,
         promo_price: formData.promo_price || undefined,
-        category: parseInt(formData.category),
-        stock: parseInt(formData.stock) || 0,
+        category: categoryIds.length > 0 ? categoryIds[0] : parseInt(formData.category),
+        category_ids: categoryIds.length > 0 ? categoryIds : (formData.category ? [parseInt(formData.category)] : []),
+        stock: stockValue,
+        track_inventory: showStockInput,
         low_stock_threshold: parseInt(formData.low_stock_threshold) || 10,
         is_active: formData.is_active,
         // Product characteristics
@@ -241,17 +280,28 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         warranty_duration: features.warranty_duration,
         return_policy: features.return_policy,
         is_authentic: features.is_authentic,
+        // SEO
+        meta_title: seoData.meta_title || undefined,
+        meta_description: seoData.meta_description || undefined,
+        tags: seoData.tags.length > 0 ? seoData.tags : undefined,
       }
 
       let savedProduct: Product | undefined
 
       if (product) {
-        const response = await productsService.updateProduct(product.id, productData)
+        // Inclure les images à supprimer dans la mise à jour
+        const updateData = {
+          ...productData,
+          images_to_delete: imagesToDelete
+        }
+        const response = await productsService.updateProduct(product.id, updateData)
         if (response.error) {
           throw new Error(response.error)
         }
         savedProduct = response.data
         setSuccess('Produit mis à jour avec succès!')
+        // Réinitialiser les images à supprimer après succès
+        setImagesToDelete([])
       } else {
         const response = await productsService.createProduct(productData)
         if (response.error) {
@@ -261,15 +311,20 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         setSuccess('Produit créé avec succès!')
       }
 
-      // Upload images
+      // Upload images - utiliser la même logique que côté admin
       if (savedProduct && images.length > 0) {
         setUploadingImages(true)
-        for (const image of images) {
-          try {
-            await productsService.uploadProductImage(savedProduct.id, image)
-          } catch (imgError) {
-            console.error('Erreur upload image:', imgError)
+        try {
+          const uploadResult = await productsService.uploadProductImages(savedProduct.id, images)
+          if (uploadResult.errors && uploadResult.errors.length > 0) {
+            console.error('Erreurs upload images:', uploadResult.errors)
+            setError(`${uploadResult.errors.length} image(s) n'ont pas pu être uploadées. Vérifiez que votre boutique est approuvée.`)
+          } else {
+            console.log('✅ Images uploadées avec succès:', uploadResult.data?.length)
           }
+        } catch (imgError: any) {
+          console.error('Erreur upload images:', imgError)
+          setError('Erreur lors de l\'upload des images. Vérifiez que votre boutique est approuvée.')
         }
         setUploadingImages(false)
       }
@@ -390,6 +445,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 Images
               </span>
             </button>
+            <button
+              onClick={() => setActiveTab('seo')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'seo'
+                  ? 'bg-white text-emerald-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Search size={16} />
+                SEO
+              </span>
+            </button>
           </div>
         </div>
 
@@ -500,41 +568,172 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   )}
                 </div>
 
-                {/* Stock */}
+                {/* Stock - Gestion avancée */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quantité en stock
+                    Gestion du stock
                   </label>
-                  <div className="relative">
-                    <Box className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="number"
-                      value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      placeholder="0"
-                      min="0"
-                    />
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={isInStock}
+                        onChange={(e) => {
+                          setIsInStock(e.target.checked)
+                          if (e.target.checked) setShowStockInput(false)
+                        }}
+                        className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div className="flex-1">
+                        <span className={`font-medium ${isInStock ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {isInStock ? '✓ En stock' : '✗ Rupture de stock'}
+                        </span>
+                        {isInStock && !showStockInput && (
+                          <span className="text-sm text-gray-500 ml-2">(illimité)</span>
+                        )}
+                        {showStockInput && formData.stock && (
+                          <span className="text-sm text-gray-500 ml-2">({formData.stock} unités)</span>
+                        )}
+                      </div>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowStockInput(!showStockInput)
+                        if (!showStockInput && !formData.stock) {
+                          setFormData({ ...formData, stock: '100' })
+                        }
+                      }}
+                      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-colors text-sm font-medium ${
+                        showStockInput 
+                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
+                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      }`}
+                    >
+                      <Box size={16} />
+                      {showStockInput ? 'Désactiver la gestion de stock' : 'Gérer le stock (quantité limitée)'}
+                    </button>
+
+                    {showStockInput && (
+                      <div className="p-3 bg-blue-50 rounded-xl">
+                        <p className="text-xs text-blue-600 mb-2">Stock géré avec quantité limitée</p>
+                        <div className="relative">
+                          <Box className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                          <input
+                            type="number"
+                            value={formData.stock}
+                            onChange={(e) => {
+                              const qty = e.target.value
+                              setFormData({ ...formData, stock: qty })
+                              setIsInStock(parseInt(qty) > 0)
+                            }}
+                            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+                            placeholder="Quantité en stock"
+                            min="0"
+                          />
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <button type="button" onClick={() => { setFormData({ ...formData, stock: '0' }); setIsInStock(false) }}
+                            className="flex-1 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium hover:bg-red-200">
+                            Rupture (0)
+                          </button>
+                          <button type="button" onClick={() => { setFormData({ ...formData, stock: '10' }); setIsInStock(true) }}
+                            className="flex-1 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-medium hover:bg-yellow-200">
+                            Faible (10)
+                          </button>
+                          <button type="button" onClick={() => { setFormData({ ...formData, stock: '100' }); setIsInStock(true) }}
+                            className="flex-1 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200">
+                            Normal (100)
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Catégorie */}
+                {/* Catégories multiples avec recherche */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Catégorie <span className="text-red-500">*</span>
+                    Catégories <span className="text-red-500">*</span>
+                    {categoryIds.length > 0 && (
+                      <span className="ml-2 text-emerald-600 font-normal">({categoryIds.length} sélectionnée{categoryIds.length > 1 ? 's' : ''})</span>
+                    )}
                   </label>
-                  <div className="relative">
-                    <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none bg-white"
-                    >
-                      <option value="">Sélectionner une catégorie</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
+                  
+                  {/* Catégories sélectionnées */}
+                  {categoryIds.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                      {categoryIds.map(catId => {
+                        const cat = categories.find(c => c.id === catId)
+                        return cat ? (
+                          <span key={catId} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm">
+                            <Tag size={12} />
+                            {cat.name.replace(/^—\s*/g, '')}
+                            <button
+                              type="button"
+                              onClick={() => setCategoryIds(categoryIds.filter(id => id !== catId))}
+                              className="ml-1 hover:bg-emerald-700 rounded p-0.5 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+
+                  {/* Barre de recherche */}
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      placeholder="Rechercher une catégorie..."
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    />
+                    {categorySearch && (
+                      <button type="button" onClick={() => setCategorySearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Liste des catégories */}
+                  <div className="border rounded-xl bg-white max-h-48 overflow-y-auto">
+                    {categories
+                      .filter(cat => categorySearch === '' || cat.name.toLowerCase().includes(categorySearch.toLowerCase()))
+                      .map(cat => {
+                        const isSelected = categoryIds.includes(cat.id)
+                        const isSubCategory = cat.name.startsWith('—')
+                        return (
+                          <label 
+                            key={cat.id} 
+                            className={`flex items-center gap-3 cursor-pointer px-4 py-2.5 border-b border-gray-100 last:border-b-0 transition-colors ${
+                              isSelected ? 'bg-emerald-50' : 'hover:bg-gray-50'
+                            } ${isSubCategory ? 'pl-8' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setCategoryIds([...categoryIds, cat.id])
+                                } else {
+                                  setCategoryIds(categoryIds.filter(id => id !== cat.id))
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className={`text-sm ${isSelected ? 'text-emerald-700 font-medium' : 'text-gray-700'}`}>
+                              {cat.name}
+                            </span>
+                            {isSelected && <Check size={16} className="ml-auto text-emerald-600" />}
+                          </label>
+                        )
+                      })}
                   </div>
                 </div>
 
@@ -992,15 +1191,148 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               )}
             </div>
           )}
+
+          {/* SEO Tab */}
+          {activeTab === 'seo' && (
+            <div className="space-y-6">
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-start justify-between gap-4">
+                <p className="text-sm text-purple-800">
+                  <strong>SEO :</strong> Optimisez votre produit pour les moteurs de recherche. 
+                  Ces informations aident votre produit à apparaître dans les résultats de recherche.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const generatedTitle = formData.name ? `${formData.name} - Achat en ligne au Mali` : ''
+                    let generatedDesc = ''
+                    if (formData.description) {
+                      generatedDesc = formData.description.slice(0, 140) + (formData.description.length > 140 ? '...' : '')
+                    } else if (formData.name) {
+                      generatedDesc = `Achetez ${formData.name} au meilleur prix sur BuyMore Mali. Livraison rapide et paiement sécurisé.`
+                    }
+                    const generatedTags: string[] = []
+                    if (formData.name) {
+                      const words = formData.name.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+                      generatedTags.push(...words.slice(0, 5))
+                    }
+                    generatedTags.push('achat', 'mali', 'buymore')
+                    
+                    setSeoData({
+                      meta_title: generatedTitle.slice(0, 60),
+                      meta_description: generatedDesc.slice(0, 160),
+                      tags: [...new Set(generatedTags)]
+                    })
+                  }}
+                  className="flex-shrink-0 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
+                >
+                  <RefreshCw size={16} />
+                  Générer auto
+                </button>
+              </div>
+
+              {/* Meta Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre SEO (Meta Title)
+                </label>
+                <input
+                  type="text"
+                  value={seoData.meta_title}
+                  onChange={(e) => setSeoData({ ...seoData, meta_title: e.target.value })}
+                  placeholder={formData.name || 'Titre optimisé pour Google'}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  maxLength={60}
+                />
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-gray-500">Laissez vide pour utiliser le nom du produit</p>
+                  <p className={`text-xs ${seoData.meta_title.length > 60 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {seoData.meta_title.length}/60
+                  </p>
+                </div>
+              </div>
+
+              {/* Meta Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description SEO (Meta Description)
+                </label>
+                <textarea
+                  value={seoData.meta_description}
+                  onChange={(e) => setSeoData({ ...seoData, meta_description: e.target.value })}
+                  placeholder="Description courte et attrayante pour les résultats Google (160 caractères max)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                  rows={3}
+                  maxLength={160}
+                />
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-gray-500">Apparaît sous le titre dans les résultats Google</p>
+                  <p className={`text-xs ${seoData.meta_description.length > 160 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {seoData.meta_description.length}/160
+                  </p>
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags / Mots-clés
+                </label>
+                <input
+                  type="text"
+                  value={seoData.tags.join(', ')}
+                  onChange={(e) => {
+                    const tagsArray = e.target.value.split(',').map(t => t.trim()).filter(Boolean)
+                    setSeoData({ ...seoData, tags: tagsArray })
+                  }}
+                  placeholder="smartphone, téléphone, mobile, samsung (séparés par des virgules)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Séparez les mots-clés par des virgules</p>
+                {seoData.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {seoData.tags.map((tag, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs">
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => setSeoData({ ...seoData, tags: seoData.tags.filter((_, i) => i !== idx) })}
+                          className="hover:text-purple-900"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SEO Preview */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-3 font-medium">Aperçu Google</p>
+                <div className="space-y-1">
+                  <p className="text-blue-700 text-lg hover:underline cursor-pointer truncate">
+                    {seoData.meta_title || formData.name || 'Titre du produit'} | BuyMore
+                  </p>
+                  <p className="text-green-700 text-sm">
+                    buymore.ml › produits › {formData.slug || 'nom-du-produit'}
+                  </p>
+                  <p className="text-gray-600 text-sm line-clamp-2">
+                    {seoData.meta_description || formData.description?.slice(0, 160) || 'Description du produit qui apparaîtra dans les résultats de recherche Google...'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            {activeTab === 'general' && 'Étape 1/4 - Informations générales'}
-            {activeTab === 'features' && 'Étape 2/4 - Caractéristiques'}
-            {activeTab === 'variants' && 'Étape 3/4 - Variantes et stock'}
-            {activeTab === 'images' && 'Étape 4/4 - Images du produit'}
+            {activeTab === 'general' && 'Étape 1/5 - Informations générales'}
+            {activeTab === 'features' && 'Étape 2/5 - Caractéristiques'}
+            {activeTab === 'variants' && 'Étape 3/5 - Variantes et stock'}
+            {activeTab === 'images' && 'Étape 4/5 - Images du produit'}
+            {activeTab === 'seo' && 'Étape 5/5 - Référencement SEO'}
           </div>
           <div className="flex items-center gap-3">
             <button

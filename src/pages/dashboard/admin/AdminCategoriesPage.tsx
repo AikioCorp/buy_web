@@ -32,6 +32,7 @@ const AdminCategoriesPage: React.FC = () => {
   const [formData, setFormData] = useState({ name: '', description: '', parent_id: '' })
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
+  const [removeExistingIcon, setRemoveExistingIcon] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const hasAccess = isSuperAdmin || canViewProducts()
@@ -108,16 +109,19 @@ const AdminCategoriesPage: React.FC = () => {
     }
     try {
       setSaving(true)
+      console.log('Updating category with removeExistingIcon:', removeExistingIcon)
       await categoriesService.updateCategory(selectedCategory.slug, {
         name: formData.name,
         slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
         parent: formData.parent_id ? parseInt(formData.parent_id) : undefined,
-        icon: iconFile || undefined
+        icon: iconFile || undefined,
+        remove_image: removeExistingIcon
       })
       showToast('Catégorie mise à jour', 'success')
       setIsEditModalOpen(false)
       setIconFile(null)
       setIconPreview(null)
+      setRemoveExistingIcon(false)
       loadCategories()
     } catch (err: any) {
       showToast(err.message || 'Erreur', 'error')
@@ -150,6 +154,7 @@ const AdminCategoriesPage: React.FC = () => {
     })
     setIconFile(null)
     setIconPreview(category.image || null)
+    setRemoveExistingIcon(false)
     setIsEditModalOpen(true)
   }
 
@@ -168,6 +173,8 @@ const AdminCategoriesPage: React.FC = () => {
   const removeIcon = () => {
     setIconFile(null)
     setIconPreview(null)
+    setRemoveExistingIcon(true)
+    console.log('Icon marked for removal')
   }
 
   const filteredCategories = categories.filter(cat =>
@@ -366,10 +373,15 @@ const AdminCategoriesPage: React.FC = () => {
                       <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
                       <button
                         type="button"
-                        onClick={removeIcon}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          removeIcon()
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg z-10"
+                        title="Supprimer l'image"
                       >
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                     </div>
                   ) : (
@@ -462,10 +474,15 @@ const AdminCategoriesPage: React.FC = () => {
                       <img src={iconPreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" />
                       <button
                         type="button"
-                        onClick={removeIcon}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          removeIcon()
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg z-10"
+                        title="Supprimer l'image"
                       >
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                     </div>
                   ) : (

@@ -9,7 +9,9 @@ export interface Category {
   name: string;
   slug: string;
   icon?: string;
+  image?: string;
   parent: number | null;
+  parent_id?: number | null;
   en_vedette?: boolean;
   children: Category[];
 }
@@ -20,6 +22,7 @@ export interface CreateCategoryData {
   parent?: number | null;
   en_vedette?: boolean;
   icon?: File | string;
+  remove_image?: boolean;
 }
 
 export const categoriesService = {
@@ -112,8 +115,15 @@ export const categoriesService = {
       return { data: response.data, status: response.status };
     }
 
+    // If remove_image is true, include it in the request
+    const requestData: any = { ...data };
+    if (data.remove_image) {
+      requestData.image = null; // Set image to null to remove it
+    }
+    delete requestData.icon; // Remove icon field if not a File
+
     // Otherwise use JSON
-    const response = await apiClient.patch<Category>(`/api/categories/${slug}`, data);
+    const response = await apiClient.patch<Category>(`/api/categories/${slug}`, requestData);
     if (response.error) {
       throw new Error(response.error);
     }

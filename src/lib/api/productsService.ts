@@ -193,6 +193,38 @@ export const productsService = {
   },
 
   /**
+   * Upload de plusieurs images pour un produit (Vendeur)
+   * POST /api/my-products/{product_id}/upload-image/
+   */
+  async uploadProductImages(productId: number, images: File[]) {
+    const endpoint = `/api/my-products/${productId}/upload-image`;
+    const results = [];
+    const errors = [];
+
+    for (const image of images) {
+      try {
+        const response = await apiClient.upload(endpoint, image, 'image');
+        
+        if (response.error) {
+          console.error('Erreur upload image:', response.error);
+          errors.push(response.error);
+        } else {
+          results.push(response);
+        }
+      } catch (error: any) {
+        console.error('Erreur upload image:', error);
+        errors.push(error.message || 'Erreur inconnue');
+      }
+    }
+
+    return {
+      data: results.map(r => r.data).filter(Boolean),
+      errors,
+      status: errors.length === 0 ? 200 : (results.length > 0 ? 207 : 400)
+    };
+  },
+
+  /**
    * Sauvegarder les variantes d'un produit
    */
   async saveProductVariants(productId: number, variants: Array<{
