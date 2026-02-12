@@ -20,13 +20,13 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
   // Get images
   const mediaArray = (product as any).images || product.media || []
   const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
-  
+
   const getImageUrl = (img: any) => {
-    let url = img?.image_url || img?.file
+    let url = img?.image_url || img?.file || img?.image
     if (!url) return null
     if (url.startsWith('http://')) url = url.replace('http://', 'https://')
     if (url.startsWith('https://')) return url
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
     return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
   }
 
@@ -77,7 +77,7 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                   </div>
                 )}
               </div>
-              
+
               {/* Thumbnails */}
               {mediaArray.length > 1 && (
                 <div className="grid grid-cols-4 gap-2">
@@ -96,11 +96,10 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
               <div>
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-2xl font-bold text-gray-900">{product.name}</h3>
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                    product.is_active !== false
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${product.is_active !== false
                       ? 'bg-emerald-100 text-emerald-700'
                       : 'bg-gray-100 text-gray-600'
-                  }`}>
+                    }`}>
                     {product.is_active !== false ? 'Actif' : 'Inactif'}
                   </span>
                 </div>
@@ -122,13 +121,12 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <TrendingUp size={18} className="text-gray-400" />
-                  <span className={`text-sm font-semibold ${
-                    (product.stock || 0) === 0 
+                  <span className={`text-sm font-semibold ${(product.stock || 0) === 0
                       ? 'text-red-600'
-                      : (product.stock || 0) <= (product.low_stock_threshold || 10) 
-                        ? 'text-amber-600' 
+                      : (product.stock || 0) <= (product.low_stock_threshold || 10)
+                        ? 'text-amber-600'
                         : 'text-emerald-600'
-                  }`}>
+                    }`}>
                     {product.stock || 0} en stock
                   </span>
                 </div>
@@ -153,7 +151,7 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                     </div>
                   </div>
                 )}
-                
+
                 {(product as any).warranty_duration && (
                   <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg">
                     <Shield size={20} className="text-purple-600 flex-shrink-0 mt-0.5" />
@@ -163,7 +161,7 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                     </div>
                   </div>
                 )}
-                
+
                 {(product as any).return_policy && (
                   <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
                     <RotateCcw size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
@@ -173,7 +171,7 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                     </div>
                   </div>
                 )}
-                
+
                 {(product as any).is_authentic && (
                   <div className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg">
                     <CheckCircle size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />

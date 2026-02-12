@@ -4,8 +4,11 @@ import { shopsService, Shop } from '@/lib/api/shopsService'
 import { productsService, Product } from '@/lib/api/productsService'
 import { CardContent } from '@/components/Card'
 import { Package, Store, Star, ShoppingBag, Heart, ShoppingCart, Eye, ChevronRight, MapPin, ArrowLeft, MessageCircle } from 'lucide-react'
+import { useFavoritesStore } from '@/store/favoritesStore'
+import { useCartStore } from '@/store/cartStore'
+import { useToast } from '@/components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 const formatPrice = (price: number | string, currency: string = 'XOF') => {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price
@@ -41,6 +44,9 @@ export function ShopDetailPage() {
   const [products, setProducts] = useState<(Product | any)[]>([])
   const [loading, setLoading] = useState(true)
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
+  const { toggleFavorite, isFavorite } = useFavoritesStore()
+  const addItem = useCartStore((state) => state.addItem)
+  const { showToast } = useToast()
 
   useEffect(() => {
     if (id) {
@@ -251,13 +257,38 @@ export function ShopDetailPage() {
                     <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 transition-all duration-300 ${
                       hoveredProduct === product.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                     }`}>
-                      <button className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors">
-                        <Heart className="w-4 h-4" />
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const added = toggleFavorite(product);
+                          showToast(added ? 'Ajouté aux favoris !' : 'Retiré des favoris', 'success');
+                        }}
+                        className={`w-8 h-8 rounded-full shadow flex items-center justify-center transition-colors ${
+                          isFavorite(product.id) ? 'bg-red-500 text-white' : 'bg-white hover:bg-red-500 hover:text-white'
+                        }`}
+                      >
+                        <Heart className={`w-4 h-4 ${isFavorite(product.id) ? 'fill-current' : ''}`} />
                       </button>
-                      <button className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors">
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addItem(product, 1);
+                          showToast(`${product.name} ajouté au panier !`, 'success');
+                        }}
+                        className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors"
+                      >
                         <ShoppingCart className="w-4 h-4" />
                       </button>
-                      <button className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors">
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          navigate(`/products/${product.slug || product.id}`);
+                        }}
+                        className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                     </div>

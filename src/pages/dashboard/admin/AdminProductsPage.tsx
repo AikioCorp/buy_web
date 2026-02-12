@@ -11,7 +11,7 @@ import { usePermissions } from '../../../hooks/usePermissions'
 import { useToast } from '../../../components/Toast'
 import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 // Fonction utilitaire pour construire l'URL de l'image
 const getProductImageUrl = (media?: ProductMedia[], images?: ProductMedia[]): string | null => {
@@ -57,7 +57,7 @@ const AdminProductsPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Product>>({})
   const [actionLoading, setActionLoading] = useState(false)
 
-  const pageSize = 20
+  const pageSize = 50
 
   // Stats
   const stats = {
@@ -99,7 +99,7 @@ const AdminProductsPage: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await productsService.getAllProductsAdmin({ page: currentPage, search: searchQuery })
+      const response = await productsService.getAllProductsAdmin({ page: currentPage, page_size: pageSize, search: searchQuery })
       if (response.data) {
         if (Array.isArray(response.data)) {
           setProducts(response.data)
@@ -154,10 +154,23 @@ const AdminProductsPage: React.FC = () => {
           category_id: data.category_id,
           store_id: data.store_id
         } as any)
+        
+        // Upload new images if any
+        if (data.images && data.images.length > 0) {
+          try {
+            for (const image of data.images) {
+              await productsService.uploadProductImage(editingProduct.id, image)
+            }
+          } catch (imgErr: any) {
+            console.error('Erreur upload images:', imgErr)
+            showToast('Produit mis à jour mais erreur lors de l\'upload des images', 'warning')
+          }
+        }
+        
         showToast('Produit mis à jour avec succès', 'success')
       } else {
         // Create new product
-        await productsService.createProduct({
+        const result = await productsService.createProduct({
           name: data.name,
           slug: data.slug,
           description: data.description,
@@ -167,6 +180,19 @@ const AdminProductsPage: React.FC = () => {
           category_id: data.category_id,
           store_id: data.store_id
         } as any)
+        
+        // Upload images if any
+        if (result.data?.id && data.images && data.images.length > 0) {
+          try {
+            for (const image of data.images) {
+              await productsService.uploadProductImage(result.data.id, image)
+            }
+          } catch (imgErr: any) {
+            console.error('Erreur upload images:', imgErr)
+            showToast('Produit créé mais erreur lors de l\'upload des images', 'warning')
+          }
+        }
+        
         showToast('Produit créé avec succès', 'success')
       }
       
@@ -516,6 +542,29 @@ const AdminProductsPage: React.FC = () => {
           description: editingProduct.description || '',
           base_price: editingProduct.base_price,
           category_id: editingProduct.category?.id || null,
+          category_ids: (() => {
+            // Extract category IDs with multiple strategies
+            let ids: number[] = []
+            
+            // Strategy 1: categories array
+            if ((editingProduct as any).categories && Array.isArray((editingProduct as any).categories)) {
+              ids = (editingProduct as any).categories
+                .map((c: any) => c.category?.id || c.category_id || c.id)
+                .filter((id: any) => id != null)
+            }
+            
+            // Strategy 2: single category object
+            if (ids.length === 0 && editingProduct.category?.id) {
+              ids = [editingProduct.category.id]
+            }
+            
+            // Strategy 3: category_id field
+            if (ids.length === 0 && (editingProduct as any).category_id) {
+              ids = [(editingProduct as any).category_id]
+            }
+            
+            return ids
+          })(),
           store_id: (editingProduct.store?.id || editingProduct.shop?.id) || null,
           stock_quantity: editingProduct.stock || 0,
           sku: '',

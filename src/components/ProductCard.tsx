@@ -11,7 +11,7 @@ interface ProductCardProps {
   showDiscount?: boolean
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 const getImageUrl = (product: any): string | undefined => {
   if (!product?.media || product.media.length === 0) return undefined

@@ -2,16 +2,37 @@ import React, { useState, useEffect } from 'react'
 import { Search, Package, CheckCircle, Clock, XCircle, Calendar, Loader2, Truck, Eye, X, AlertTriangle, Phone, MapPin, CreditCard } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
-const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
-  if (!media || media.length === 0) return null
-  const primaryImage = media.find(m => m.is_primary) || media[0]
-  let url = primaryImage?.image_url || primaryImage?.file
-  if (!url) return null
-  if (url.startsWith('http://')) url = url.replace('http://', 'https://')
-  if (url.startsWith('https://')) return url
-  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+const getImageUrl = (item: any): string | null => {
+  if (!item) return null;
+
+  // 1. Try direct product_image field (often used in OrderItem responses)
+  if (item.product_image) {
+    const url = item.product_image;
+    if (url.startsWith('http://')) return url.replace('http://', 'https://');
+    if (url.startsWith('https://')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+
+  // 2. Try nested product.media or product.images
+  const product = item.product || item;
+  const mediaArray = product?.media || product?.images || [];
+
+  if (Array.isArray(mediaArray) && mediaArray.length > 0) {
+    const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0];
+    let url = primaryImage?.image_url || primaryImage?.file || primaryImage?.image;
+
+    if (url) {
+      if (typeof url === 'string') {
+        if (url.startsWith('http://')) return url.replace('http://', 'https://');
+        if (url.startsWith('https://')) return url;
+        return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+      }
+    }
+  }
+
+  return null;
 }
 
 const OrdersPage: React.FC = () => {
@@ -39,7 +60,7 @@ const OrdersPage: React.FC = () => {
       console.log('Orders response:', response)
       console.log('Orders response.data type:', typeof response.data)
       console.log('Orders response.data:', JSON.stringify(response.data, null, 2))
-      
+
       if (response.data) {
         if (Array.isArray(response.data)) {
           console.log('Orders array:', response.data.length, 'orders')
@@ -79,7 +100,7 @@ const OrdersPage: React.FC = () => {
   // Filter orders based on active tab and search
   const filteredOrders = orders.filter(order => {
     const matchesTab = activeTab === 'all' || order.status === activeTab
-    const matchesSearch = searchQuery === '' || 
+    const matchesSearch = searchQuery === '' ||
       order.id.toString().includes(searchQuery) ||
       order.items?.some(item => item.product?.name?.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesTab && matchesSearch
@@ -205,7 +226,7 @@ const OrdersPage: React.FC = () => {
         <XCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
         <h3 className="text-lg font-medium text-red-800">Erreur</h3>
         <p className="text-red-600 mt-1">{error}</p>
-        <button 
+        <button
           onClick={loadOrders}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
         >
@@ -240,67 +261,61 @@ const OrdersPage: React.FC = () => {
       {/* Status Tabs */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
         <div className="flex overflow-x-auto p-2 gap-2 border-b border-gray-200">
-          <button 
+          <button
             onClick={() => setActiveTab('all')}
-            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              activeTab === 'all' 
-                ? 'bg-green-600 text-white shadow-sm' 
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'all'
+                ? 'bg-green-600 text-white shadow-sm'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             Toutes <span className="ml-1 font-bold">({orderCounts.all})</span>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${
-              activeTab === 'pending' 
-                ? 'bg-yellow-500 text-white shadow-sm' 
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${activeTab === 'pending'
+                ? 'bg-yellow-500 text-white shadow-sm'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <Clock size={16} />
             En attente <span className="ml-1 font-bold">({orderCounts.pending})</span>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('processing')}
-            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${
-              activeTab === 'processing' 
-                ? 'bg-purple-600 text-white shadow-sm' 
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${activeTab === 'processing'
+                ? 'bg-purple-600 text-white shadow-sm'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <Package size={16} />
             En préparation <span className="ml-1 font-bold">({orderCounts.processing})</span>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('shipped')}
-            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${
-              activeTab === 'shipped' 
-                ? 'bg-indigo-600 text-white shadow-sm' 
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${activeTab === 'shipped'
+                ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <Truck size={16} />
             Expédiées <span className="ml-1 font-bold">({orderCounts.shipped})</span>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('delivered')}
-            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${
-              activeTab === 'delivered' 
-                ? 'bg-green-600 text-white shadow-sm' 
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${activeTab === 'delivered'
+                ? 'bg-green-600 text-white shadow-sm'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <CheckCircle size={16} />
             Livrées <span className="ml-1 font-bold">({orderCounts.delivered})</span>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('cancelled')}
-            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${
-              activeTab === 'cancelled' 
-                ? 'bg-red-600 text-white shadow-sm' 
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-colors ${activeTab === 'cancelled'
+                ? 'bg-red-600 text-white shadow-sm'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <XCircle size={16} />
             Annulées <span className="ml-1 font-bold">({orderCounts.cancelled})</span>
@@ -323,17 +338,17 @@ const OrdersPage: React.FC = () => {
                     <div className="flex gap-4 flex-1">
                       {/* Image du premier produit */}
                       <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
-                    {order.items?.[0]?.product?.media && getImageUrl(order.items[0].product.media) ? (
-                      <img 
-                        src={getImageUrl(order.items[0].product.media)!} 
-                        alt={order.items[0].product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="w-6 h-6 text-gray-400" />
-                      </div>
-                    )}
+                        {getImageUrl(order.items?.[0]) ? (
+                          <img
+                            src={getImageUrl(order.items![0])!}
+                            alt={order.items?.[0]?.product?.name || 'Produit'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-3 mb-2">
@@ -362,7 +377,7 @@ const OrdersPage: React.FC = () => {
                       <div className="text-2xl font-bold text-green-600">
                         {formatPrice(order.total_amount)}
                       </div>
-                      <button 
+                      <button
                         onClick={() => handleViewOrder(order)}
                         className="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 font-medium"
                       >
@@ -384,7 +399,7 @@ const OrdersPage: React.FC = () => {
             </div>
             <h3 className="text-lg font-medium">Aucune commande trouvée</h3>
             <p className="text-gray-500 mt-1">
-              {orders.length === 0 
+              {orders.length === 0
                 ? "Vous n'avez pas encore passé de commande"
                 : `Aucune commande ${activeTab !== 'all' ? getStatusText(activeTab as OrderStatus).toLowerCase() : ''}`
               }
@@ -399,14 +414,14 @@ const OrdersPage: React.FC = () => {
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-xl font-bold">Commande #{viewingOrder.id}</h2>
-              <button 
+              <button
                 onClick={() => setIsViewModalOpen(false)}
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               {/* Order Progress Timeline */}
               <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6">
@@ -414,19 +429,19 @@ const OrdersPage: React.FC = () => {
                 <div className="relative">
                   {/* Progress Line */}
                   <div className="absolute top-5 left-0 right-0 h-1 bg-gray-200 rounded-full">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500"
-                      style={{ 
+                      style={{
                         width: viewingOrder.status === 'pending' ? '0%' :
-                               viewingOrder.status === 'confirmed' ? '25%' :
-                               viewingOrder.status === 'processing' ? '50%' :
-                               viewingOrder.status === 'shipped' ? '75%' :
-                               viewingOrder.status === 'delivered' ? '100%' :
-                               viewingOrder.status === 'cancelled' ? '0%' : '0%'
+                          viewingOrder.status === 'confirmed' ? '25%' :
+                            viewingOrder.status === 'processing' ? '50%' :
+                              viewingOrder.status === 'shipped' ? '75%' :
+                                viewingOrder.status === 'delivered' ? '100%' :
+                                  viewingOrder.status === 'cancelled' ? '0%' : '0%'
                       }}
                     />
                   </div>
-                  
+
                   {/* Steps */}
                   <div className="flex justify-between relative">
                     {[
@@ -442,18 +457,16 @@ const OrdersPage: React.FC = () => {
                       const stepIndex = statusOrder.indexOf(step.key)
                       const isActive = stepIndex <= currentIndex && viewingOrder.status !== 'cancelled'
                       const isCurrent = step.key === viewingOrder.status
-                      
+
                       return (
                         <div key={step.key} className="flex flex-col items-center">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                            isCurrent ? 'bg-green-600 text-white ring-4 ring-green-200 scale-110' :
-                            isActive ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isCurrent ? 'bg-green-600 text-white ring-4 ring-green-200 scale-110' :
+                              isActive ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'
+                            }`}>
                             <StepIcon size={18} />
                           </div>
-                          <span className={`text-xs mt-2 font-medium ${
-                            isCurrent ? 'text-green-700' : isActive ? 'text-green-600' : 'text-gray-400'
-                          }`}>
+                          <span className={`text-xs mt-2 font-medium ${isCurrent ? 'text-green-700' : isActive ? 'text-green-600' : 'text-gray-400'
+                            }`}>
                             {step.label}
                           </span>
                         </div>
@@ -461,7 +474,7 @@ const OrdersPage: React.FC = () => {
                     })}
                   </div>
                 </div>
-                
+
                 {/* Cancelled State */}
                 {viewingOrder.status === 'cancelled' && (
                   <div className="mt-4 p-3 bg-red-100 rounded-xl flex items-center gap-3">
@@ -494,10 +507,10 @@ const OrdersPage: React.FC = () => {
                     (viewingOrder as any).order_items.map((item: any) => (
                       <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-xl">
                         <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                          {item.product_image ? (
-                            <img 
-                              src={item.product_image.startsWith('http') ? item.product_image : `${API_BASE_URL}${item.product_image}`} 
-                              alt={item.product_name}
+                          {getImageUrl(item) ? (
+                            <img
+                              src={getImageUrl(item)!}
+                              alt={item.product_name || 'Produit'}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -522,10 +535,10 @@ const OrdersPage: React.FC = () => {
                     viewingOrder.items.map((item) => (
                       <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-xl">
                         <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                          {item.product?.media && getImageUrl(item.product.media) ? (
-                            <img 
-                              src={getImageUrl(item.product.media)!} 
-                              alt={item.product.name}
+                          {getImageUrl(item) ? (
+                            <img
+                              src={getImageUrl(item)!}
+                              alt={item.product?.name || 'Produit'}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -583,9 +596,9 @@ const OrdersPage: React.FC = () => {
                   Paiement
                 </h3>
                 <p className="text-sm text-gray-600">
-                  {(viewingOrder as any).payment_method === 'cash_on_delivery' ? 'Paiement à la livraison' : 
-                   (viewingOrder as any).payment_method === 'mobile_money' ? 'Mobile Money' : 
-                   (viewingOrder as any).payment_method || 'Non spécifié'}
+                  {(viewingOrder as any).payment_method === 'cash_on_delivery' ? 'Paiement à la livraison' :
+                    (viewingOrder as any).payment_method === 'mobile_money' ? 'Mobile Money' :
+                      (viewingOrder as any).payment_method || 'Non spécifié'}
                 </p>
               </div>
 

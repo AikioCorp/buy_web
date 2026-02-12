@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
   X, Save, Plus, Trash2, Upload, Image as ImageIcon, 
-  Package, Tag, DollarSign, Layers, Box, Info, Truck, Shield, RefreshCw, Check, Settings
+  Package, Tag, DollarSign, Layers, Box, Info, Truck, Shield, RefreshCw, Check, Settings, AlertCircle
 } from 'lucide-react'
 import { Category } from '../../lib/api/categoriesService'
 import { Shop } from '../../lib/api/shopsService'
@@ -28,6 +28,7 @@ export interface ProductFormData {
   base_price: string
   promo_price?: string
   category_id: number | null
+  category_ids?: number[]
   store_id: number | null
   stock_quantity: number
   sku: string
@@ -66,6 +67,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     base_price: '',
     promo_price: '',
     category_id: null,
+    category_ids: [],
     store_id: null,
     stock_quantity: 0,
     sku: '',
@@ -94,6 +96,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         base_price: initialData.base_price || '',
         promo_price: initialData.promo_price || '',
         category_id: initialData.category_id || null,
+        category_ids: initialData.category_ids || [],
         store_id: initialData.store_id || null,
         stock_quantity: initialData.stock_quantity || 0,
         sku: initialData.sku || '',
@@ -191,8 +194,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!formData.base_price || parseFloat(formData.base_price) <= 0) {
       newErrors.base_price = 'Le prix doit être supérieur à 0'
     }
-    if (!formData.category_id) {
-      newErrors.category_id = 'La catégorie est requise'
+    if (!formData.category_ids || formData.category_ids.length === 0) {
+      newErrors.category_ids = 'Au moins une catégorie est requise'
     }
     if (!formData.store_id) {
       newErrors.store_id = 'La boutique est requise'
@@ -315,6 +318,26 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Validation Errors Alert */}
+          {Object.keys(errors).length > 0 && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-red-900 mb-2">Erreurs de validation</h4>
+                  <ul className="space-y-1 text-sm text-red-700">
+                    {Object.entries(errors).map(([field, message]) => (
+                      <li key={field} className="flex items-start gap-2">
+                        <span className="text-red-500">•</span>
+                        <span><strong>{field === 'name' ? 'Nom' : field === 'base_price' ? 'Prix' : field === 'category_ids' ? 'Catégories' : field === 'store_id' ? 'Boutique' : field}:</strong> {message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* General Tab */}
           {activeTab === 'general' && (
             <div className="space-y-6">
@@ -430,27 +453,53 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   </div>
                 </div>
 
-                {/* Catégorie */}
-                <div>
+                {/* Catégories (Multiple) */}
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Catégorie <span className="text-red-500">*</span>
+                    Catégories <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <select
-                      value={formData.category_id || ''}
-                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value ? parseInt(e.target.value) : null })}
-                      className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white ${
-                        errors.category_id ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <option value="">Sélectionner une catégorie</option>
+                  <div className="border rounded-xl p-4 bg-gray-50 max-h-60 overflow-y-auto">
+                    <div className="space-y-2">
                       {flatCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <label key={cat.id} className="flex items-center gap-3 cursor-pointer hover:bg-white p-2 rounded-lg transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={formData.category_ids?.includes(cat.id) || false}
+                            onChange={(e) => {
+                              const currentIds = formData.category_ids || []
+                              if (e.target.checked) {
+                                setFormData({ ...formData, category_ids: [...currentIds, cat.id] })
+                              } else {
+                                setFormData({ ...formData, category_ids: currentIds.filter(id => id !== cat.id) })
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                          />
+                          <span className="text-sm text-gray-700">{cat.name}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   </div>
-                  {errors.category_id && <p className="text-red-500 text-sm mt-1">{errors.category_id}</p>}
+                  {formData.category_ids && formData.category_ids.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formData.category_ids.map(catId => {
+                        const cat = flatCategories.find(c => c.id === catId)
+                        return cat ? (
+                          <span key={catId} className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                            {cat.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, category_ids: formData.category_ids?.filter(id => id !== catId) })}
+                              className="hover:text-green-900"
+                            >
+                              <X size={14} />
+                            </button>
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                  {errors.category_ids && <p className="text-red-500 text-sm mt-1">{errors.category_ids}</p>}
                 </div>
 
                 {/* Boutique */}

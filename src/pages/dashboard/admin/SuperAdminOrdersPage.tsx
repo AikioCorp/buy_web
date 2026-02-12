@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { 
+import {
   Search, ShoppingBag, Eye, X, Truck, CheckCircle, XCircle, Clock, Package,
-  ArrowRightLeft, Store, AlertTriangle, Loader2, RefreshCw, Phone, MapPin, 
+  ArrowRightLeft, Store, AlertTriangle, Loader2, RefreshCw, Phone, MapPin,
   CreditCard, Edit
 } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 import { shopsService } from '../../../lib/api/shopsService'
 import { useToast } from '../../../components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 interface Shop {
   id: number
@@ -16,16 +16,35 @@ interface Shop {
   is_active: boolean
 }
 
-const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
-  if (!media || media.length === 0) return null
-  const primaryImage = media.find(m => m.is_primary) || media[0]
-  let url = primaryImage?.image_url || primaryImage?.file
-  if (!url) return null
-  if (url.startsWith('http://')) {
-    url = url.replace('http://', 'https://')
+const getImageUrl = (item: any): string | null => {
+  if (!item) return null;
+
+  // 1. Try direct product_image field (often used in OrderItem responses)
+  if (item.product_image) {
+    const url = item.product_image;
+    if (url.startsWith('http://')) return url.replace('http://', 'https://');
+    if (url.startsWith('https://')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
   }
-  if (url.startsWith('https://')) return url
-  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+
+  // 2. Try nested product.media or product.images
+  const product = item.product || item;
+  const mediaArray = product?.media || product?.images || [];
+
+  if (Array.isArray(mediaArray) && mediaArray.length > 0) {
+    const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0];
+    let url = primaryImage?.image_url || primaryImage?.file || primaryImage?.image;
+
+    if (url) {
+      if (typeof url === 'string') {
+        if (url.startsWith('http://')) return url.replace('http://', 'https://');
+        if (url.startsWith('https://')) return url;
+        return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+      }
+    }
+  }
+
+  return null;
 }
 
 const SuperAdminOrdersPage: React.FC = () => {
@@ -38,7 +57,7 @@ const SuperAdminOrdersPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('')
-  
+
   // Modals
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
@@ -51,7 +70,7 @@ const SuperAdminOrdersPage: React.FC = () => {
   const [transferShopId, setTransferShopId] = useState<number | null>(null)
   const [transferReason, setTransferReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
-  
+
   // Filtres avancés
   const [selectedShopId, setSelectedShopId] = useState<number | null>(null)
 
@@ -82,7 +101,7 @@ const SuperAdminOrdersPage: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await ordersService.getAllOrdersAdmin({
         page: currentPage,
         status: selectedStatus || undefined,
@@ -97,13 +116,13 @@ const SuperAdminOrdersPage: React.FC = () => {
         // Handle nested success wrapper: {success: true, data: {...}}
         const responseData = response.data as any
         console.log('Full response structure:', JSON.stringify(responseData, null, 2))
-        
+
         // Check for nested data structure: {success: true, data: {results: [...], count: N}}
         let actualData = responseData
         if (responseData.success && responseData.data) {
           actualData = responseData.data
         }
-        
+
         if (Array.isArray(actualData)) {
           console.log('Orders array:', actualData.length)
           setOrders(actualData)
@@ -157,7 +176,7 @@ const SuperAdminOrdersPage: React.FC = () => {
 
   const handleUpdateStatus = async () => {
     if (!orderToUpdate) return
-    
+
     try {
       setActionLoading(true)
       await ordersService.updateOrderStatus(orderToUpdate.id, newStatus)
@@ -177,7 +196,7 @@ const SuperAdminOrdersPage: React.FC = () => {
     setOrderToTransfer(order)
     setTransferShopId(null)
     setTransferReason('')
-    
+
     // Charger les boutiques si pas encore fait
     if (shops.length === 0) {
       try {
@@ -190,17 +209,17 @@ const SuperAdminOrdersPage: React.FC = () => {
         console.error('Erreur chargement boutiques:', err)
       }
     }
-    
+
     setIsTransferModalOpen(true)
   }
 
   const handleTransferOrder = async () => {
     if (!orderToTransfer || !transferShopId || !transferReason.trim()) return
-    
+
     try {
       setActionLoading(true)
       await ordersService.transferOrder(orderToTransfer.id, transferShopId, transferReason)
-      
+
       setIsTransferModalOpen(false)
       setOrderToTransfer(null)
       setTransferShopId(null)
@@ -357,7 +376,7 @@ const SuperAdminOrdersPage: React.FC = () => {
                 />
               </div>
             </form>
-            
+
             <div className="flex gap-3">
               {/* Filtre par boutique */}
               <select
@@ -373,7 +392,7 @@ const SuperAdminOrdersPage: React.FC = () => {
                   <option key={shop.id} value={shop.id}>{shop.name}</option>
                 ))}
               </select>
-              
+
               {/* Filtre par statut */}
               <select
                 value={selectedStatus}
@@ -423,8 +442,8 @@ const SuperAdminOrdersPage: React.FC = () => {
                 const orderItems = (order as any).order_items || order.items || []
                 const itemsCount = orderItems.length
                 return (
-                  <div 
-                    key={order.id} 
+                  <div
+                    key={order.id}
                     className="p-5 hover:bg-gray-50/50 transition-colors cursor-pointer"
                     onClick={() => handleViewOrder(order)}
                   >
@@ -439,7 +458,7 @@ const SuperAdminOrdersPage: React.FC = () => {
                             <span className="font-semibold text-gray-900">
                               {(order as any).shipping_full_name || `Client #${order.customer}`}
                             </span>
-                            <button 
+                            <button
                               onClick={(e) => { e.stopPropagation(); handleStatusClick(order); }}
                               className="hover:scale-105 transition-transform"
                             >
@@ -471,26 +490,26 @@ const SuperAdminOrdersPage: React.FC = () => {
                         <div className="text-right">
                           <p className="text-lg font-bold text-green-600">{formatPrice(order.total_amount)}</p>
                           <p className="text-xs text-gray-400">
-                            {(order as any).payment_method === 'cash_on_delivery' ? 'À la livraison' : 
-                             (order as any).payment_method === 'mobile_money' ? 'Mobile Money' : ''}
+                            {(order as any).payment_method === 'cash_on_delivery' ? 'À la livraison' :
+                              (order as any).payment_method === 'mobile_money' ? 'Mobile Money' : ''}
                           </p>
                         </div>
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <button 
+                          <button
                             onClick={() => handleViewOrder(order)}
                             className="p-2.5 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-colors"
                             title="Voir les détails"
                           >
                             <Eye size={18} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleStatusClick(order)}
                             className="p-2.5 text-green-600 hover:bg-green-100 rounded-xl transition-colors"
                             title="Modifier le statut"
                           >
                             <Edit size={18} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleTransferClick(order)}
                             className="p-2.5 text-orange-600 hover:bg-orange-100 rounded-xl transition-colors"
                             title="Transférer"
@@ -550,7 +569,7 @@ const SuperAdminOrdersPage: React.FC = () => {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -594,8 +613,8 @@ const SuperAdminOrdersPage: React.FC = () => {
                   <div className="text-sm space-y-1">
                     <p className="font-medium text-gray-900">
                       {(viewingOrder as any).payment_method === 'cash_on_delivery' ? 'Paiement à la livraison' :
-                       (viewingOrder as any).payment_method === 'mobile_money' ? 'Mobile Money' :
-                       (viewingOrder as any).payment_method || 'Non spécifié'}
+                        (viewingOrder as any).payment_method === 'mobile_money' ? 'Mobile Money' :
+                          (viewingOrder as any).payment_method || 'Non spécifié'}
                     </p>
                     <p className="text-gray-600">Sous-total: {formatPrice((viewingOrder as any).subtotal || '0')}</p>
                     <p className="text-gray-600">Livraison: {formatPrice((viewingOrder as any).delivery_fee || '0')}</p>
@@ -611,10 +630,10 @@ const SuperAdminOrdersPage: React.FC = () => {
                     (viewingOrder as any).order_items.map((item: any) => (
                       <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
                         <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                          {item.product_image ? (
-                            <img 
-                              src={item.product_image.startsWith('http') ? item.product_image : `${API_BASE_URL}${item.product_image}`}
-                              alt={item.product_name}
+                          {getImageUrl(item) ? (
+                            <img
+                              src={getImageUrl(item)!}
+                              alt={item.product_name || 'Produit'}
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -637,9 +656,9 @@ const SuperAdminOrdersPage: React.FC = () => {
                     viewingOrder.items.map((item) => (
                       <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
                         <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                          {getImageUrl(item.product?.media) ? (
-                            <img 
-                              src={getImageUrl(item.product?.media)!} 
+                          {getImageUrl(item) ? (
+                            <img
+                              src={getImageUrl(item)!}
                               alt={item.product?.name || 'Produit'}
                               className="h-full w-full object-cover"
                             />
@@ -713,7 +732,7 @@ const SuperAdminOrdersPage: React.FC = () => {
               <h2 className="text-xl font-bold text-gray-900">Modifier le statut</h2>
               <p className="text-sm text-gray-500">Commande #{orderToUpdate.id}</p>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -802,13 +821,13 @@ const SuperAdminOrdersPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="text-yellow-600 flex-shrink-0 mt-0.5" size={18} />
                   <p className="text-sm text-yellow-800">
-                    Le transfert de commande notifiera le client et la nouvelle boutique. 
+                    Le transfert de commande notifiera le client et la nouvelle boutique.
                     Cette action est irréversible.
                   </p>
                 </div>

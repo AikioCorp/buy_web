@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Search, Filter, Grid, List, ShoppingCart, Heart, X, SlidersHorizontal, Star, Package } from 'lucide-react'
+import { Search, Filter, Grid, List, ShoppingCart, Heart, X, SlidersHorizontal, Star, Package, ChevronDown, ChevronUp, Tag, DollarSign } from 'lucide-react'
 import { productsService, Product } from '../lib/api/productsService'
 import { categoriesService } from '../lib/api/categoriesService'
 import productCacheService from '../services/productCache.service'
+import { useFavoritesStore } from '../store/favoritesStore'
+import { useToast } from '../components/Toast'
 
 interface CategoryItem {
   id: number
@@ -30,7 +32,7 @@ const getImageUrl = (product: Product): string | undefined => {
     url = url.replace('http://', 'https://')
   }
   if (url.startsWith('https://')) return url
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
@@ -45,11 +47,16 @@ export function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [sortBy, setSortBy] = useState<string>('newest')
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000])
+  const [showCategorySection, setShowCategorySection] = useState(true)
+  const [showPriceSection, setShowPriceSection] = useState(true)
+  const [categoriesWithProducts, setCategoriesWithProducts] = useState<CategoryItem[]>([])
   const [searchParams, setSearchParams] = useSearchParams()
   const [currentPage, setCurrentPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const observerTarget = useRef<HTMLDivElement>(null)
+  const { toggleFavorite, isFavorite } = useFavoritesStore()
+  const { showToast } = useToast()
 
   useEffect(() => {
     setProducts([])
@@ -134,12 +141,33 @@ export function ProductsPage() {
       const response = await categoriesService.getCategories()
       if (response.data && Array.isArray(response.data)) {
         setCategories(response.data)
+        // Filter categories that have products
+        filterCategoriesWithProducts(response.data)
       } else {
         setCategories([])
+        setCategoriesWithProducts([])
       }
     } catch (error) {
       console.error('Error loading categories:', error)
       setCategories([])
+      setCategoriesWithProducts([])
+    }
+  }
+
+  const filterCategoriesWithProducts = async (allCategories: CategoryItem[]) => {
+    try {
+      // Check each category for products in parallel
+      const categoriesWithProductsPromises = allCategories.map(async (cat) => {
+        const response = await productsService.getProducts({ category_slug: cat.slug, page_size: 1 })
+        return response.data && response.data.count > 0 ? cat : null
+      })
+      
+      const results = await Promise.all(categoriesWithProductsPromises)
+      const filtered = results.filter((cat): cat is CategoryItem => cat !== null)
+      setCategoriesWithProducts(filtered)
+    } catch (error) {
+      console.error('Error filtering categories:', error)
+      setCategoriesWithProducts(allCategories)
     }
   }
 
@@ -151,6 +179,8 @@ export function ProductsPage() {
       searchParams.delete('category')
     }
     setSearchParams(searchParams)
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -161,6 +191,8 @@ export function ProductsPage() {
       searchParams.delete('search')
     }
     setSearchParams(searchParams)
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const formatPrice = (price: number) => {
@@ -235,60 +267,172 @@ export function ProductsPage() {
       {/* Content */}
       <div className="container mx-auto px-4 py-8">
         <div className="flex gap-8">
-          {/* Sidebar Filters - Desktop */}
-          <aside className="hidden lg:block w-64 flex-shrink-0">
-            <div className="bg-white rounded-2xl p-6 shadow-sm sticky top-24">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <SlidersHorizontal size={20} />
-                Filtres
-              </h3>
-              
-              {/* Categories */}
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-900 mb-3">Catégories</h4>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleCategoryChange('')}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      !selectedCategory ? 'bg-[#0f4c2b] text-white' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    Toutes les catégories
-                  </button>
-                  {categories.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => handleCategoryChange(cat.slug)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        selectedCategory === cat.slug ? 'bg-[#0f4c2b] text-white' : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
+          {/* Sidebar Filters - Desktop - Modern Design */}
+          <aside className="hidden lg:block w-72 flex-shrink-0">
+            <div className="bg-white rounded-2xl shadow-lg sticky top-24 overflow-hidden border border-gray-100">
+              {/* Header */}
+              <div className="bg-gradient-to-br from-[#0f4c2b] via-[#1a5f3a] to-[#0f4c2b] text-white p-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDUiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
+                <div className="relative z-10">
+                  <h3 className="font-bold text-xl flex items-center gap-2">
+                    <SlidersHorizontal size={22} className="animate-pulse" />
+                    Filtres
+                  </h3>
+                  <p className="text-white/90 text-sm mt-1">Affinez votre recherche</p>
                 </div>
               </div>
-              
-              {/* Price Range */}
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-900 mb-3">Prix</h4>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={priceRange[0]}
-                    onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                    placeholder="Min"
-                  />
-                  <span className="text-gray-400">-</span>
-                  <input
-                    type="number"
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                    placeholder="Max"
-                  />
+
+              <div className="p-6 space-y-6">
+                {/* Categories Section */}
+                <div className="border-b border-gray-100 pb-6">
+                  <button
+                    onClick={() => setShowCategorySection(!showCategorySection)}
+                    className="w-full flex items-center justify-between mb-4 group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Tag size={18} className="text-[#0f4c2b]" />
+                      <h4 className="font-semibold text-gray-900">Catégories</h4>
+                    </div>
+                    {showCategorySection ? 
+                      <ChevronUp size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" /> : 
+                      <ChevronDown size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" />
+                    }
+                  </button>
+                  
+                  {showCategorySection && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                      <button
+                        onClick={() => handleCategoryChange('')}
+                        className={`group w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-[1.02] ${
+                          !selectedCategory 
+                            ? 'bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white shadow-lg shadow-green-500/30' 
+                            : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 text-gray-700 border border-gray-200 hover:border-[#0f4c2b]/30'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${
+                              !selectedCategory ? 'bg-white' : 'bg-gray-400 group-hover:bg-[#0f4c2b]'
+                            }`}></span>
+                            Toutes les catégories
+                          </span>
+                          {!selectedCategory && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full animate-pulse">✓</span>}
+                        </div>
+                      </button>
+                      {categoriesWithProducts.map(cat => (
+                        <button
+                          key={cat.id}
+                          onClick={() => handleCategoryChange(cat.slug)}
+                          className={`group w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-[1.02] ${
+                            selectedCategory === cat.slug 
+                              ? 'bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white shadow-lg shadow-green-500/30' 
+                              : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 text-gray-700 border border-gray-200 hover:border-[#0f4c2b]/30'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full transition-all ${
+                                selectedCategory === cat.slug ? 'bg-white' : 'bg-gray-400 group-hover:bg-[#0f4c2b]'
+                              }`}></span>
+                              {cat.name}
+                            </span>
+                            {selectedCategory === cat.slug && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full animate-pulse">✓</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                
+                {/* Price Range Section */}
+                <div>
+                  <button
+                    onClick={() => setShowPriceSection(!showPriceSection)}
+                    className="w-full flex items-center justify-between mb-4 group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <DollarSign size={18} className="text-[#0f4c2b]" />
+                      <h4 className="font-semibold text-gray-900">Fourchette de prix</h4>
+                    </div>
+                    {showPriceSection ? 
+                      <ChevronUp size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" /> : 
+                      <ChevronDown size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" />
+                    }
+                  </button>
+                  
+                  {showPriceSection && (
+                    <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Min (FCFA)</label>
+                          <input
+                            type="number"
+                            value={priceRange[0]}
+                            onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="text-gray-400 mt-5">—</div>
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Max (FCFA)</label>
+                          <input
+                            type="number"
+                            value={priceRange[1]}
+                            onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent"
+                            placeholder="1000000"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Quick price filters */}
+                      <div className="pt-2">
+                        <p className="text-xs text-gray-500 mb-2 font-medium">Filtres rapides:</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => setPriceRange([0, 50000])}
+                            className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-gray-100 to-gray-50 hover:from-[#0f4c2b] hover:to-[#1a5f3a] hover:text-white rounded-full transition-all transform hover:scale-105 shadow-sm hover:shadow-md"
+                          >
+                            &lt; 50K
+                          </button>
+                          <button
+                            onClick={() => setPriceRange([50000, 100000])}
+                            className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-gray-100 to-gray-50 hover:from-[#0f4c2b] hover:to-[#1a5f3a] hover:text-white rounded-full transition-all transform hover:scale-105 shadow-sm hover:shadow-md"
+                          >
+                            50K - 100K
+                          </button>
+                          <button
+                            onClick={() => setPriceRange([100000, 500000])}
+                            className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-gray-100 to-gray-50 hover:from-[#0f4c2b] hover:to-[#1a5f3a] hover:text-white rounded-full transition-all transform hover:scale-105 shadow-sm hover:shadow-md"
+                          >
+                            100K - 500K
+                          </button>
+                          <button
+                            onClick={() => setPriceRange([500000, 1000000])}
+                            className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-gray-100 to-gray-50 hover:from-[#0f4c2b] hover:to-[#1a5f3a] hover:text-white rounded-full transition-all transform hover:scale-105 shadow-sm hover:shadow-md"
+                          >
+                            &gt; 500K
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reset Filters Button */}
+                {(selectedCategory || priceRange[0] > 0 || priceRange[1] < 1000000) && (
+                  <button
+                    onClick={() => {
+                      handleCategoryChange('');
+                      setPriceRange([0, 1000000]);
+                    }}
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-red-50 to-red-100 text-red-600 rounded-xl text-sm font-semibold hover:from-red-100 hover:to-red-200 transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-sm hover:shadow-md border border-red-200"
+                  >
+                    <X size={16} className="animate-spin" />
+                    Réinitialiser les filtres
+                  </button>
+                )}
               </div>
             </div>
           </aside>
@@ -300,14 +444,11 @@ export function ProductsPage() {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="lg:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg"
+                  className="lg:hidden flex items-center gap-2 px-4 py-2 bg-[#0f4c2b] text-white rounded-lg hover:bg-[#1a5f3a] transition-colors"
                 >
                   <Filter size={18} />
                   Filtres
                 </button>
-                <span className="text-gray-600">
-                  <strong className="text-[#0f4c2b]"> {totalCount} </strong>produits
-                </span>
               </div>
               
               <div className="flex items-center gap-4">
@@ -406,10 +547,19 @@ export function ProductsPage() {
                       
                       {/* Quick Actions */}
                       <button 
-                        className="absolute top-1.5 right-1.5 p-1.5 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500"
-                        onClick={(e) => { e.preventDefault(); }}
+                        className={`absolute top-1.5 right-1.5 p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity ${
+                          isFavorite(product.id) 
+                            ? 'bg-red-500 text-white' 
+                            : 'bg-white/90 hover:bg-red-50 hover:text-red-500'
+                        }`}
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const added = toggleFavorite(product);
+                          showToast(added ? 'Ajouté aux favoris !' : 'Retiré des favoris', 'success');
+                        }}
                       >
-                        <Heart size={14} />
+                        <Heart size={14} className={isFavorite(product.id) ? 'fill-current' : ''} />
                       </button>
 
                       {/* Stock badge */}

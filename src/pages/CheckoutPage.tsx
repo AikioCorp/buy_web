@@ -12,7 +12,7 @@ import {
   ArrowLeft, Loader2, AlertCircle, Phone, User, Mail, Save
 } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 // Fonction pour obtenir l'URL de l'image du produit
 const getProductImageUrl = (product: any): string | null => {

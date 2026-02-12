@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { productsService, Product } from '@/lib/api/productsService'
 import { useCartStore } from '@/store/cartStore'
+import { useFavoritesStore } from '@/store/favoritesStore'
 import { useAuthStore } from '@/store/authStore'
 import { useToast } from '@/components/Toast'
 import { LoginPopup } from '@/components/LoginPopup'
 import { Button } from '@/components/Button'
-import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight, Star, Truck, Shield, RefreshCw, Check, MessageCircle } from 'lucide-react'
+import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight, Star, Truck, Shield, RefreshCw, Check, MessageCircle, X, ZoomIn } from 'lucide-react'
 
 // Helper to format price
 const formatPrice = (price: number | string, currency: string = 'XOF') => {
@@ -36,13 +37,16 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-  const [isLiked, setIsLiked] = useState(false)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' })
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [similarProducts, setSimilarProducts] = useState<Product[]>([])
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [modalImageIndex, setModalImageIndex] = useState(0)
+  const [imageLoading, setImageLoading] = useState(false)
   const addItem = useCartStore((state) => state.addItem)
+  const { toggleFavorite, isFavorite } = useFavoritesStore()
   const user = useAuthStore((state) => state.user)
   const { showToast } = useToast()
   const navigate = useNavigate()
@@ -101,7 +105,7 @@ export function ProductDetailPage() {
     if (!mediaArray || mediaArray.length === 0) {
       return []
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
     return mediaArray.map((m: any) => {
       let url = m.image_url || m.file
       if (!url) return null
@@ -143,8 +147,9 @@ export function ProductDetailPage() {
 
   const handleWhatsAppOrder = () => {
     if (product) {
-      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Montant total:* ${formatPrice(getPrice() * quantity)} FCFA\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
-      const whatsappUrl = `https://wa.me/22370009007?text=${encodeURIComponent(message)}`
+      const productUrl = `${window.location.origin}/products/${product.slug || product.id}`
+      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Montant total:* ${formatPrice(getPrice() * quantity)} FCFA\n\n*Lien du produit:* ${productUrl}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
+      const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
       window.open(whatsappUrl, '_blank')
     }
   }
@@ -167,8 +172,10 @@ export function ProductDetailPage() {
   }
 
   const handleLike = () => {
-    setIsLiked(!isLiked)
-    showToast(isLiked ? 'Retiré des favoris' : 'Ajouté aux favoris !', 'success')
+    if (product) {
+      const added = toggleFavorite(product)
+      showToast(added ? 'Ajouté aux favoris !' : 'Retiré des favoris', 'success')
+    }
   }
 
   const handleSubmitReview = () => {
@@ -206,6 +213,25 @@ export function ProductDetailPage() {
 
   const images = getImages()
   const currentImage = images[selectedImageIndex] || null
+  const isLiked = product ? isFavorite(product.id) : false
+
+  // Keyboard navigation for image modal
+  useEffect(() => {
+    if (!showImageModal) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowImageModal(false)
+      } else if (e.key === 'ArrowLeft') {
+        setModalImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1)
+      } else if (e.key === 'ArrowRight') {
+        setModalImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showImageModal, images.length])
 
   if (loading) {
     return (
@@ -260,64 +286,80 @@ export function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Images Section */}
           <div>
-            <div className="aspect-[4/3] max-h-[400px] bg-white rounded-2xl overflow-hidden shadow-lg relative group">
-              {currentImage ? (
-                <img
-                  src={currentImage}
-                  alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
-                  <Package className="h-32 w-32" />
-                </div>
-              )}
-              
-              {/* Navigation arrows */}
-              {images.length > 1 && (
-                <>
-                  <button 
-                    onClick={() => setSelectedImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <ChevronLeft className="w-6 h-6 text-gray-700" />
-                  </button>
-                  <button 
-                    onClick={() => setSelectedImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <ChevronRight className="w-6 h-6 text-gray-700" />
-                  </button>
-                </>
-              )}
+            {/* Main Image - Square Format with Premium Design */}
+            <div className="relative">
+              <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl overflow-hidden shadow-2xl relative group cursor-zoom-in" onClick={() => { if (currentImage) { setModalImageIndex(selectedImageIndex); setShowImageModal(true); } }}>
+                {currentImage ? (
+                  <img
+                    src={currentImage}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:rotate-1"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gradient-to-br from-gray-100 to-gray-200">
+                    <Package className="h-32 w-32 opacity-30" />
+                  </div>
+                )}
+                
+                {/* Overlay gradient on hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                
+                {/* Zoom indicator - Enhanced */}
+                {currentImage && (
+                  <div className="absolute top-6 right-6 bg-gradient-to-br from-[#0f4c2b] to-[#1a5f3a] text-white p-3 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg backdrop-blur-sm transform group-hover:scale-110">
+                    <ZoomIn className="w-6 h-6" />
+                  </div>
+                )}
+                
+                {/* Navigation arrows - Enhanced */}
+                {images.length > 1 && (
+                  <>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setSelectedImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1); }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-2xl shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 border border-gray-200"
+                    >
+                      <ChevronLeft className="w-6 h-6 text-gray-800" />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setSelectedImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0); }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-2xl shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 border border-gray-200"
+                    >
+                      <ChevronRight className="w-6 h-6 text-gray-800" />
+                    </button>
+                  </>
+                )}
 
-              {/* Badges */}
-              <div className="absolute top-4 left-4 flex flex-col gap-2">
-                {(product as any).compare_at_price && parseFloat((product as any).compare_at_price) > getPrice() && (
-                  <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
-                    -{Math.round((1 - getPrice() / parseFloat((product as any).compare_at_price)) * 100)}%
-                  </span>
-                )}
-                {(product.stock ?? 0) > 0 && (
-                  <span className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">En stock</span>
-                )}
+                {/* Badges - Enhanced */}
+                <div className="absolute top-6 left-6 flex flex-col gap-3 z-10">
+                  {(product as any).compare_at_price && parseFloat((product as any).compare_at_price) > getPrice() && (
+                    <span className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-bold rounded-full shadow-lg backdrop-blur-sm animate-pulse">
+                      -{Math.round((1 - getPrice() / parseFloat((product as any).compare_at_price)) * 100)}% OFF
+                    </span>
+                  )}
+                  {(product.stock ?? 0) > 0 && (
+                    <span className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-bold rounded-full shadow-lg backdrop-blur-sm flex items-center gap-2">
+                      <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                      En stock
+                    </span>
+                  )}
+                </div>
+
               </div>
             </div>
             
-            {/* Thumbnails */}
-            <div className="grid grid-cols-4 gap-3 mt-4">
-              {images.map((img, idx) => (
+            {/* Thumbnails - Single horizontal line */}
+            <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              {images.slice(0, 5).map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImageIndex(idx)}
-                  className={`aspect-square bg-white rounded-xl overflow-hidden border-2 transition-all ${
-                    selectedImageIndex === idx ? 'border-[#0f4c2b] shadow-lg ring-2 ring-[#0f4c2b]/20' : 'border-gray-200 hover:border-gray-400'
+                  className={`flex-shrink-0 w-20 h-20 bg-white rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                    selectedImageIndex === idx ? 'border-[#0f4c2b] shadow-lg ring-2 ring-[#0f4c2b]/20 scale-110' : 'border-gray-200 hover:border-gray-400 hover:scale-105'
                   }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
-              {/* Removed placeholder thumbnails - only show actual images */}
             </div>
           </div>
 
@@ -795,7 +837,7 @@ export function ProductDetailPage() {
               {similarProducts.map((relProduct) => {
                 const productImages = relProduct.media || (relProduct as any).images || []
                 const imageUrl = productImages[0]?.image_url || productImages[0]?.file
-                const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+                const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
                 const fullImageUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`) : null
                 
                 return (
@@ -828,6 +870,106 @@ export function ProductDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Image Zoom Modal */}
+      {showImageModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center animate-in fade-in duration-200" 
+          onClick={() => setShowImageModal(false)}
+        >
+          {/* Close button with tooltip */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowImageModal(false);
+            }}
+            className="absolute top-4 right-4 text-white hover:text-red-400 p-3 bg-red-500/80 hover:bg-red-600 rounded-full backdrop-blur-sm transition-all z-[60] shadow-lg"
+            title="Fermer (Esc)"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          {/* Navigation arrows with keyboard hints */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setModalImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1);
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-4 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all hover:scale-110 z-[60] shadow-lg"
+                title="Précédent (←)"
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setModalImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0);
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-4 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all hover:scale-110 z-[60] shadow-lg"
+                title="Suivant (→)"
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            </>
+          )}
+
+          {/* Image counter with product name */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white bg-black/70 px-6 py-2 rounded-full backdrop-blur-sm shadow-lg z-[60] pointer-events-none">
+            <div className="text-center">
+              <div className="text-sm font-medium">{product?.name}</div>
+              <div className="text-xs text-gray-300 mt-0.5">{modalImageIndex + 1} / {images.length}</div>
+            </div>
+          </div>
+
+          {/* Main image with loading state */}
+          <div className="max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center p-4">
+            <div className="relative">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                </div>
+              )}
+              <img
+                src={images[modalImageIndex]}
+                alt={product?.name}
+                className="max-w-full max-h-full object-contain transition-opacity duration-300"
+                onLoadStart={() => setImageLoading(true)}
+                onLoad={() => setImageLoading(false)}
+                style={{ opacity: imageLoading ? 0.5 : 1 }}
+              />
+            </div>
+          </div>
+
+          {/* Thumbnails with smooth scrolling */}
+          {images.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 max-w-[90vw] overflow-x-auto px-4 pb-2 scrollbar-hide">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModalImageIndex(idx);
+                  }}
+                  className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
+                    modalImageIndex === idx 
+                      ? 'border-white scale-110 shadow-lg shadow-white/50' 
+                      : 'border-white/30 hover:border-white/60 hover:scale-105'
+                  }`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Help text */}
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 text-white/60 text-xs text-center">
+            Utilisez les flèches ← → pour naviguer • Esc pour fermer
+          </div>
+        </div>
+      )}
 
       {/* Login Popup */}
       <LoginPopup

@@ -6,7 +6,7 @@ import { shopsService, Shop } from '../../../lib/api/shopsService'
 import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
 import { useToast } from '../../../components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 // Fonction utilitaire pour construire l'URL de l'image
 const getProductImageUrl = (media?: ProductMedia[], images?: ProductMedia[]): string | null => {
@@ -46,7 +46,7 @@ const SuperAdminProductsPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Product>>({})
   const [actionLoading, setActionLoading] = useState(false)
 
-  const pageSize = 20
+  const pageSize = 50
 
   useEffect(() => {
     loadInitialData()
@@ -85,20 +85,25 @@ const SuperAdminProductsPage: React.FC = () => {
       
       const response = await productsService.getAllProductsAdmin({
         page: currentPage,
+        page_size: pageSize,
         search: searchQuery || undefined,
         category_id: selectedCategory || undefined,
         store_id: selectedShop || undefined
       })
 
       console.log('Products response:', response)
+      console.log('Response data type:', Array.isArray(response.data) ? 'Array' : typeof response.data)
+      console.log('Response data count:', response.data?.count, 'results length:', response.data?.results?.length)
 
       if (response.data) {
         if (Array.isArray(response.data)) {
+          console.log('⚠️ Backend returned array (no pagination support), length:', response.data.length)
           setProducts(response.data)
           setTotalCount(response.data.length)
         } else if (response.data.results) {
+          console.log('✅ Backend returned paginated response, count:', response.data.count, 'results:', response.data.results.length)
           setProducts(response.data.results)
-          setTotalCount(response.data.count)
+          setTotalCount(response.data.count || response.data.results.length)
         } else {
           setProducts([])
           setTotalCount(0)
@@ -227,7 +232,7 @@ const SuperAdminProductsPage: React.FC = () => {
       console.log('Creating product with data:', {
         name: data.name,
         slug: data.slug,
-        category_id: data.category_id,
+        category_ids: data.category_ids,
         store_id: data.store_id,
         stock: data.stock_quantity
       })
@@ -238,7 +243,8 @@ const SuperAdminProductsPage: React.FC = () => {
         slug: data.slug,
         description: data.description,
         base_price: data.base_price,
-        category_id: data.category_id || undefined,
+        category_id: data.category_ids && data.category_ids.length > 0 ? data.category_ids[0] : undefined,
+        category_ids: data.category_ids || [],
         store_id: data.store_id || undefined,
         stock: data.stock_quantity || 0,
         is_active: data.is_active,
@@ -280,7 +286,8 @@ const SuperAdminProductsPage: React.FC = () => {
         slug: data.slug,
         description: data.description,
         base_price: data.base_price,
-        category_id: data.category_id || undefined,
+        category_id: data.category_ids && data.category_ids.length > 0 ? data.category_ids[0] : undefined,
+        category_ids: data.category_ids || [],
         store_id: data.store_id || undefined,
         stock: data.stock_quantity || 0,
         is_active: data.is_active,
@@ -907,6 +914,29 @@ const SuperAdminProductsPage: React.FC = () => {
             description: editingProduct.description || '',
             base_price: editingProduct.base_price,
             category_id: editingProduct.category?.id || (editingProduct as any).category_id || null,
+            category_ids: (() => {
+              // Try multiple extraction strategies
+              let ids: number[] = []
+              
+              // Strategy 1: categories array with nested category objects
+              if ((editingProduct as any).categories && Array.isArray((editingProduct as any).categories)) {
+                ids = (editingProduct as any).categories
+                  .map((c: any) => c.category?.id || c.category_id || c.id)
+                  .filter((id: any) => id != null)
+              }
+              
+              // Strategy 2: single category object
+              if (ids.length === 0 && editingProduct.category?.id) {
+                ids = [editingProduct.category.id]
+              }
+              
+              // Strategy 3: category_id field
+              if (ids.length === 0 && (editingProduct as any).category_id) {
+                ids = [(editingProduct as any).category_id]
+              }
+              
+              return ids
+            })(),
             store_id: editingProduct.store?.id || editingProduct.shop?.id || (editingProduct as any).store_id || null,
             stock_quantity: editingProduct.stock || 0,
             is_active: editingProduct.is_active !== false,

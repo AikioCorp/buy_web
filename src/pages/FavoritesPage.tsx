@@ -4,7 +4,7 @@ import { useFavoritesStore } from '@/store/favoritesStore'
 import { useCartStore } from '@/store/cartStore'
 import { useToast } from '@/components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 const getImageUrl = (product: any): string | null => {
   if (!product?.media || product.media.length === 0) return null

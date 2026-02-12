@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { 
+import {
   Search, ShoppingCart, Eye, X, CheckCircle, Clock, Truck, XCircle,
   AlertTriangle, Ban, Loader2, RefreshCw, Package, MapPin, Phone, CreditCard
 } from 'lucide-react'
@@ -9,10 +9,10 @@ import { useToast } from '../../../components/Toast'
 
 const AdminOrdersPage: React.FC = () => {
   const { showToast } = useToast()
-  const { 
-    canViewOrders, 
-    canManageOrders, 
-    canCancelOrders 
+  const {
+    canViewOrders,
+    canManageOrders,
+    canCancelOrders
   } = usePermissions()
 
   const [orders, setOrders] = useState<Order[]>([])
@@ -22,7 +22,7 @@ const AdminOrdersPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
-  
+
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null)
@@ -50,15 +50,15 @@ const AdminOrdersPage: React.FC = () => {
       setError(null)
       const params: any = { page: currentPage }
       if (statusFilter !== 'all') params.status = statusFilter
-      
+
       const response = await ordersService.getAllOrdersAdmin(params)
       console.log('Admin Orders response:', response)
       console.log('Admin Orders response.data:', response.data)
-      
+
       if (response.data) {
         // Handle nested success wrapper: {success: true, data: {...}}
         const actualData = (response.data as any).data || response.data
-        
+
         if (Array.isArray(actualData)) {
           console.log('Admin Orders array:', actualData.length)
           setOrders(actualData)
@@ -117,6 +117,38 @@ const AdminOrdersPage: React.FC = () => {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  const getImageUrl = (item: any): string | null => {
+    if (!item) return null;
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+
+    // 1. Try direct product_image field
+    if (item.product_image) {
+      const url = item.product_image;
+      if (url.startsWith('http://')) return url.replace('http://', 'https://');
+      if (url.startsWith('https://')) return url;
+      return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+
+    // 2. Try nested product.media or product.images
+    const product = item.product || item;
+    const mediaArray = product?.media || product?.images || [];
+
+    if (Array.isArray(mediaArray) && mediaArray.length > 0) {
+      const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0];
+      let url = primaryImage?.image_url || primaryImage?.file || primaryImage?.image;
+
+      if (url) {
+        if (typeof url === 'string') {
+          if (url.startsWith('http://')) return url.replace('http://', 'https://');
+          if (url.startsWith('https://')) return url;
+          return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+        }
+      }
+    }
+
+    return null;
   }
 
   const getStatusInfo = (status: OrderStatus) => {
@@ -396,8 +428,8 @@ const AdminOrdersPage: React.FC = () => {
                   <div className="text-sm space-y-1">
                     <p className="font-medium text-gray-900">
                       {(viewingOrder as any).payment_method === 'cash_on_delivery' ? 'Paiement à la livraison' :
-                       (viewingOrder as any).payment_method === 'mobile_money' ? 'Mobile Money' :
-                       (viewingOrder as any).payment_method || 'Non spécifié'}
+                        (viewingOrder as any).payment_method === 'mobile_money' ? 'Mobile Money' :
+                          (viewingOrder as any).payment_method || 'Non spécifié'}
                     </p>
                     <p className="text-gray-600">Sous-total: {parseFloat((viewingOrder as any).subtotal || '0').toLocaleString()} FCFA</p>
                     <p className="text-gray-600">Livraison: {parseFloat((viewingOrder as any).delivery_fee || '0').toLocaleString()} FCFA</p>
@@ -416,8 +448,12 @@ const AdminOrdersPage: React.FC = () => {
                       <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
-                            {item.product_image ? (
-                              <img src={item.product_image} alt={item.product_name} className="w-full h-full object-cover" />
+                            {getImageUrl(item) ? (
+                              <img
+                                src={getImageUrl(item)!}
+                                alt={item.product_name || 'Produit'}
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
                               <Package size={20} className="text-gray-400" />
                             )}
@@ -434,8 +470,16 @@ const AdminOrdersPage: React.FC = () => {
                     viewingOrder.items.map((item, index) => (
                       <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                            <Package size={20} className="text-gray-400" />
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                            {getImageUrl(item) ? (
+                              <img
+                                src={getImageUrl(item)!}
+                                alt={(item as any).product?.name || (item as any).product_name || 'Produit'}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Package size={20} className="text-gray-400" />
+                            )}
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">{(item as any).product?.name || (item as any).product_name || 'Produit'}</p>

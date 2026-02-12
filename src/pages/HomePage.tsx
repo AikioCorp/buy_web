@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { 
-  Package, ShoppingCart, Star, ChevronRight, Truck, Shield, 
+import {
+  Package, ShoppingCart, Star, ChevronRight, Truck, Shield,
   Clock, ArrowRight, Heart, Eye, ChevronLeft, RefreshCw,
   ShoppingBag, Sparkles, UtensilsCrossed, Store,
   Smartphone, Home, Shirt, Dumbbell, Laptop, Zap, Gift, Percent, Tag,
@@ -15,7 +15,7 @@ import { useCartStore } from '../store/cartStore'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { useToast } from '../components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 const getImageUrl = (product: Product): string | null => {
   // Backend returns 'images' from product_media, but interface uses 'media'
@@ -87,7 +87,7 @@ export function HomePage() {
   const addItem = useCartStore((state) => state.addItem)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
   const { showToast } = useToast()
-  
+
   const [countdown, setCountdown] = useState({ hours: 23, minutes: 45, seconds: 30 })
   const [flashDealsScrollRef, setFlashDealsScrollRef] = useState<HTMLDivElement | null>(null)
   const [popularScrollRef, setPopularScrollRef] = useState<HTMLDivElement | null>(null)
@@ -98,7 +98,7 @@ export function HomePage() {
   const [beautyScrollRef, setBeautyScrollRef] = useState<HTMLDivElement | null>(null)
   const [kitchenScrollRef, setKitchenScrollRef] = useState<HTMLDivElement | null>(null)
 
-  useEffect(() => { 
+  useEffect(() => {
     refreshProducts()
     loadCategories()
     loadShops()
@@ -111,7 +111,7 @@ export function HomePage() {
       const scrollWidth = flashDealsScrollRef.scrollWidth
       const clientWidth = flashDealsScrollRef.clientWidth
       const currentScroll = flashDealsScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         flashDealsScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -128,7 +128,7 @@ export function HomePage() {
       const scrollWidth = popularScrollRef.scrollWidth
       const clientWidth = popularScrollRef.clientWidth
       const currentScroll = popularScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         popularScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -145,7 +145,7 @@ export function HomePage() {
       const scrollWidth = menScrollRef.scrollWidth
       const clientWidth = menScrollRef.clientWidth
       const currentScroll = menScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         menScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -162,7 +162,7 @@ export function HomePage() {
       const scrollWidth = womenScrollRef.scrollWidth
       const clientWidth = womenScrollRef.clientWidth
       const currentScroll = womenScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         womenScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -179,7 +179,7 @@ export function HomePage() {
       const scrollWidth = kidsScrollRef.scrollWidth
       const clientWidth = kidsScrollRef.clientWidth
       const currentScroll = kidsScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         kidsScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -196,7 +196,7 @@ export function HomePage() {
       const scrollWidth = foodScrollRef.scrollWidth
       const clientWidth = foodScrollRef.clientWidth
       const currentScroll = foodScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         foodScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -213,7 +213,7 @@ export function HomePage() {
       const scrollWidth = beautyScrollRef.scrollWidth
       const clientWidth = beautyScrollRef.clientWidth
       const currentScroll = beautyScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         beautyScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -230,7 +230,7 @@ export function HomePage() {
       const scrollWidth = kitchenScrollRef.scrollWidth
       const clientWidth = kitchenScrollRef.clientWidth
       const currentScroll = kitchenScrollRef.scrollLeft
-      
+
       if (currentScroll + clientWidth >= scrollWidth - 10) {
         kitchenScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
       } else {
@@ -335,7 +335,7 @@ export function HomePage() {
   }
 
   const ProductCard = ({ product, index, showDiscount = false }: { product: any, index: number, showDiscount?: boolean }) => (
-    <Link 
+    <Link
       to={`/products/${product.slug || product.id}`}
       className="group bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
       onMouseEnter={() => setHoveredProduct(product.id)}
@@ -364,20 +364,20 @@ export function HomePage() {
           <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-12 w-12" /></div>
         )}
         <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 transition-all duration-300 ${hoveredProduct === product.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <button 
-            onClick={(e) => handleToggleFavorite(e, product)} 
+          <button
+            onClick={(e) => handleToggleFavorite(e, product)}
             className={`w-8 h-8 rounded-full shadow flex items-center justify-center transition-colors ${isFavorite(product.id) ? 'bg-red-500 text-white' : 'bg-white hover:bg-red-500 hover:text-white'}`}
           >
             <Heart className={`w-4 h-4 ${isFavorite(product.id) ? 'fill-current' : ''}`} />
           </button>
-          <button 
-            onClick={(e) => handleAddToCart(e, product)} 
+          <button
+            onClick={(e) => handleAddToCart(e, product)}
             className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors"
           >
             <ShoppingCart className="w-4 h-4" />
           </button>
-          <button 
-            onClick={(e) => handleQuickView(e, product.id)} 
+          <button
+            onClick={(e) => handleQuickView(e, product.id)}
             className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
           >
             <Eye className="w-4 h-4" />
@@ -590,7 +590,7 @@ export function HomePage() {
                       <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
                     </div>
                   )}
-                  
+
                   {/* Content */}
                   <div className="relative z-10 p-6 text-white">
                     {/* Shop Logo - Larger and more prominent */}
@@ -601,7 +601,7 @@ export function HomePage() {
                         <Store className="w-8 h-8 text-gray-600" />
                       )}
                     </div>
-                    
+
                     <h3 className="font-bold text-lg">{shop.name}</h3>
                     <p className="text-white/90 text-sm mb-2">{shop.category || shop.city || 'Boutique'}</p>
                     <div className="flex items-center gap-1 mt-2">
@@ -696,21 +696,21 @@ export function HomePage() {
           </div>
           <div className="relative group">
             {/* Left Arrow */}
-            <button 
+            <button
               onClick={() => popularScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
               className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white rounded-full items-center justify-center shadow-lg hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            
+
             {/* Right Arrow */}
-            <button 
+            <button
               onClick={() => popularScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
               className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white rounded-full items-center justify-center shadow-lg hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
             >
               <ChevronRight className="w-6 h-6" />
             </button>
-            
+
             <div ref={setPopularScrollRef} className="flex gap-4 overflow-x-scroll pb-4 snap-x snap-mandatory scrollbar-hide">
               {trendingProducts.slice(0, 10).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
@@ -738,7 +738,13 @@ export function HomePage() {
           </div>
           <div className="relative">
             <div ref={setMenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('homme') || p.name?.toLowerCase().includes('homme')).slice(0, 6).map((product: any, index: number) => (
+              {allProducts.filter((p: any) => {
+                const name = p.name?.toLowerCase() || '';
+                const cat = p.category?.name?.toLowerCase() || '';
+                return (cat.includes('homme') || name.includes(' homme') || name.includes('masculin') ||
+                  name.includes('polo') || name.includes('chemise') || name.includes('costume')) &&
+                  !name.includes('femme') && !name.includes('fille');
+              }).slice(0, 6).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
                   <ProductCard product={product} index={index} />
                 </div>
@@ -753,13 +759,13 @@ export function HomePage() {
         {/* Decorative Elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-pink-200 rounded-full blur-3xl opacity-30"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-200 rounded-full blur-3xl opacity-20"></div>
-        
+
         <div className="container mx-auto px-4 relative z-10">
           {/* Banner Image */}
           <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden mb-8 shadow-2xl">
-            <img 
-              src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=1200&h=400&fit=crop" 
-              alt="Mode Femme" 
+            <img
+              src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=1200&h=400&fit=crop"
+              alt="Mode Femme"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-pink-900/70 to-purple-900/50 flex items-center justify-center">
@@ -769,37 +775,43 @@ export function HomePage() {
               </div>
             </div>
           </div>
-          
+
           <div className="text-center mb-8">
             <p className="text-gray-700 text-lg">Découvrez notre collection exclusive pour femmes</p>
           </div>
-          
+
           <div className="relative group">
             {/* Left Arrow */}
-            <button 
+            <button
               onClick={() => womenScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
               className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full items-center justify-center shadow-lg hover:bg-pink-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            
+
             {/* Right Arrow */}
-            <button 
+            <button
               onClick={() => womenScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
               className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full items-center justify-center shadow-lg hover:bg-pink-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
             >
               <ChevronRight className="w-6 h-6" />
             </button>
-            
+
             <div ref={setWomenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory px-2">
-              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('femme') || p.category?.name?.toLowerCase().includes('mode')).slice(0, 6).map((product: any, index: number) => (
+              {allProducts.filter((p: any) => {
+                const name = p.name?.toLowerCase() || '';
+                const cat = p.category?.name?.toLowerCase() || '';
+                const womenKeywords = ['robe', 'jupe', 'blouse', 'top femme', 'legging', 'talon', 'femme', 'féminin', 'sac à main', 'maquillage', 'perruque'];
+                return (cat.includes('femme') || womenKeywords.some(key => name.includes(key))) &&
+                  !name.includes('homme') && !name.includes('garçon');
+              }).slice(0, 6).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[140px] md:min-w-[200px] snap-start">
                   <ProductCard product={product} index={index} />
                 </div>
               ))}
             </div>
           </div>
-          
+
           <div className="text-center mt-8">
             <Link to="/products?category=mode-femme" className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all">
               Découvrir la collection <ChevronRight className="w-5 h-5" />
@@ -824,7 +836,14 @@ export function HomePage() {
           </div>
           <div className="relative">
             <div ref={setKidsScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('enfant') || p.category?.name?.toLowerCase().includes('jouet')).slice(0, 6).map((product: any, index: number) => (
+              {allProducts.filter((p: any) => {
+                const name = p.name?.toLowerCase() || '';
+                const cat = p.category?.name?.toLowerCase() || '';
+                return (cat.includes('enfant') || cat.includes('bébé') || cat.includes('jouet') ||
+                  name.includes('enfant') || name.includes('bébé') || name.includes('jouet') ||
+                  name.includes('fille') || name.includes('garçon')) &&
+                  !name.includes('homme') && !name.includes('femme');
+              }).slice(0, 6).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
                   <ProductCard product={product} index={index} />
                 </div>
@@ -850,7 +869,13 @@ export function HomePage() {
           </div>
           <div className="relative">
             <div ref={setFoodScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('alimentaire') || p.category?.name?.toLowerCase().includes('nourriture') || p.category?.name?.toLowerCase().includes('food')).slice(0, 6).map((product: any, index: number) => (
+              {allProducts.filter((p: any) => {
+                const name = p.name?.toLowerCase() || '';
+                const cat = p.category?.name?.toLowerCase() || '';
+                const foodKeywords = ['chocolat', 'biscuit', 'café', 'thé', 'jus', 'eau', 'boisson', 'snack', 'chips', 'bonbon', 'riz', 'sucre', 'huile', 'lait', 'pâtes'];
+                return cat.includes('alimentaire') || cat.includes('alimentation') || cat.includes('nourriture') || cat.includes('food') ||
+                  foodKeywords.some(key => name.includes(key));
+              }).slice(0, 6).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
                   <ProductCard product={product} index={index} />
                 </div>

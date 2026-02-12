@@ -1,24 +1,43 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Package, Search, Eye, X, Clock, Loader2, RefreshCw, 
+import {
+  Package, Search, Eye, X, Clock, Loader2, RefreshCw,
   Truck, CheckCircle, XCircle, ShoppingBag, Phone, MapPin,
   User, Calendar, CreditCard, MessageSquare, Printer, Download
 } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../lib/api/ordersService'
 import { useToast } from '../../components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
-const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
-  if (!media || media.length === 0) return null
-  const primaryImage = media.find(m => m.is_primary) || media[0]
-  let url = primaryImage?.image_url || primaryImage?.file
-  if (!url) return null
-  if (url.startsWith('http://')) {
-    url = url.replace('http://', 'https://')
+const getImageUrl = (item: any): string | null => {
+  if (!item) return null;
+
+  // 1. Try direct product_image field
+  if (item.product_image) {
+    const url = item.product_image;
+    if (url.startsWith('http://')) return url.replace('http://', 'https://');
+    if (url.startsWith('https://')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
   }
-  if (url.startsWith('https://')) return url
-  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+
+  // 2. Try nested product.media or product.images
+  const product = item.product || item;
+  const mediaArray = product?.media || product?.images || [];
+
+  if (Array.isArray(mediaArray) && mediaArray.length > 0) {
+    const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0];
+    let url = primaryImage?.image_url || primaryImage?.file || primaryImage?.image;
+
+    if (url) {
+      if (typeof url === 'string') {
+        if (url.startsWith('http://')) return url.replace('http://', 'https://');
+        if (url.startsWith('https://')) return url;
+        return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+      }
+    }
+  }
+
+  return null;
 }
 
 const OrdersPage: React.FC = () => {
@@ -30,7 +49,7 @@ const OrdersPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('')
-  
+
   // Modals
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
@@ -50,7 +69,7 @@ const OrdersPage: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await ordersService.getOrders()
 
       if (response.data) {
@@ -93,7 +112,7 @@ const OrdersPage: React.FC = () => {
 
   const handleUpdateStatus = async () => {
     if (!orderToUpdate) return
-    
+
     try {
       setActionLoading(true)
       await ordersService.updateOrderStatus(orderToUpdate.id, newStatus)
@@ -169,15 +188,15 @@ const OrdersPage: React.FC = () => {
   ]
 
   // Filtrer les commandes localement si nécessaire
-  const filteredOrders = selectedStatus 
+  const filteredOrders = selectedStatus
     ? orders.filter(o => o.status === selectedStatus)
     : orders
 
   const searchFilteredOrders = searchQuery
-    ? filteredOrders.filter(o => 
-        String(o.id).includes(searchQuery) || 
-        String(o.customer).toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? filteredOrders.filter(o =>
+      String(o.id).includes(searchQuery) ||
+      String(o.customer).toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : filteredOrders
 
   return (
@@ -189,7 +208,7 @@ const OrdersPage: React.FC = () => {
             {totalCount} commande{totalCount > 1 ? 's' : ''} au total
           </p>
         </div>
-        <button 
+        <button
           onClick={loadOrders}
           className="mt-4 md:mt-0 flex items-center gap-2 px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
         >
@@ -253,7 +272,7 @@ const OrdersPage: React.FC = () => {
                 />
               </div>
             </form>
-            
+
             <select
               value={selectedStatus}
               onChange={(e) => {
@@ -344,7 +363,7 @@ const OrdersPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <button 
+                        <button
                           onClick={() => handleStatusClick(order)}
                           className="hover:opacity-80 transition-opacity"
                         >
@@ -356,7 +375,7 @@ const OrdersPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
-                          <button 
+                          <button
                             onClick={() => handleViewOrder(order)}
                             className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                             title="Voir les détails"
@@ -414,7 +433,7 @@ const OrdersPage: React.FC = () => {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="p-6">
               {/* Statut et Total */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
@@ -462,9 +481,9 @@ const OrdersPage: React.FC = () => {
                   {(viewingOrder.items || []).map((item) => (
                     <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
                       <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                        {getImageUrl(item.product?.media) ? (
-                          <img 
-                            src={getImageUrl(item.product?.media)!} 
+                        {getImageUrl(item) ? (
+                          <img
+                            src={getImageUrl(item)!}
                             alt={item.product?.name || 'Produit'}
                             className="h-full w-full object-cover"
                           />
@@ -550,7 +569,7 @@ const OrdersPage: React.FC = () => {
               <h2 className="text-xl font-bold text-gray-900">Modifier le statut</h2>
               <p className="text-sm text-gray-500">Commande #{orderToUpdate.id}</p>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -570,13 +589,12 @@ const OrdersPage: React.FC = () => {
                 ) : (
                   <div className="space-y-2">
                     {getNextStatuses(orderToUpdate.status).map(status => (
-                      <label 
+                      <label
                         key={status}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                          newStatus === status 
-                            ? 'border-emerald-500 bg-emerald-50' 
+                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${newStatus === status
+                            ? 'border-emerald-500 bg-emerald-50'
                             : 'border-gray-200 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Heart, Trash2, ShoppingCart, Package } from 'lucide-react'
 import { useFavorites } from '../../../hooks/useFavorites'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 // Fonction utilitaire pour construire l'URL de l'image
 const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {

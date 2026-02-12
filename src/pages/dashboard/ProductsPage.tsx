@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { 
+import {
   Package, Plus, Search, Edit, Trash2,
   AlertCircle, CheckCircle, XCircle, Loader2,
   Grid, List, Image as ImageIcon, Eye
@@ -11,13 +11,13 @@ import ProductFormModal from '../../components/dashboard/ProductFormModal'
 import ProductPreviewModal from '../../components/dashboard/ProductPreviewModal'
 
 // Product Card Component
-const ProductCard = ({ 
-  product, 
-  onEdit, 
+const ProductCard = ({
+  product,
+  onEdit,
   onDelete,
   onPreview,
-  viewMode 
-}: { 
+  viewMode
+}: {
   product: Product
   onEdit: () => void
   onDelete: () => void
@@ -27,19 +27,15 @@ const ProductCard = ({
   // Backend returns 'images' but interface uses 'media'
   const mediaArray = (product as any).images || product.media || []
   const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
-  
+
   // Construire l'URL de l'image (gérer les chemins relatifs et absolus)
-  const getImageUrl = () => {
-    let url = primaryImage?.image_url || primaryImage?.file
+  const getImageUrl = (img?: any) => {
+    const targetImg = img || primaryImage
+    let url = targetImg?.image_url || targetImg?.file || targetImg?.image
     if (!url) return null
-    // Convertir http:// en https:// pour éviter le blocage mixed content
-    if (url.startsWith('http://')) {
-      url = url.replace('http://', 'https://')
-    }
-    // Si c'est déjà une URL absolue, la retourner
+    if (url.startsWith('http://')) url = url.replace('http://', 'https://')
     if (url.startsWith('https://')) return url
-    // Sinon, construire l'URL avec le backend
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
     return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
   }
   const imageUrl = getImageUrl()
@@ -76,11 +72,10 @@ const ProductCard = ({
           {/* Status + Actions */}
           <div className="flex items-center justify-between sm:justify-end gap-3">
             <div className="flex items-center gap-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                product.is_active !== false
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${product.is_active !== false
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-gray-100 text-gray-600'
+                }`}>
                 {product.is_active !== false ? 'Actif' : 'Inactif'}
               </span>
               <span className="sm:hidden text-xs text-gray-500">Stock: {product.stock || 0}</span>
@@ -126,14 +121,13 @@ const ProductCard = ({
             <Package size={48} className="text-gray-300" />
           </div>
         )}
-        
+
         {/* Status badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
-            product.is_active !== false
-              ? 'bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/30'
-              : 'bg-gray-600/90 text-white'
-          }`}>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${product.is_active !== false
+            ? 'bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/30'
+            : 'bg-gray-600/90 text-white'
+            }`}>
             {product.is_active !== false ? '● Actif' : '○ Inactif'}
           </span>
           {product.is_low_stock && (
@@ -178,18 +172,17 @@ const ProductCard = ({
       <div className="p-4">
         <h3 className="font-bold text-gray-900 truncate mb-1 group-hover:text-emerald-600 transition-colors">{product.name}</h3>
         <p className="text-xs text-gray-400 mb-3">{product.category?.name || 'Sans catégorie'}</p>
-        
+
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
           <p className="text-lg font-black text-emerald-600">
             {parseFloat(product.base_price).toLocaleString()} <span className="text-xs font-normal text-gray-400">XOF</span>
           </p>
-          <p className={`text-xs font-semibold px-2 py-1 rounded-full ${
-            (product.stock || 0) === 0 
-              ? 'bg-red-100 text-red-600'
-              : (product.stock || 0) <= (product.low_stock_threshold || 10) 
-                ? 'bg-amber-100 text-amber-600' 
-                : 'bg-gray-100 text-gray-600'
-          }`}>
+          <p className={`text-xs font-semibold px-2 py-1 rounded-full ${(product.stock || 0) === 0
+            ? 'bg-red-100 text-red-600'
+            : (product.stock || 0) <= (product.low_stock_threshold || 10)
+              ? 'bg-amber-100 text-amber-600'
+              : 'bg-gray-100 text-gray-600'
+            }`}>
             {product.stock || 0} unités
           </p>
         </div>
@@ -206,7 +199,7 @@ const EmptyState = ({ onAddProduct, hasStore }: { onAddProduct: () => void, hasS
     </div>
     <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun produit</h3>
     <p className="text-gray-500 mb-6 max-w-md mx-auto">
-      {hasStore 
+      {hasStore
         ? "Vous n'avez pas encore ajouté de produits. Commencez par créer votre premier produit pour le mettre en vente."
         : "Vous devez d'abord créer votre boutique avant de pouvoir ajouter des produits."
       }
@@ -231,12 +224,12 @@ const EmptyState = ({ onAddProduct, hasStore }: { onAddProduct: () => void, hasS
 )
 
 // Delete Confirmation Modal
-const DeleteConfirmModal = ({ 
-  product, 
-  onConfirm, 
+const DeleteConfirmModal = ({
+  product,
+  onConfirm,
   onCancel,
-  loading 
-}: { 
+  loading
+}: {
   product: Product
   onConfirm: () => void
   onCancel: () => void
@@ -290,7 +283,10 @@ const ProductsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
-  
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const pageSize = 50
+
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
@@ -304,37 +300,39 @@ const ProductsPage: React.FC = () => {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [currentPage])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      
+
       // Charger la boutique
       const storeResponse = await shopsService.getMyShop()
       if (storeResponse.data) {
         setStore(storeResponse.data)
-        
+
         // Show warning if shop is not approved
         if (!storeResponse.data.is_active) {
-          setMessage({ 
-            type: 'error', 
-            text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.' 
+          setMessage({
+            type: 'error',
+            text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.'
           })
         }
       }
 
-      // Charger les produits
-      const productsResponse = await productsService.getMyProducts()
-      console.log('📦 Products response:', productsResponse)
+      // Charger les produits avec pagination
+      const productsResponse = await productsService.getMyProducts({ page: currentPage, page_size: pageSize })
       if (productsResponse.data) {
         // Backend returns { results: [...], count: N } format
         if (Array.isArray(productsResponse.data)) {
           setProducts(productsResponse.data)
+          setTotalCount(productsResponse.data.length)
         } else if ((productsResponse.data as any).results && Array.isArray((productsResponse.data as any).results)) {
           setProducts((productsResponse.data as any).results)
+          setTotalCount((productsResponse.data as any).count || 0)
         } else {
           setProducts([])
+          setTotalCount(0)
         }
       }
     } catch (error) {
@@ -347,9 +345,9 @@ const ProductsPage: React.FC = () => {
   const handleAddProduct = () => {
     // Check if shop is approved
     if (!store?.is_active) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.' 
+      setMessage({
+        type: 'error',
+        text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.'
       })
       return
     }
@@ -384,7 +382,7 @@ const ProductsPage: React.FC = () => {
       if (response.error) {
         throw new Error(response.error)
       }
-      
+
       setProducts(prev => prev.filter(p => p.id !== deletingProduct.id))
       setMessage({ type: 'success', text: 'Produit supprimé avec succès' })
       setDeletingProduct(null)
@@ -403,7 +401,7 @@ const ProductsPage: React.FC = () => {
   // Filter products
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = filterStatus === 'all' 
+    const matchesStatus = filterStatus === 'all'
       || (filterStatus === 'active' && product.is_active !== false)
       || (filterStatus === 'inactive' && product.is_active === false)
     return matchesSearch && matchesStatus
@@ -448,14 +446,13 @@ const ProductsPage: React.FC = () => {
 
       {/* Message */}
       {message && (
-        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
-          message.type === 'success' 
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${message.type === 'success'
+          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
           {message.type === 'success' ? <CheckCircle size={20} /> : <XCircle size={20} />}
           <span>{message.text}</span>
-          <button 
+          <button
             onClick={() => setMessage(null)}
             className="ml-auto text-current opacity-60 hover:opacity-100"
           >
@@ -540,11 +537,10 @@ const ProductsPage: React.FC = () => {
                 <button
                   key={filter.id}
                   onClick={() => setFilterStatus(filter.id as any)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    filterStatus === filter.id
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${filterStatus === filter.id
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'text-gray-600 hover:bg-gray-100'
+                    }`}
                 >
                   {filter.label}
                 </button>
@@ -555,17 +551,15 @@ const ProductsPage: React.FC = () => {
             <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'grid' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500'
-                }`}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500'
+                  }`}
               >
                 <Grid size={18} />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'list' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500'
-                }`}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500'
+                  }`}
               >
                 <List size={18} />
               </button>
@@ -586,7 +580,7 @@ const ProductsPage: React.FC = () => {
           </div>
         )
       ) : (
-        <div className={viewMode === 'grid' 
+        <div className={viewMode === 'grid'
           ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
           : 'space-y-3'
         }>
@@ -600,6 +594,29 @@ const ProductsPage: React.FC = () => {
               onDelete={() => setDeletingProduct(product)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalCount > pageSize && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Précédent
+          </button>
+          <span className="px-4 py-2 text-gray-600">
+            Page {currentPage} sur {Math.ceil(totalCount / pageSize)}
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => p + 1)}
+            disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Suivant
+          </button>
         </div>
       )}
 

@@ -96,6 +96,7 @@ export interface CreateProductData {
   base_price: string;
   category?: number;
   category_id?: number;
+  category_ids?: number[];
   store_id?: number;
   stock?: number;
   low_stock_threshold?: number;
@@ -163,8 +164,12 @@ export const productsService = {
   /**
    * Récupérer mes produits (vendeur uniquement)
    */
-  async getMyProducts() {
-    return apiClient.get<Product[]>('/api/my-products');
+  async getMyProducts(params?: { page?: number; page_size?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+    const endpoint = `/api/my-products${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return apiClient.get<ProductsResponse | Product[]>(endpoint);
   },
 
   /**
@@ -201,6 +206,7 @@ export const productsService = {
    */
   async getAllProductsAdmin(params?: {
     page?: number;
+    page_size?: number;
     search?: string;
     category_id?: number;
     store_id?: number;
@@ -208,6 +214,10 @@ export const productsService = {
     try {
       const queryParams = new URLSearchParams();
       if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.page_size) {
+        queryParams.append('page_size', params.page_size.toString());
+        queryParams.append('limit', params.page_size.toString());
+      }
       if (params?.search) queryParams.append('search', params.search);
       if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
       if (params?.store_id) queryParams.append('store_id', params.store_id.toString());
@@ -280,30 +290,28 @@ export const productsService = {
 
   /**
    * Upload des images pour un produit (Admin) via l'API backend
-   * POST /api/admin/catalog/products/{product_id}/upload_images/
-   * Le backend attend: request.FILES.getlist('images')
    */
   async uploadProductImagesAdmin(productId: number, images: File[]) {
-    const formData = new FormData();
-    // Le backend attend le champ 'images' (voir admin_views.py ligne 39)
-    images.forEach(image => {
-      formData.append('images', image);
-    });
+    const endpoint = `/api/products/${productId}/upload-image`;
+    const results = [];
 
-    console.log(`Upload ${images.length} images pour produit ${productId}`);
-
-    const response = await apiClient.postFormData<ProductMedia[]>(
-      `/api/products/${productId}/upload_images`,
-      formData
-    );
-
-    if (response.error) {
-      console.error('Erreur upload images:', response.error, response.status);
-      // Ne pas bloquer - le produit est créé, juste sans images
-      return { data: [], status: response.status };
+    for (const image of images) {
+      try {
+        const response = await apiClient.upload(endpoint, image, 'image');
+        
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        results.push(response);
+      } catch (error: any) {
+        throw new Error(error.message || 'Erreur lors de l\'upload');
+      }
     }
 
-    return { data: response.data, status: response.status };
+    return {
+      data: results.map(r => r.data).filter(Boolean),
+      status: 200
+    };
   },
 };
 

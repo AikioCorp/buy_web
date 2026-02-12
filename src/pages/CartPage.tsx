@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/Card'
 import { Trash2, ShoppingBag, MessageCircle } from 'lucide-react'
 import { LoginPopup } from '@/components/LoginPopup'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 // Fonction pour obtenir l'URL de l'image du produit
 const getProductImageUrl = (product: any): string | null => {
@@ -44,12 +44,13 @@ export function CartPage() {
   }
 
   const handleWhatsAppOrder = () => {
-    const itemsList = items.map(item => 
-      `• *${item.product.name}*\n  Quantité: ${item.quantity}\n  Prix unitaire: ${formatPrice(parseFloat(item.product.base_price), 'XOF')}\n  Sous-total: ${formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}`
-    ).join('\n\n')
+    const itemsList = items.map(item => {
+      const productUrl = `${window.location.origin}/products/${item.product.slug || item.product.id}`
+      return `• *${item.product.name}*\n  Quantité: ${item.quantity}\n  Prix unitaire: ${formatPrice(parseFloat(item.product.base_price), 'XOF')}\n  Sous-total: ${formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}\n  Lien: ${productUrl}`
+    }).join('\n\n')
     
     const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Montant total: ${formatPrice(getTotal(), 'XOF')}*\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
-    const whatsappUrl = `https://wa.me/22370009007?text=${encodeURIComponent(message)}`
+    const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
   }
 
