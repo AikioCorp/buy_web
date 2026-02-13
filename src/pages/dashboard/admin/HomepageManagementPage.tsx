@@ -328,7 +328,7 @@ export default function HomepageManagementPage() {
                   ) : (
                     featured.filter(f => f.section === section).map(f => {
                       const product = f.product
-                      const imageUrl = product?.images?.[0]?.image_url || product?.media?.[0]?.image_url
+                      const imageUrl = product?.media?.[0]?.image_url || product?.images?.[0]?.image_url
                       
                       return (
                         <div key={f.id} className="group relative flex items-center gap-4 p-3 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 hover:border-emerald-300 hover:shadow-md transition-all">
@@ -345,9 +345,6 @@ export default function HomepageManagementPage() {
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-gray-900 truncate">{product?.name || `Produit #${f.product_id}`}</h4>
                             <p className="text-sm text-emerald-600 font-medium">{product?.base_price ? `${product.base_price} FCFA` : 'Prix non défini'}</p>
-                            {product?.shop_name && (
-                              <p className="text-xs text-gray-500 mt-0.5 truncate">📍 {product.shop_name}</p>
-                            )}
                           </div>
                           
                           {/* Bouton supprimer */}
@@ -387,7 +384,7 @@ export default function HomepageManagementPage() {
                 </div>
                 <div className="space-y-2 max-h-[440px] overflow-y-auto">
                   {products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) && !featured.some(f => f.product_id === p.id && f.section === section)).slice(0, 30).map(p => {
-                    const imageUrl = p.images?.[0]?.image_url || p.media?.[0]?.image_url
+                    const imageUrl = p.media?.[0]?.image_url || p.images?.[0]?.image_url
                     
                     return (
                       <div 
@@ -408,9 +405,6 @@ export default function HomepageManagementPage() {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-gray-900 truncate text-sm">{p.name}</h4>
                           <p className="text-xs text-emerald-600 font-semibold">{p.base_price} FCFA</p>
-                          {p.shop_name && (
-                            <p className="text-xs text-gray-500 truncate">📍 {p.shop_name}</p>
-                          )}
                         </div>
                         
                         {/* Icône ajouter */}
