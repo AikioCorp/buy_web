@@ -12,15 +12,43 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymor
 
 // Fonction pour obtenir l'URL de l'image du produit
 const getProductImageUrl = (product: any): string | null => {
-  if (!product?.media || product.media.length === 0) return null
-  const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
-  let url = primaryImage?.image_url || primaryImage?.file
+  if (!product) return null
+  
+  let url: string | null = null
+  
+  // Check different image sources
+  // 1. media array (new format)
+  if (product.media && product.media.length > 0) {
+    const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
+    url = primaryImage?.image_url || primaryImage?.file || primaryImage?.image
+  }
+  // 2. images array (common format)
+  else if (product.images && product.images.length > 0) {
+    const primaryImage = product.images.find((img: any) => img.is_primary) || product.images[0]
+    url = primaryImage?.image || primaryImage?.url || primaryImage?.image_url
+  }
+  // 3. Direct image property
+  else if (product.image) {
+    url = product.image
+  }
+  // 4. Direct image_url property  
+  else if (product.image_url) {
+    url = product.image_url
+  }
+  // 5. thumbnail property
+  else if (product.thumbnail) {
+    url = product.thumbnail
+  }
+  
   if (!url) return null
-  // Convertir http:// en https:// pour éviter le blocage mixed content
+  
+  // Fix protocol
   if (url.startsWith('http://')) {
     url = url.replace('http://', 'https://')
   }
-  if (url.startsWith('https://')) return url
+  
+  // Return full URL
+  if (url.startsWith('https://') || url.startsWith('data:')) return url
   return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 

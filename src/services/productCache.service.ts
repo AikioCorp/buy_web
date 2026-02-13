@@ -80,7 +80,7 @@ class ProductCacheService {
     };
 
     if (filters.category_id) params.category_id = filters.category_id;
-    if (filters.category_slug) params.category = filters.category_slug;
+    if (filters.category_slug) params.category_slug = filters.category_slug;
     if (filters.store_id) params.store_id = filters.store_id;
     if (filters.search) params.search = filters.search;
 
@@ -93,6 +93,7 @@ class ProductCacheService {
     });
     
     const endpoint = `/api/products?${queryParams.toString()}`;
+    console.log('🔍 API Call:', endpoint);
     const response = await apiClient.get<ProductsResponse>(endpoint);
     
     // Vérifier si la réponse contient une erreur

@@ -591,55 +591,32 @@ export function CheckoutPage() {
                       </div>
                     </label>
 
-                    {/* Mobile Money */}
-                    <label className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
-                      paymentMethod === 'mobile_money' ? 'border-[#0f4c2b] bg-green-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="mobile_money"
-                        checked={paymentMethod === 'mobile_money'}
-                        onChange={() => setPaymentMethod('mobile_money')}
-                        className="h-4 w-4 text-[#0f4c2b] focus:ring-[#0f4c2b] mt-1"
-                      />
-                      <div className="ml-3 flex-1">
-                        <span className="font-medium">Mobile Money</span>
-                        <p className="text-sm text-gray-500 mb-3">Wave, Orange Money, Sama, Moov Africa</p>
-                        {paymentMethod === 'mobile_money' && (
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-2">
-                              {[
-                                { id: 'wave', label: 'Wave', color: 'bg-blue-500' },
-                                { id: 'orange_money', label: 'Orange Money', color: 'bg-orange-500' },
-                                { id: 'sama', label: 'Sama', color: 'bg-purple-500' },
-                                { id: 'moov', label: 'Moov Africa', color: 'bg-cyan-500' }
-                              ].map((provider) => (
-                                <button
-                                  key={provider.id}
-                                  type="button"
-                                  onClick={() => setMobileMoneyProvider(provider.id as any)}
-                                  className={`p-2 rounded-lg border-2 text-sm font-medium transition-colors ${
-                                    mobileMoneyProvider === provider.id
-                                      ? 'border-[#0f4c2b] bg-green-50 text-[#0f4c2b]'
-                                      : 'border-gray-200 hover:border-gray-300'
-                                  }`}
-                                >
-                                  {provider.label}
-                                </button>
-                              ))}
-                            </div>
-                            <input
-                              type="tel"
-                              value={mobileMoneyNumber}
-                              onChange={(e) => setMobileMoneyNumber(e.target.value)}
-                              placeholder="Votre numéro de téléphone"
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent"
-                            />
+                    {/* Mobile Money - Coming Soon */}
+                    <div className="relative group">
+                      <div className={`flex items-start p-4 border rounded-lg cursor-not-allowed transition-colors border-gray-200 bg-gray-50 opacity-60`}>
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="mobile_money"
+                          disabled
+                          className="h-4 w-4 text-gray-400 mt-1 cursor-not-allowed"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-500">Mobile Money</span>
+                            <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">
+                              Bientôt disponible
+                            </span>
                           </div>
-                        )}
+                          <p className="text-sm text-gray-400">Wave, Orange Money, Sama, Moov Africa</p>
+                        </div>
                       </div>
-                    </label>
+                      {/* Tooltip on hover */}
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-4 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                        🚀 Le paiement Mobile Money arrive très prochainement !
+                        <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
 
                   </div>
 

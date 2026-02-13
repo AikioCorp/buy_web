@@ -9,6 +9,8 @@ import { cache, CACHE_TTL } from '../lib/cache';
 export function useProducts(params?: {
   page?: number;
   page_size?: number;
+  limit?: number;
+  offset?: number;
   category_id?: number;
   category_slug?: string;
   search?: string;

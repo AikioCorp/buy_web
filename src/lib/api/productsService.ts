@@ -127,6 +127,8 @@ export const productsService = {
   async getProducts(params?: {
     page?: number;
     page_size?: number;
+    limit?: number;
+    offset?: number;
     category_id?: number;
     category_slug?: string;
     search?: string;
@@ -136,6 +138,8 @@ export const productsService = {
 
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
     if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
     if (params?.category_slug) queryParams.append('category_slug', params.category_slug);
     if (params?.search) queryParams.append('search', params.search);
@@ -143,6 +147,13 @@ export const productsService = {
 
     const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
     return apiClient.get<ProductsResponse>(endpoint);
+  },
+
+  /**
+   * Récupérer un échantillon équilibré de produits pour la homepage
+   */
+  async getHomepageProducts() {
+    return apiClient.get<ProductsResponse>('/api/products/homepage');
   },
 
   /**

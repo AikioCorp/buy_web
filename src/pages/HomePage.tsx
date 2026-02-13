@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Package, ShoppingCart, Star, ChevronRight, Truck, Shield,
@@ -7,8 +7,7 @@ import {
   Smartphone, Home, Shirt, Dumbbell, Laptop, Zap, Gift, Percent, Tag,
   Headphones, Monitor, Watch, Camera, FolderTree
 } from 'lucide-react'
-import { useProducts } from '../hooks/useProducts'
-import { Product } from '../lib/api/productsService'
+import { Product, productsService } from '../lib/api/productsService'
 import { categoriesService } from '../lib/api/categoriesService'
 import { shopsService, Shop } from '../lib/api/shopsService'
 import { homepageService, HeroSlider, PromoBanner } from '../lib/api/homepageService'
@@ -16,6 +15,34 @@ import { flashSalesService, ActiveFlashSale } from '../lib/api/flashSalesService
 import { useCartStore } from '../store/cartStore'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { useToast } from '../components/Toast'
+
+// Composant de chargement progressif - les sections ne se rendent que quand elles sont visibles
+const LazySection = ({ children, fallback, rootMargin = '200px' }: { children: React.ReactNode, fallback?: React.ReactNode, rootMargin?: string }) => {
+  const ref = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref}>
+      {isVisible ? children : (fallback || <div className="py-8"><div className="container mx-auto px-4"><div className="animate-pulse flex gap-4">{[...Array(4)].map((_, i) => <div key={i} className="h-48 bg-gray-200 rounded-xl flex-1 min-w-[160px]" />)}</div></div></div>)}
+    </div>
+  )
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
@@ -218,6 +245,9 @@ const defaultPromoBanners = [
 
 // Nombre max de produits par section pour optimiser les performances
 const MAX_PRODUCTS_PER_SECTION = 20
+const MAX_KIDS_PRODUCTS_SECTION = 8
+
+const RECENTLY_VIEWED_KEY = 'buymore_recently_viewed_products'
 
 // Skeleton loader pour les produits
 const ProductSkeleton = () => (
@@ -239,7 +269,8 @@ const SectionSkeleton = ({ count = 6 }: { count?: number }) => (
 )
 
 export function HomePage() {
-  const { products: apiProducts, isLoading: productsLoading, refresh: refreshProducts } = useProducts()
+  const [apiProducts, setApiProducts] = useState<any[]>([])
+  const [productsLoading, setProductsLoading] = useState(true)
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
   const [currentBanner, setCurrentBanner] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -268,12 +299,29 @@ export function HomePage() {
   const [foodScrollRef, setFoodScrollRef] = useState<HTMLDivElement | null>(null)
   const [beautyScrollRef, setBeautyScrollRef] = useState<HTMLDivElement | null>(null)
   const [kitchenScrollRef, setKitchenScrollRef] = useState<HTMLDivElement | null>(null)
+  const [recentlyViewedProducts, setRecentlyViewedProducts] = useState<any[]>([])
+  const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false)
+
+  const loadHomepageProducts = async () => {
+    setProductsLoading(true)
+    try {
+      // Charger un échantillon couvrant toutes les catégories
+      const response = await productsService.getProducts({ limit: 2000 })
+      if (response.data?.results) {
+        setApiProducts(response.data.results)
+      }
+    } catch (err) {
+      console.error('Error loading homepage products:', err)
+    } finally {
+      setProductsLoading(false)
+    }
+  }
 
   useEffect(() => {
     const loadAllContent = async () => {
       // Charger en parallèle pour plus de rapidité
       await Promise.all([
-        refreshProducts(),
+        loadHomepageProducts(),
         loadCategories(),
         loadShops(),
         loadHomepageContent(),
@@ -317,141 +365,7 @@ export function HomePage() {
     }
   }
 
-  // Auto-scroll for Flash Deals
-  useEffect(() => {
-    if (!flashDealsScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = flashDealsScrollRef.scrollWidth
-      const clientWidth = flashDealsScrollRef.clientWidth
-      const currentScroll = flashDealsScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        flashDealsScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        flashDealsScrollRef.scrollBy({ left: 200, behavior: 'smooth' })
-      }
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [flashDealsScrollRef])
-
-  // Auto-scroll for Popular Products
-  useEffect(() => {
-    if (!popularScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = popularScrollRef.scrollWidth
-      const clientWidth = popularScrollRef.clientWidth
-      const currentScroll = popularScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        popularScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        popularScrollRef.scrollBy({ left: 200, behavior: 'smooth' })
-      }
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [popularScrollRef])
-
-  // Auto-scroll for Men Section (3.5s interval)
-  useEffect(() => {
-    if (!menScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = menScrollRef.scrollWidth
-      const clientWidth = menScrollRef.clientWidth
-      const currentScroll = menScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        menScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        menScrollRef.scrollBy({ left: 180, behavior: 'smooth' })
-      }
-    }, 3500)
-    return () => clearInterval(interval)
-  }, [menScrollRef])
-
-  // Auto-scroll for Women Section (4s interval)
-  useEffect(() => {
-    if (!womenScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = womenScrollRef.scrollWidth
-      const clientWidth = womenScrollRef.clientWidth
-      const currentScroll = womenScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        womenScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        womenScrollRef.scrollBy({ left: 220, behavior: 'smooth' })
-      }
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [womenScrollRef])
-
-  // Auto-scroll for Kids Section (3.2s interval)
-  useEffect(() => {
-    if (!kidsScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = kidsScrollRef.scrollWidth
-      const clientWidth = kidsScrollRef.clientWidth
-      const currentScroll = kidsScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        kidsScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        kidsScrollRef.scrollBy({ left: 190, behavior: 'smooth' })
-      }
-    }, 3200)
-    return () => clearInterval(interval)
-  }, [kidsScrollRef])
-
-  // Auto-scroll for Food Section (4.5s interval)
-  useEffect(() => {
-    if (!foodScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = foodScrollRef.scrollWidth
-      const clientWidth = foodScrollRef.clientWidth
-      const currentScroll = foodScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        foodScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        foodScrollRef.scrollBy({ left: 210, behavior: 'smooth' })
-      }
-    }, 4500)
-    return () => clearInterval(interval)
-  }, [foodScrollRef])
-
-  // Auto-scroll for Beauty Section (3.8s interval)
-  useEffect(() => {
-    if (!beautyScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = beautyScrollRef.scrollWidth
-      const clientWidth = beautyScrollRef.clientWidth
-      const currentScroll = beautyScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        beautyScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        beautyScrollRef.scrollBy({ left: 195, behavior: 'smooth' })
-      }
-    }, 3800)
-    return () => clearInterval(interval)
-  }, [beautyScrollRef])
-
-  // Auto-scroll for Kitchen Section (4.2s interval)
-  useEffect(() => {
-    if (!kitchenScrollRef) return
-    const interval = setInterval(() => {
-      const scrollWidth = kitchenScrollRef.scrollWidth
-      const clientWidth = kitchenScrollRef.clientWidth
-      const currentScroll = kitchenScrollRef.scrollLeft
-
-      if (currentScroll + clientWidth >= scrollWidth - 10) {
-        kitchenScrollRef.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        kitchenScrollRef.scrollBy({ left: 205, behavior: 'smooth' })
-      }
-    }, 4200)
-    return () => clearInterval(interval)
-  }, [kitchenScrollRef])
+  // Pas d'auto-scroll pour les sections produits horizontales
 
   // Countdown dynamique pour Flash Sale
   useEffect(() => {
@@ -541,21 +455,289 @@ export function HomePage() {
 
 
   useEffect(() => {
+    if (isAutoScrollPaused) return
     const interval = setInterval(() => setCurrentBanner(prev => (prev + 1) % heroSliders.length), 5000)
     return () => clearInterval(interval)
-  }, [heroSliders.length])
+  }, [heroSliders.length, isAutoScrollPaused])
+
+  // Charger les produits vus récemment depuis le localStorage au chargement
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(RECENTLY_VIEWED_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) {
+          setRecentlyViewedProducts(parsed)
+        }
+      }
+    } catch (error) {
+      console.warn('Erreur chargement produits vus récemment', error)
+    }
+  }, [])
 
   // Auto-slide pour bannières promo si > 3
   useEffect(() => {
     if (promoBannersData.length <= 3) return
+    if (isAutoScrollPaused) return
     const interval = setInterval(() => {
       setCurrentPromoBanner(prev => (prev + 1) % promoBannersData.length)
     }, 4000)
     return () => clearInterval(interval)
-  }, [promoBannersData.length])
+  }, [promoBannersData.length, isAutoScrollPaused])
 
   const allProducts = apiProducts || []
+
+  const handleProductClick = (product: any) => {
+    try {
+      const minimal = {
+        id: product.id,
+        slug: product.slug,
+        name: product.name,
+        base_price: product.base_price,
+        promo_price: (product as any).promo_price,
+        media: product.media || (product as any).images || [],
+        store: product.store || product.shop || null,
+        shop: product.shop || product.store || null,
+      }
+
+      const existingRaw = localStorage.getItem(RECENTLY_VIEWED_KEY)
+      let existing: any[] = []
+      if (existingRaw) {
+        try {
+          const parsed = JSON.parse(existingRaw)
+          if (Array.isArray(parsed)) existing = parsed
+        } catch {
+          existing = []
+        }
+      }
+
+      const filtered = existing.filter((p) => p.id !== minimal.id)
+      const updated = [minimal, ...filtered].slice(0, 12)
+      localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(updated))
+      setRecentlyViewedProducts(updated)
+    } catch (error) {
+      console.warn('Erreur enregistrement produit vu récemment', error)
+    }
+  }
   
+  // Fonction de mélange aléatoire (Fisher-Yates shuffle)
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // Mapping des catégories réelles par ID (basé sur Supabase)
+  // Catégories principales avec leurs IDs réels
+  const CATEGORY_IDS = {
+    MODE_VETEMENTS: 2,
+    MAISON_JARDIN: 3,
+    BEAUTE_SANTE: 4,
+    ALIMENTATION: 6,
+    BEBE_ENFANT: 7,
+    CHAUSSURES: 13,
+    ENFANTS: 14,
+    ACCESSOIRES: 16,
+    SOINS_CORPS: 21,
+    BOISSONS_SNACKING: 26,
+    ELECTROMENAGER: 4705,
+    PRODUITS_ENTRETIEN: 4707,
+    SOINS_CHEVEUX: 4708,
+    MAQUILLAGE: 4709,
+    EPICERIE_SALEE: 4710,
+    EPICERIE_SUCREE: 4711,
+    FRAIS_SURGELES: 4712,
+    USTENSILES_CUISINE: 4715,
+    CADEAUX_FETES: 4716,
+    BIJOUX_MONTRES: 4719,
+    PRODUITS_LAITIERS: 4723,
+    CAFE_THE: 4725,
+    VIANDES_POISSONS: 4727,
+    ALIMENTATION_BEBE: 4728,
+    BIBERONS_ACCESSOIRES: 4729,
+    COUCHES_CHANGE: 4730,
+    PETIT_ELECTROMENAGER: 4732,
+    APPAREILS_CUISSON: 4734,
+    MUGS_TASSES: 4736,
+    ASSIETTES: 4737,
+    BOLS_SALADIERS: 4738,
+    SERVICES_TABLE: 4739,
+    ACCESSOIRES_CUISINE: 4740,
+    FLEURS: 4742,
+    PARFUM: 4743,
+    GROS_ELECTROMENAGER: 2052,
+  };
+
+  // Groupes de catégories pour chaque section de la HomePage
+  const SECTION_CATEGORIES = {
+    mode: [CATEGORY_IDS.MODE_VETEMENTS, CATEGORY_IDS.CHAUSSURES, CATEGORY_IDS.ACCESSOIRES, CATEGORY_IDS.BIJOUX_MONTRES],
+    alimentation: [CATEGORY_IDS.ALIMENTATION, CATEGORY_IDS.EPICERIE_SALEE, CATEGORY_IDS.EPICERIE_SUCREE, CATEGORY_IDS.FRAIS_SURGELES, CATEGORY_IDS.BOISSONS_SNACKING, CATEGORY_IDS.CAFE_THE, CATEGORY_IDS.PRODUITS_LAITIERS, CATEGORY_IDS.VIANDES_POISSONS],
+    beaute: [CATEGORY_IDS.BEAUTE_SANTE, CATEGORY_IDS.SOINS_CORPS, CATEGORY_IDS.SOINS_CHEVEUX, CATEGORY_IDS.MAQUILLAGE, CATEGORY_IDS.PARFUM],
+    // Groupe large "maison" (si besoin pour d'autres sections)
+    maison: [CATEGORY_IDS.MAISON_JARDIN, CATEGORY_IDS.ELECTROMENAGER, CATEGORY_IDS.GROS_ELECTROMENAGER, CATEGORY_IDS.PRODUITS_ENTRETIEN, CATEGORY_IDS.FLEURS],
+    // Groupe dédié cuisine / art culinaire (inclut le parent Maison pour attraper les produits mal catégorisés)
+    cuisine: [
+      CATEGORY_IDS.MAISON_JARDIN,
+      CATEGORY_IDS.USTENSILES_CUISINE,
+      CATEGORY_IDS.ACCESSOIRES_CUISINE,
+      CATEGORY_IDS.MUGS_TASSES,
+      CATEGORY_IDS.ASSIETTES,
+      CATEGORY_IDS.BOLS_SALADIERS,
+      CATEGORY_IDS.SERVICES_TABLE,
+      CATEGORY_IDS.APPAREILS_CUISSON,
+      CATEGORY_IDS.PETIT_ELECTROMENAGER,
+      CATEGORY_IDS.ELECTROMENAGER,
+      CATEGORY_IDS.GROS_ELECTROMENAGER,
+    ],
+    enfants: [CATEGORY_IDS.BEBE_ENFANT, CATEGORY_IDS.ENFANTS, CATEGORY_IDS.ALIMENTATION_BEBE, CATEGORY_IDS.BIBERONS_ACCESSOIRES, CATEGORY_IDS.COUCHES_CHANGE],
+  };
+
+  // Filtrer les produits par IDs de catégorie et mélanger aléatoirement
+  const getProductsByCategoryIds = (categoryIds: number[]): any[] => {
+    const filtered = allProducts.filter((p: any) => 
+      p.category_id && categoryIds.includes(p.category_id)
+    );
+    return shuffleArray(filtered);
+  };
+
+  // Cache/mémoisation des listes de produits par grande section
+  const modeBaseProducts = useMemo(
+    () => getProductsByCategoryIds(SECTION_CATEGORIES.mode),
+    [allProducts]
+  );
+
+  const kidsBaseProducts = useMemo(
+    () => getProductsByCategoryIds(SECTION_CATEGORIES.enfants),
+    [allProducts]
+  );
+
+  const foodProducts = useMemo(
+    () => getProductsByCategoryIds(SECTION_CATEGORIES.alimentation),
+    [allProducts]
+  );
+
+  const beautyProducts = useMemo(
+    () => getProductsByCategoryIds(SECTION_CATEGORIES.beaute),
+    [allProducts]
+  );
+
+  const kitchenProducts = useMemo(
+    () => getProductsByCategoryIds(SECTION_CATEGORIES.cuisine),
+    [allProducts]
+  );
+
+  // Heuristiques pour distinguer produits Homme / Femme
+  // Mots-clés typiquement féminins (chaussures, accessoires, etc.)
+  const WOMEN_ONLY_KEYWORDS = [
+    'mule', 'mules', 'escarpin', 'escarpins', 'talon', 'talons',
+    'slingback', 'ballerine', 'ballerines', 'sandale femme', 'sandales femme',
+    'robe', 'jupe', 'blouse', 'corsage', 'bustier',
+    'mademoiselle', 'sac à main', 'pochette femme',
+    'vernis', 'rouge à lèvres', 'mascara',
+  ];
+
+  const WOMEN_STORE_KEYWORDS = ['mademoiselle', 'de luxe', 'feminine', 'féminin'];
+
+  const isMenProduct = (product: any): boolean => {
+    const name = (product.name || '').toLowerCase();
+    const storeName = (product.store?.name || product.shop?.name || '').toLowerCase();
+    const meta = ((product.meta_title || '') + ' ' + (product.meta_description || '')).toLowerCase();
+    const catName = (product.category?.name || '').toLowerCase();
+
+    const text = `${name} ${storeName} ${meta} ${catName}`;
+
+    // Exclure les produits clairement féminins
+    if (WOMEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return false;
+    if (WOMEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return false;
+
+    const menKeywords = ['homme', 'masculin', 'men', 'garçon', 'monsieur'];
+    const hasMenKeyword = menKeywords.some((k) => text.includes(k));
+
+    // Boutique clairement masculine
+    const isMenStore = storeName.includes('au masculin');
+
+    return hasMenKeyword || isMenStore;
+  };
+
+  const isWomenProduct = (product: any): boolean => {
+    const name = (product.name || '').toLowerCase();
+    const storeName = (product.store?.name || product.shop?.name || '').toLowerCase();
+    const meta = ((product.meta_title || '') + ' ' + (product.meta_description || '')).toLowerCase();
+    const catName = (product.category?.name || '').toLowerCase();
+
+    const text = `${name} ${storeName} ${meta} ${catName}`;
+
+    // Produits clairement féminins par leur nom
+    if (WOMEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return true;
+    // Boutique clairement féminine
+    if (WOMEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return true;
+
+    const womenKeywords = ['femme', 'féminin', 'feminine', 'women', 'dame', 'fille'];
+    const hasWomenKeyword = womenKeywords.some((k) => text.includes(k));
+
+    if (!hasWomenKeyword) return false;
+    if (isMenProduct(product)) return false;
+
+    return true;
+  };
+
+  // Produits de mode Homme / Femme basés sur catégorie + heuristiques
+  const getModeMenProducts = (): any[] => {
+    // 1) Produits explicitement masculins
+    const men = modeBaseProducts.filter((p) => isMenProduct(p));
+    if (men.length >= 4) return men;
+
+    // 2) Fallback : produits non explicitement féminins
+    const notWomen = modeBaseProducts.filter((p) => !isWomenProduct(p));
+    if (notWomen.length >= 4) return shuffleArray(notWomen);
+
+    // 3) Dernier recours : tous les produits mode (ne jamais laisser la section vide)
+    return shuffleArray([...modeBaseProducts]);
+  };
+
+  const getModeWomenProducts = (): any[] => {
+    const women = modeBaseProducts.filter(isWomenProduct);
+
+    if (women.length > 0) {
+      return women;
+    }
+
+    // Si aucune correspondance explicite, on exclut au moins les produits marqués comme Homme
+    return modeBaseProducts.filter((p) => !isMenProduct(p));
+  };
+
+  // Heuristique pour identifier les produits Enfants/Bébé
+  const isKidsProduct = (product: any): boolean => {
+    const name = (product.name || '').toLowerCase();
+    const storeName = (product.store?.name || product.shop?.name || '').toLowerCase();
+    const meta = ((product.meta_title || '') + ' ' + (product.meta_description || '')).toLowerCase();
+
+    const text = `${name} ${storeName} ${meta}`;
+
+    const kidsKeywords = [
+      'enfant', 'enfants', 'bébé', 'bebe', 'baby', 'kid', 'kids',
+      'jouet', 'jouets', 'puericulture', 'puericulture'
+    ];
+
+    return kidsKeywords.some((k) => text.includes(k));
+  };
+
+  // Produits pour l'univers Enfants (catégories dédiées + fallback par mots-clés)
+  const getKidsProducts = (): any[] => {
+    const kidsFromBase = kidsBaseProducts.filter(isKidsProduct);
+
+    if (kidsFromBase.length > 0) {
+      return kidsFromBase;
+    }
+
+    // Fallback : chercher dans tous les produits ceux qui semblent être pour enfants
+    const fallback = allProducts.filter(isKidsProduct);
+    return shuffleArray(fallback);
+  };
+
   // Flash Deals: utiliser les produits de la Flash Sale active si disponible, sinon les produits en promo
   const flashSaleProducts = activeFlashSale?.products?.map(fp => fp.product).filter(Boolean) || []
   const promoProducts = allProducts.filter((p: any) => 
@@ -564,18 +746,31 @@ export function HomePage() {
   const dealProducts = flashSaleProducts.length > 0 ? flashSaleProducts.slice(0, MAX_PRODUCTS_PER_SECTION) : promoProducts.slice(0, MAX_PRODUCTS_PER_SECTION)
   
   // Produits populaires: basés sur les ventes (order_count) ou vues (view_count) si disponibles
-  const trendingProducts = [...allProducts].sort((a: any, b: any) => {
-    const aScore = (a.order_count || 0) * 2 + (a.view_count || 0)
-    const bScore = (b.order_count || 0) * 2 + (b.view_count || 0)
-    return bScore - aScore
-  }).slice(0, MAX_PRODUCTS_PER_SECTION)
+  const trendingProducts = useMemo(() => {
+    return [...allProducts]
+      .sort((a: any, b: any) => {
+        const aScore = (a.order_count || 0) * 2 + (a.view_count || 0)
+        const bScore = (b.order_count || 0) * 2 + (b.view_count || 0)
+        return bScore - aScore
+      })
+      .slice(0, MAX_PRODUCTS_PER_SECTION)
+  }, [allProducts])
   
-  const newArrivals = [...allProducts].sort((a: any, b: any) => {
-    const dateA = new Date(a.created_at || 0).getTime()
-    const dateB = new Date(b.created_at || 0).getTime()
-    return dateB - dateA
-  }).slice(0, MAX_PRODUCTS_PER_SECTION)
-  const bestSellers = [...allProducts].sort((a: any, b: any) => (b.order_count || 0) - (a.order_count || 0)).slice(0, MAX_PRODUCTS_PER_SECTION)
+  const newArrivals = useMemo(() => {
+    return [...allProducts]
+      .sort((a: any, b: any) => {
+        const dateA = new Date(a.created_at || 0).getTime()
+        const dateB = new Date(b.created_at || 0).getTime()
+        return dateB - dateA
+      })
+      .slice(0, MAX_PRODUCTS_PER_SECTION)
+  }, [allProducts])
+
+  const bestSellers = useMemo(() => {
+    return [...allProducts]
+      .sort((a: any, b: any) => (b.order_count || 0) - (a.order_count || 0))
+      .slice(0, MAX_PRODUCTS_PER_SECTION)
+  }, [allProducts])
   
   // Calculer le pourcentage de réduction réel
   const getDiscountPercent = (product: any) => {
@@ -608,70 +803,90 @@ export function HomePage() {
     navigate(`/products/${productId}`)
   }
 
-  const ProductCard = ({ product, index, showDiscount = false }: { product: any, index: number, showDiscount?: boolean }) => (
-    <Link
-      to={`/products/${product.slug || product.id}`}
-      className="group bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
-      onMouseEnter={() => setHoveredProduct(product.id)}
-      onMouseLeave={() => setHoveredProduct(null)}
-    >
-      <div className="relative aspect-square bg-gray-50 overflow-hidden">
-        {/* Product Banner - Enhanced */}
-        {showDiscount && (
-          <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg">
-            -{15 + (index % 5) * 10}% OFF
+  const ProductCard = ({ product, index, showDiscount = false }: { product: any, index: number, showDiscount?: boolean }) => {
+    const discountPercent = getDiscountPercent(product)
+    const hasDiscount = showDiscount && discountPercent > 0
+    const finalPrice = hasDiscount ? product.promo_price : product.base_price
+
+    return (
+      <Link
+        to={`/products/${product.slug || product.id}`}
+        className="group bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
+        onMouseEnter={() => {
+          setHoveredProduct(product.id)
+          setIsAutoScrollPaused(true)
+        }}
+        onMouseLeave={() => {
+          setHoveredProduct(null)
+          setIsAutoScrollPaused(false)
+        }}
+        onClick={() => handleProductClick(product)}
+      >
+        <div className="relative aspect-square bg-gray-50 overflow-hidden">
+          {/* Product Banner - Enhanced */}
+          {hasDiscount && (
+            <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg">
+              -{discountPercent}% OFF
+            </div>
+          )}
+          {index < 3 && !hasDiscount && (
+            <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-orange-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1">
+              🔥 HOT
+            </div>
+          )}
+          {index === 0 && (
+            <div className="absolute top-2 right-2 z-10 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+              ⭐ TOP
+            </div>
+          )}
+          {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+            <img
+              src={getImageUrl(product) || product.media?.[0]?.image_url}
+              alt={product.name}
+              loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-12 w-12" /></div>
+          )}
+          <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 transition-all duration-300 ${hoveredProduct === product.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <button
+              onClick={(e) => handleToggleFavorite(e, product)}
+              className={`w-8 h-8 rounded-full shadow flex items-center justify-center transition-colors ${isFavorite(product.id) ? 'bg-red-500 text-white' : 'bg-white hover:bg-red-500 hover:text-white'}`}
+            >
+              <Heart className={`w-4 h-4 ${isFavorite(product.id) ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={(e) => handleAddToCart(e, product)}
+              className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors"
+            >
+              <ShoppingCart className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => handleQuickView(e, product.id)}
+              className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
           </div>
-        )}
-        {index < 3 && !showDiscount && (
-          <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-orange-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1">
-            🔥 HOT
+        </div>
+        <div className="p-3">
+          <p className="text-xs text-gray-400 mb-0.5">{product.store?.name || product.shop?.name || (typeof product.category === 'string' ? product.category : product.category?.name) || 'BuyMore'}</p>
+          <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-green-600 transition-colors">{product.name}</h3>
+          <div className="flex items-center gap-1 mb-1">
+            {[...Array(5)].map((_, i) => (<Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />))}
+            <span className="text-xs text-gray-400 ml-1">(24)</span>
           </div>
-        )}
-        {index === 0 && (
-          <div className="absolute top-2 right-2 z-10 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-            ⭐ TOP
+          <div className="flex items-center gap-2">
+            <span className="text-green-600 font-bold text-sm">{formatPrice(finalPrice)} <span className="text-xs font-normal">FCFA</span></span>
+            {hasDiscount && (
+              <span className="text-gray-400 text-xs line-through">{formatPrice(product.base_price)}</span>
+            )}
           </div>
-        )}
-        {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
-          <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-12 w-12" /></div>
-        )}
-        <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 transition-all duration-300 ${hoveredProduct === product.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <button
-            onClick={(e) => handleToggleFavorite(e, product)}
-            className={`w-8 h-8 rounded-full shadow flex items-center justify-center transition-colors ${isFavorite(product.id) ? 'bg-red-500 text-white' : 'bg-white hover:bg-red-500 hover:text-white'}`}
-          >
-            <Heart className={`w-4 h-4 ${isFavorite(product.id) ? 'fill-current' : ''}`} />
-          </button>
-          <button
-            onClick={(e) => handleAddToCart(e, product)}
-            className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-green-500 hover:text-white transition-colors"
-          >
-            <ShoppingCart className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => handleQuickView(e, product.id)}
-            className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
         </div>
-      </div>
-      <div className="p-3">
-        <p className="text-xs text-gray-400 mb-0.5">{product.store?.name || product.shop?.name || (typeof product.category === 'string' ? product.category : product.category?.name) || 'BuyMore'}</p>
-        <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-green-600 transition-colors">{product.name}</h3>
-        <div className="flex items-center gap-1 mb-1">
-          {[...Array(5)].map((_, i) => (<Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />))}
-          <span className="text-xs text-gray-400 ml-1">(24)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-green-600 font-bold text-sm">{formatPrice(product.base_price)} <span className="text-xs font-normal">FCFA</span></span>
-          {showDiscount && <span className="text-gray-400 text-xs line-through">{formatPrice(Number(product.base_price) * 1.3)}</span>}
-        </div>
-      </div>
-    </Link>
-  )
+      </Link>
+    )
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -801,6 +1016,7 @@ export function HomePage() {
                       <img 
                         src={(hoveredCategory as any).image} 
                         alt={(hoveredCategory as any).name}
+                        loading="lazy"
                         className="w-full h-auto object-cover rounded-xl shadow-lg max-h-[260px]"
                       />
                     </div>
@@ -850,7 +1066,7 @@ export function HomePage() {
                         to={banner.link || '/deals'} 
                         className={`relative h-24 md:h-28 rounded-xl overflow-hidden bg-gradient-to-r ${banner.bg_color} group transition-all duration-700`}
                       >
-                        <img src={banner.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity" style={{ objectPosition: banner.image_position || 'center center' }} />
+                        <img src={banner.image_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity" style={{ objectPosition: banner.image_position || 'center center' }} />
                         <div className="relative z-10 p-3 h-full flex flex-col justify-between">
                           <div>
                             <p className="text-white/80 text-xs">{banner.subtitle}</p>
@@ -880,7 +1096,7 @@ export function HomePage() {
                     return (
                       <Link key={product.id} to={`/products/${product.slug || product.id}`} className="flex gap-3 p-3 hover:bg-gray-50 transition-colors">
                         {(product.images?.[0]?.image_url || product.media?.[0]?.image_url) ? (
-                          <img src={product.images?.[0]?.image_url || product.media?.[0]?.image_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
+                          <img src={product.images?.[0]?.image_url || product.media?.[0]?.image_url} alt="" loading="lazy" className="w-14 h-14 rounded-lg object-cover" />
                         ) : (
                           <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center"><Package className="w-7 h-7 text-gray-400" /></div>
                         )}
@@ -944,7 +1160,7 @@ export function HomePage() {
                 >
                   <div className={`w-14 h-14 rounded-full ${bgColor} flex items-center justify-center shadow-lg overflow-hidden ring-2 ring-white`}>
                     {catImage ? (
-                      <img src={catImage} alt={cat.name} className="w-full h-full object-cover" />
+                      <img src={catImage} alt={cat.name} loading="lazy" className="w-full h-full object-cover" />
                     ) : (
                       <Package className="w-6 h-6 text-white" />
                     )}
@@ -972,7 +1188,7 @@ export function HomePage() {
                   {/* Shop Banner Image as Background */}
                   {shop.banner_url ? (
                     <div className="absolute inset-0">
-                      <img src={shop.banner_url} alt={shop.name} className="w-full h-full object-cover" />
+                      <img src={shop.banner_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
                     </div>
                   ) : (
@@ -986,7 +1202,7 @@ export function HomePage() {
                     {/* Shop Logo - Larger and more prominent */}
                     <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mb-3 overflow-hidden shadow-md">
                       {shop.logo_url ? (
-                        <img src={shop.logo_url} alt={shop.name} className="w-full h-full object-cover" />
+                        <img src={shop.logo_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         <Store className="w-8 h-8 text-gray-600" />
                       )}
@@ -1019,7 +1235,7 @@ export function HomePage() {
                 <Link key={shop.id} to={`/shops/${shop.id}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
                   <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-200 flex items-center justify-center overflow-hidden group-hover:border-green-400 transition-colors">
                     {shop.logo_url ? (
-                      <img src={shop.logo_url} alt={shop.name} className="w-full h-full object-cover" />
+                      <img src={shop.logo_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
                     ) : (
                       <Store className="w-6 h-6 text-green-600" />
                     )}
@@ -1070,23 +1286,33 @@ export function HomePage() {
             </div>
           {/* Mobile: Horizontal Slider | Desktop: Grid */}
           <div ref={setFlashDealsScrollRef} className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 scrollbar-hide snap-x snap-mandatory md:snap-none">
-            {dealProducts.length > 0 ? dealProducts.map((product: any) => (
-              <Link key={product.id} to={`/products/${product.slug || product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-lg min-w-[160px] md:min-w-0 snap-start">
-                <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                  <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{getDiscountPercent(product)}%</div>
-                  {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
-                    <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  ) : (<div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>)}
-                </div>
-                <div className="p-2">
-                  <h3 className="font-medium text-gray-900 text-xs line-clamp-2 mb-1">{product.name}</h3>
-                  <div className="flex items-center gap-1">
-                    <span className="text-red-600 font-bold text-sm">{formatPrice(product.promo_price)} FCFA</span>
-                    <span className="text-gray-400 text-xs line-through">{formatPrice(product.base_price)}</span>
+            {dealProducts.length > 0 ? dealProducts.map((product: any) => {
+              const discountPercent = getDiscountPercent(product)
+              const hasDiscount = discountPercent > 0
+              const finalPrice = hasDiscount ? product.promo_price : product.base_price
+
+              return (
+                <Link key={product.id} to={`/products/${product.slug || product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-lg min-w-[160px] md:min-w-0 snap-start">
+                  <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                    {hasDiscount && (
+                      <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{discountPercent}%</div>
+                    )}
+                    {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+                      <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    ) : (<div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>)}
                   </div>
-                </div>
-              </Link>
-            )) : (
+                  <div className="p-2">
+                    <h3 className="font-medium text-gray-900 text-xs line-clamp-2 mb-1">{product.name}</h3>
+                    <div className="flex items-center gap-1">
+                      <span className="text-red-600 font-bold text-sm">{formatPrice(finalPrice)} FCFA</span>
+                      {hasDiscount && (
+                        <span className="text-gray-400 text-xs line-through">{formatPrice(product.base_price)}</span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              )
+            }) : (
               <div className="col-span-full text-center py-8 text-white/80">
                 <p>Aucune promotion en cours</p>
                 <p className="text-sm">Revenez bientôt pour découvrir nos offres !</p>
@@ -1138,7 +1364,73 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* Section Saint-Valentin - Saison de l'amour */}
+      <LazySection>
+      <section className="py-10 bg-gradient-to-br from-red-600 via-rose-600 to-pink-600 relative overflow-hidden">
+        {/* Decorative hearts */}
+        <div className="absolute top-4 left-8 text-white/10 text-8xl select-none">❤</div>
+        <div className="absolute bottom-4 right-12 text-white/10 text-7xl select-none">❤</div>
+        <div className="absolute top-1/2 left-1/3 text-white/5 text-9xl select-none">❤</div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
+              <Heart className="w-5 h-5 text-white fill-white" />
+              <span className="text-white font-semibold text-sm">Spécial Saint-Valentin</span>
+              <Heart className="w-5 h-5 text-white fill-white" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">Saison de l'Amour</h2>
+            <p className="text-pink-100 text-lg">Trouvez le cadeau parfait pour votre moitié</p>
+          </div>
+
+          <div className="relative group">
+            <button
+              onClick={() => {
+                const el = document.getElementById('valentine-scroll')
+                el?.scrollBy({ left: -300, behavior: 'smooth' })
+              }}
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronLeft className="w-6 h-6 text-red-600" />
+            </button>
+
+            <button
+              onClick={() => {
+                const el = document.getElementById('valentine-scroll')
+                el?.scrollBy({ left: 300, behavior: 'smooth' })
+              }}
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronRight className="w-6 h-6 text-red-600" />
+            </button>
+
+            <div id="valentine-scroll" className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {productsLoading ? (
+                <SectionSkeleton count={6} />
+              ) : (
+                [...promoProducts, ...beautyProducts, ...modeBaseProducts.filter(isWomenProduct)]
+                  .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
+                  .slice(0, 20)
+                  .map((product: any, index: number) => (
+                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                      <ProductCard product={product} index={index} showDiscount />
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+
+          <div className="text-center mt-6">
+            <Link to="/products?sort=bestsellers" className="inline-flex items-center gap-2 px-8 py-3 bg-white text-red-600 rounded-full font-bold hover:shadow-lg hover:scale-105 transition-all">
+              Voir les idées cadeaux <Heart className="w-5 h-5 fill-red-600" />
+            </Link>
+          </div>
+        </div>
+      </section>
+      </LazySection>
+
       {/* Section Hommes - Creative Design with Slider */}
+      <LazySection>
       <section className="py-8 bg-gradient-to-br from-slate-50 to-gray-100">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
@@ -1152,32 +1444,39 @@ export function HomePage() {
               Voir tout <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="relative">
+          <div className="relative group">
+            <button
+              onClick={() => menScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-slate-700 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            <button
+              onClick={() => menScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-slate-700 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+
             <div ref={setMenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {productsLoading ? <SectionSkeleton count={6} /> : allProducts.filter((p: any) => {
-                const name = p.name?.toLowerCase() || '';
-                const cat = p.category?.name?.toLowerCase() || '';
-                const catSlug = p.category?.slug?.toLowerCase() || '';
-                const desc = p.description?.toLowerCase() || '';
-                const menKeywords = ['homme', 'masculin', 'polo', 'chemise', 'costume', 'cravate', 'mocassin', 'basket homme', 'montre homme', 'jean homme', 'pantalon homme'];
-                const menSlugs = ['homme', 'men', 'mode-homme', 'vetements-homme', 'chaussures-homme'];
-                return (
-                  cat.includes('homme') || 
-                  menSlugs.some(s => catSlug.includes(s)) ||
-                  menKeywords.some(key => name.includes(key)) ||
-                  menKeywords.some(key => desc.includes(key))
-                ) && !name.includes('femme') && !name.includes('fille') && !catSlug.includes('femme');
-              }).slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
-                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                  <ProductCard product={product} index={index} />
-                </div>
-              ))}
+              {productsLoading ? (
+                <SectionSkeleton count={6} />
+              ) : (
+                getModeMenProducts().map((product: any, index: number) => (
+                  <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                    <ProductCard product={product} index={index} />
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       </section>
+      </LazySection>
 
       {/* Section Femmes - New Creative Design */}
+      <LazySection>
       <section className="py-12 bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 relative overflow-hidden">
         {/* Decorative Elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-pink-200 rounded-full blur-3xl opacity-30"></div>
@@ -1189,6 +1488,7 @@ export function HomePage() {
             <img
               src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=1200&h=400&fit=crop"
               alt="Mode Femme"
+              loading="lazy"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-pink-900/70 to-purple-900/50 flex items-center justify-center">
@@ -1221,24 +1521,15 @@ export function HomePage() {
             </button>
 
             <div ref={setWomenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory px-2">
-              {productsLoading ? <SectionSkeleton count={6} /> : allProducts.filter((p: any) => {
-                const name = p.name?.toLowerCase() || '';
-                const cat = p.category?.name?.toLowerCase() || '';
-                const catSlug = p.category?.slug?.toLowerCase() || '';
-                const desc = p.description?.toLowerCase() || '';
-                const womenKeywords = ['robe', 'jupe', 'blouse', 'top femme', 'legging', 'talon', 'femme', 'féminin', 'sac à main', 'maquillage', 'perruque', 'lingerie', 'bijoux', 'collier', 'bracelet', 'boucle', 'escarpin', 'sandale'];
-                const womenSlugs = ['femme', 'women', 'mode-femme', 'vetements-femme', 'chaussures-femme', 'beaute', 'maquillage', 'bijoux'];
-                return (
-                  cat.includes('femme') || 
-                  womenSlugs.some(s => catSlug.includes(s)) ||
-                  womenKeywords.some(key => name.includes(key)) ||
-                  womenKeywords.some(key => desc.includes(key))
-                ) && !name.includes('homme') && !name.includes('garçon') && !catSlug.includes('homme');
-              }).slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
-                <div key={product.id} className="min-w-[140px] md:min-w-[200px] snap-start">
-                  <ProductCard product={product} index={index} />
-                </div>
-              ))}
+              {productsLoading ? (
+                <SectionSkeleton count={6} />
+              ) : (
+                getModeWomenProducts().map((product: any, index: number) => (
+                  <div key={product.id} className="min-w-[140px] md:min-w-[200px] snap-start">
+                    <ProductCard product={product} index={index} />
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -1249,64 +1540,65 @@ export function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
 
-      {/* Section Enfants - Creative Design with Slider */}
-      <section className="py-8 bg-gradient-to-br from-blue-50 to-cyan-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Univers Enfants
-              </h2>
-              <p className="text-gray-600 text-sm mt-1">Jouets, vêtements et accessoires pour les petits</p>
-            </div>
-            <Link to="/products?category=enfants" className="text-blue-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
-              Voir tout <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="relative">
-            <div ref={setKidsScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {productsLoading ? <SectionSkeleton count={6} /> : allProducts.filter((p: any) => {
-                const name = p.name?.toLowerCase() || '';
-                const cat = p.category?.name?.toLowerCase() || '';
-                const catSlug = p.category?.slug?.toLowerCase() || '';
-                const desc = p.description?.toLowerCase() || '';
-                const kidsKeywords = ['enfant', 'bébé', 'jouet', 'fille', 'garçon', 'peluche', 'poupée', 'lego', 'puzzle', 'couche', 'biberon', 'poussette', 'landau', 'body', 'pyjama enfant', 'chaussure enfant'];
-                const kidsSlugs = ['enfant', 'bebe', 'jouet', 'kids', 'baby', 'puericulture', 'jouets'];
-                return (
-                  cat.includes('enfant') || cat.includes('bébé') || cat.includes('jouet') ||
-                  kidsSlugs.some(s => catSlug.includes(s)) ||
-                  kidsKeywords.some(key => name.includes(key)) ||
-                  kidsKeywords.some(key => desc.includes(key))
-                ) && !name.includes('homme') && !name.includes('femme') && !catSlug.includes('homme') && !catSlug.includes('femme');
-              }).slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
-                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                  <ProductCard product={product} index={index} />
+      {/* Section Enfants - Creative Design with Slider (affichée seulement si des produits existent) */}
+      <LazySection>
+      {(() => {
+        const kidsProducts = getKidsProducts();
+
+        if (!productsLoading && kidsProducts.length === 0) return null;
+
+        return (
+          <section className="py-8 bg-gradient-to-br from-blue-50 to-cyan-50">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Univers Enfants
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">Jouets, vêtements et accessoires pour les petits</p>
                 </div>
-              ))}
+                <Link to="/products?category=enfants" className="text-blue-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                  Voir tout <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="relative group">
+                <button
+                  onClick={() => kidsScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-blue-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <button
+                  onClick={() => kidsScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-blue-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
+                <div ref={setKidsScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+                  {productsLoading ? (
+                    <SectionSkeleton count={6} />
+                  ) : (
+                    kidsProducts.map((product: any, index: number) => (
+                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                        <ProductCard product={product} index={index} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        );
+      })()}
+      </LazySection>
 
       {/* Section Produits Alimentaires - Affichée seulement si des produits existent */}
+      <LazySection>
       {(() => {
-        const foodProducts = allProducts.filter((p: any) => {
-          const name = p.name?.toLowerCase() || '';
-          const cat = p.category?.name?.toLowerCase() || '';
-          const catSlug = p.category?.slug?.toLowerCase() || '';
-          const desc = p.description?.toLowerCase() || '';
-          const foodKeywords = ['alimentation', 'alimentaire', 'chocolat', 'biscuit', 'café', 'thé', 'jus', 'eau', 'boisson', 'snack', 'chips', 'bonbon', 'riz', 'sucre', 'huile', 'lait', 'pâtes', 'épice', 'sauce', 'conserve', 'céréale', 'miel', 'confiture', 'fromage', 'yaourt', 'viande', 'poisson', 'fruit', 'légume', 'pain', 'farine', 'sel', 'poivre', 'tomate', 'oignon'];
-          const foodSlugs = ['alimentaire', 'alimentation', 'food', 'epicerie', 'boisson', 'frais', 'bio', 'snack', 'nourriture'];
-          return (
-            catSlug === 'alimentation' || cat === 'alimentation' ||
-            cat.includes('alimentaire') || cat.includes('alimentation') || cat.includes('nourriture') || cat.includes('food') ||
-            foodSlugs.some(s => catSlug.includes(s)) ||
-            foodKeywords.some(key => name.includes(key)) ||
-            foodKeywords.some(key => desc.includes(key))
-          );
-        });
-        
         if (!productsLoading && foodProducts.length === 0) return null;
         
         return (
@@ -1319,41 +1611,46 @@ export function HomePage() {
                   </h2>
                   <p className="text-gray-600 text-sm mt-1">Frais, savoureux et de qualité</p>
                 </div>
-                <Link to="/products?category=alimentaire" className="text-green-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                <Link to="/products?category=alimentation" className="text-green-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
                   Voir tout <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
-              <div className="relative">
+              <div className="relative group">
+                <button
+                  onClick={() => foodScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-green-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <button
+                  onClick={() => foodScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-green-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
                 <div ref={setFoodScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-                  {productsLoading ? <SectionSkeleton count={6} /> : foodProducts.slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
-                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                      <ProductCard product={product} index={index} />
-                    </div>
-                  ))}
+                  {productsLoading ? (
+                    <SectionSkeleton count={6} />
+                  ) : (
+                    foodProducts.map((product: any, index: number) => (
+                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                        <ProductCard product={product} index={index} />
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
           </section>
         );
       })()}
+      </LazySection>
 
       {/* Section Beauté - Affichée seulement si des produits existent */}
+      <LazySection>
       {(() => {
-        const beautyProducts = allProducts.filter((p: any) => {
-          const name = p.name?.toLowerCase() || '';
-          const cat = p.category?.name?.toLowerCase() || '';
-          const catSlug = p.category?.slug?.toLowerCase() || '';
-          const desc = p.description?.toLowerCase() || '';
-          const beautyKeywords = ['parfum', 'maquillage', 'rouge à lèvres', 'mascara', 'fond de teint', 'crème', 'lotion', 'shampoing', 'savon', 'gel douche', 'déodorant', 'soin', 'sérum', 'huile essentielle', 'vernis', 'brosse', 'peigne', 'rasoir'];
-          const beautySlugs = ['beaute', 'beauty', 'parfum', 'maquillage', 'soin', 'hygiene', 'cheveux', 'cosmetique'];
-          return (
-            cat.includes('beauté') || cat.includes('parfum') || cat.includes('cosmétique') ||
-            beautySlugs.some(s => catSlug.includes(s)) ||
-            beautyKeywords.some(key => name.includes(key)) ||
-            beautyKeywords.some(key => desc.includes(key))
-          );
-        });
-        
         if (!productsLoading && beautyProducts.length === 0) return null;
         
         return (
@@ -1370,37 +1667,42 @@ export function HomePage() {
                   Voir tout <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
-              <div className="relative">
+              <div className="relative group">
+                <button
+                  onClick={() => beautyScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-purple-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <button
+                  onClick={() => beautyScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-purple-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
                 <div ref={setBeautyScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-                  {productsLoading ? <SectionSkeleton count={6} /> : beautyProducts.slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
-                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                      <ProductCard product={product} index={index} />
-                    </div>
-                  ))}
+                  {productsLoading ? (
+                    <SectionSkeleton count={6} />
+                  ) : (
+                    beautyProducts.map((product: any, index: number) => (
+                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                        <ProductCard product={product} index={index} />
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
           </section>
         );
       })()}
+      </LazySection>
 
       {/* Section Cuisine - Affichée seulement si des produits existent */}
+      <LazySection>
       {(() => {
-        const kitchenProducts = allProducts.filter((p: any) => {
-          const name = p.name?.toLowerCase() || '';
-          const cat = p.category?.name?.toLowerCase() || '';
-          const catSlug = p.category?.slug?.toLowerCase() || '';
-          const desc = p.description?.toLowerCase() || '';
-          const kitchenKeywords = ['cuisine', 'ustensile', 'casserole', 'poêle', 'couteau', 'planche', 'mixeur', 'blender', 'four', 'micro-onde', 'cafetière', 'bouilloire', 'grille-pain', 'robot', 'batteur', 'assiette', 'verre', 'tasse', 'couverts', 'spatule', 'louche'];
-          const kitchenSlugs = ['cuisine', 'kitchen', 'ustensile', 'electromenager', 'vaisselle', 'cuisson'];
-          return (
-            cat.includes('cuisine') || cat.includes('ustensile') || cat.includes('électroménager') ||
-            kitchenSlugs.some(s => catSlug.includes(s)) ||
-            kitchenKeywords.some(key => name.includes(key)) ||
-            kitchenKeywords.some(key => desc.includes(key))
-          );
-        });
-        
         if (!productsLoading && kitchenProducts.length === 0) return null;
         
         return (
@@ -1417,21 +1719,41 @@ export function HomePage() {
                   Voir tout <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
-              <div className="relative">
+              <div className="relative group">
+                <button
+                  onClick={() => kitchenScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-orange-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <button
+                  onClick={() => kitchenScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-orange-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
                 <div ref={setKitchenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-                  {productsLoading ? <SectionSkeleton count={6} /> : kitchenProducts.slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
-                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                      <ProductCard product={product} index={index} />
-                    </div>
-                  ))}
+                  {productsLoading ? (
+                    <SectionSkeleton count={6} />
+                  ) : (
+                    kitchenProducts.map((product: any, index: number) => (
+                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                        <ProductCard product={product} index={index} />
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
           </section>
         );
       })()}
+      </LazySection>
 
       {/* Nouveautés */}
+      <LazySection>
       <section className="py-8 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-4">
@@ -1446,8 +1768,10 @@ export function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
 
       {/* Meilleures ventes */}
+      <LazySection>
       <section className="py-8 bg-white">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-4">
@@ -1462,25 +1786,28 @@ export function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
 
-      {/* Features Footer */}
-      <section className="py-8 bg-gray-900 text-white">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { icon: Truck, title: 'Livraison Rapide', desc: 'Partout à Bamako en 24h' },
-              { icon: Shield, title: 'Paiement Sécurisé', desc: 'Transactions 100% protégées' },
-              { icon: RefreshCw, title: 'Retour Facile', desc: 'Satisfait ou remboursé' },
-              { icon: Clock, title: 'Support 24/7', desc: 'Une équipe à votre écoute' },
-            ].map((feature, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center"><feature.icon className="w-6 h-6 text-green-400" /></div>
-                <div><h4 className="font-semibold">{feature.title}</h4><p className="text-sm text-gray-400">{feature.desc}</p></div>
+      {/* Vus récemment */}
+      {recentlyViewedProducts.length > 0 && (
+        <section className="py-8 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center"><Clock className="w-5 h-5 text-blue-600" /></div>
+                <div><h2 className="text-xl font-bold text-gray-900">Vus récemment</h2><p className="text-gray-500 text-sm">Les produits que vous avez consultés</p></div>
               </div>
-            ))}
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {recentlyViewedProducts.map((product: any, index: number) => (
+                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                  <ProductCard product={product} index={index} />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Newsletter */}
       <section className="py-10 bg-gradient-to-r from-green-600 to-emerald-600">
