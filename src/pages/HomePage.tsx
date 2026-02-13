@@ -11,6 +11,8 @@ import { useProducts } from '../hooks/useProducts'
 import { Product } from '../lib/api/productsService'
 import { categoriesService } from '../lib/api/categoriesService'
 import { shopsService, Shop } from '../lib/api/shopsService'
+import { homepageService, HeroSlider, PromoBanner } from '../lib/api/homepageService'
+import { flashSalesService, ActiveFlashSale } from '../lib/api/flashSalesService'
 import { useCartStore } from '../store/cartStore'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { useToast } from '../components/Toast'
@@ -191,20 +193,6 @@ const shopColors = [
 ]
 
 
-// Bannières Hero
-const heroBanners = [
-  { title: 'Nouvelle Collection', subtitle: 'Mode Africaine 2025', description: 'Découvrez les dernières tendances', bgColor: 'from-purple-600 to-pink-600', image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=400&fit=crop', cta: 'Découvrir', link: '/shops?category=mode' },
-  { title: 'Flash Sale', subtitle: 'Jusqu\'à -70%', description: 'Offres limitées sur l\'électronique', bgColor: 'from-red-600 to-orange-500', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=400&fit=crop', cta: 'En profiter', link: '/deals' },
-  { title: 'Livraison Gratuite', subtitle: 'Sur +50 000 FCFA', description: 'Partout à Bamako', bgColor: 'from-green-600 to-emerald-500', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&h=400&fit=crop', cta: 'Commander', link: '/shops' },
-]
-
-// Bannières promotionnelles
-const promoBanners = [
-  { title: 'Smartphones', subtitle: 'Dernière génération', discount: '-30%', bgColor: 'from-blue-600 to-indigo-700', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=200&fit=crop' },
-  { title: 'Électroménager', subtitle: 'Qualité premium', discount: '-25%', bgColor: 'from-orange-500 to-red-600', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=200&fit=crop' },
-  { title: 'Mode Africaine', subtitle: 'Créations uniques', discount: '-40%', bgColor: 'from-purple-600 to-pink-600', image: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=200&fit=crop' },
-]
-
 interface DynamicCategory {
   id: number
   name: string
@@ -214,6 +202,19 @@ interface DynamicCategory {
   parent?: number | null
   children?: DynamicCategory[]
 }
+
+// Données par défaut (fallback)
+const defaultHeroBanners = [
+  { title: 'Nouvelle Collection', subtitle: 'Mode Africaine 2025', description: 'Découvrez les dernières tendances', bg_color: 'from-purple-600 to-pink-600', image_url: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=400&fit=crop', cta_text: 'Découvrir', cta_link: '/shops?category=mode' },
+  { title: 'Flash Sale', subtitle: 'Jusqu\'à -70%', description: 'Offres limitées sur l\'électronique', bg_color: 'from-red-600 to-orange-500', image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=400&fit=crop', cta_text: 'En profiter', cta_link: '/deals' },
+  { title: 'Livraison Gratuite', subtitle: 'Sur +50 000 FCFA', description: 'Partout à Bamako', bg_color: 'from-green-600 to-emerald-500', image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&h=400&fit=crop', cta_text: 'Commander', cta_link: '/shops' },
+]
+
+const defaultPromoBanners = [
+  { title: 'Smartphones', subtitle: 'Dernière génération', discount: '-30%', bg_color: 'from-blue-600 to-indigo-700', image_url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=200&fit=crop' },
+  { title: 'Électroménager', subtitle: 'Qualité premium', discount: '-25%', bg_color: 'from-orange-500 to-red-600', image_url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=200&fit=crop' },
+  { title: 'Mode Africaine', subtitle: 'Créations uniques', discount: '-40%', bg_color: 'from-purple-600 to-pink-600', image_url: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=200&fit=crop' },
+]
 
 export function HomePage() {
   const { products: apiProducts, refresh: refreshProducts } = useProducts()
@@ -228,7 +229,14 @@ export function HomePage() {
   const { toggleFavorite, isFavorite } = useFavoritesStore()
   const { showToast } = useToast()
 
-  const [countdown, setCountdown] = useState({ hours: 23, minutes: 45, seconds: 30 })
+  // États pour le contenu dynamique de la homepage
+  const [heroSliders, setHeroSliders] = useState<any[]>(defaultHeroBanners)
+  const [promoBannersData, setPromoBannersData] = useState<any[]>(defaultPromoBanners)
+  const [currentPromoBanner, setCurrentPromoBanner] = useState(0)
+  const [featuredTopVentes, setFeaturedTopVentes] = useState<any[]>([])
+  const [activeFlashSale, setActiveFlashSale] = useState<ActiveFlashSale | null>(null)
+
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
   const [flashDealsScrollRef, setFlashDealsScrollRef] = useState<HTMLDivElement | null>(null)
   const [popularScrollRef, setPopularScrollRef] = useState<HTMLDivElement | null>(null)
   const [menScrollRef, setMenScrollRef] = useState<HTMLDivElement | null>(null)
@@ -242,7 +250,42 @@ export function HomePage() {
     refreshProducts()
     loadCategories()
     loadShops()
+    loadHomepageContent()
+    loadActiveFlashSale()
   }, [])
+
+  const loadHomepageContent = async () => {
+    try {
+      const response = await homepageService.getHomepageContent()
+      if (response.data) {
+        if (response.data.sliders && response.data.sliders.length > 0) {
+          setHeroSliders(response.data.sliders)
+        }
+        if (response.data.banners && response.data.banners.length > 0) {
+          setPromoBannersData(response.data.banners)
+        }
+        // Charger les produits vedettes
+        if (response.data.featuredProducts) {
+          if (response.data.featuredProducts.top_ventes) {
+            setFeaturedTopVentes(response.data.featuredProducts.top_ventes)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chargement contenu homepage:', error)
+    }
+  }
+
+  const loadActiveFlashSale = async () => {
+    try {
+      const response = await flashSalesService.getActiveFlashSale()
+      if (response.data) {
+        setActiveFlashSale(response.data)
+      }
+    } catch (error) {
+      console.error('Erreur chargement Flash Sale:', error)
+    }
+  }
 
   // Auto-scroll for Flash Deals
   useEffect(() => {
@@ -380,6 +423,33 @@ export function HomePage() {
     return () => clearInterval(interval)
   }, [kitchenScrollRef])
 
+  // Countdown dynamique pour Flash Sale
+  useEffect(() => {
+    if (!activeFlashSale?.flashSale?.end_date) return
+
+    const updateCountdown = () => {
+      const now = new Date().getTime()
+      const end = new Date(activeFlashSale.flashSale.end_date).getTime()
+      const diff = end - now
+
+      if (diff <= 0) {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+        return
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+      setCountdown({ days, hours, minutes, seconds })
+    }
+
+    updateCountdown()
+    const interval = setInterval(updateCountdown, 1000)
+    return () => clearInterval(interval)
+  }, [activeFlashSale])
+
   const loadCategories = async () => {
     try {
       const response = await categoriesService.getCategories()
@@ -439,33 +509,50 @@ export function HomePage() {
     ).slice(0, 6)
   }
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 }
-        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 }
-        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 }
-        return { hours: 23, minutes: 59, seconds: 59 }
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   useEffect(() => {
-    const interval = setInterval(() => setCurrentBanner(prev => (prev + 1) % heroBanners.length), 5000)
+    const interval = setInterval(() => setCurrentBanner(prev => (prev + 1) % heroSliders.length), 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [heroSliders.length])
+
+  // Auto-slide pour bannières promo si > 3
+  useEffect(() => {
+    if (promoBannersData.length <= 3) return
+    const interval = setInterval(() => {
+      setCurrentPromoBanner(prev => (prev + 1) % promoBannersData.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [promoBannersData.length])
 
   const allProducts = apiProducts || []
-  const dealProducts = allProducts.slice(0, 6)
-  const trendingProducts = allProducts.slice(0, 12)
-  const newArrivals = allProducts.slice(8, 16)
-  const bestSellers = allProducts.slice(4, 12)
+  
+  // Flash Deals: utiliser les produits de la Flash Sale active si disponible, sinon les produits en promo
+  const flashSaleProducts = activeFlashSale?.products?.map(fp => fp.product).filter(Boolean) || []
+  const promoProducts = allProducts.filter((p: any) => 
+    p.promo_price && Number(p.promo_price) > 0 && Number(p.promo_price) < Number(p.base_price)
+  )
+  const dealProducts = flashSaleProducts.length > 0 ? flashSaleProducts : promoProducts.slice(0, 12)
+  
+  // Produits populaires: basés sur les ventes (order_count) ou vues (view_count) si disponibles
+  const trendingProducts = [...allProducts].sort((a: any, b: any) => {
+    const aScore = (a.order_count || 0) * 2 + (a.view_count || 0)
+    const bScore = (b.order_count || 0) * 2 + (b.view_count || 0)
+    return bScore - aScore
+  }).slice(0, 12)
+  
+  const newArrivals = allProducts.slice(0, 16)
+  const bestSellers = [...allProducts].sort((a: any, b: any) => (b.order_count || 0) - (a.order_count || 0)).slice(0, 12)
+  
+  // Calculer le pourcentage de réduction réel
+  const getDiscountPercent = (product: any) => {
+    if (!product.promo_price || Number(product.promo_price) >= Number(product.base_price)) return 0
+    return Math.round((1 - Number(product.promo_price) / Number(product.base_price)) * 100)
+  }
 
   const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
 
-  const nextBanner = () => setCurrentBanner((prev) => (prev + 1) % heroBanners.length)
-  const prevBanner = () => setCurrentBanner((prev) => (prev - 1 + heroBanners.length) % heroBanners.length)
+  const nextBanner = () => setCurrentBanner((prev) => (prev + 1) % heroSliders.length)
+  const prevBanner = () => setCurrentBanner((prev) => (prev - 1 + heroSliders.length) % heroSliders.length)
 
   const handleAddToCart = (e: React.MouseEvent, product: any) => {
     e.preventDefault()
@@ -691,17 +778,17 @@ export function HomePage() {
             {/* Hero Carousel */}
             <div className="flex-1">
               <div className="relative h-[300px] md:h-[400px] rounded-xl overflow-hidden">
-                {heroBanners.map((banner, index) => (
+                {heroSliders.map((banner, index) => (
                   <div key={index} className={`absolute inset-0 transition-all duration-700 ${currentBanner === index ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                    <div className={`h-full bg-gradient-to-r ${banner.bgColor} flex items-center relative`}>
+                    <div className={`h-full bg-gradient-to-r ${banner.bg_color} flex items-center relative`}>
                       <div className="absolute inset-0 bg-black/20"></div>
-                      <img src={banner.image} alt="" className="absolute right-0 top-0 h-full w-1/2 object-cover opacity-50" />
+                      <img src={banner.image_url} alt="" className="absolute right-0 top-0 h-full w-1/2 object-cover opacity-50" style={{ objectPosition: banner.image_position || 'center center' }} />
                       <div className="container mx-auto px-6 md:px-12 relative z-10">
                         <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur rounded-full text-white text-sm mb-3">{banner.subtitle}</span>
                         <h1 className="text-3xl md:text-5xl font-black text-white mb-3">{banner.title}</h1>
                         <p className="text-white/90 mb-6 text-lg">{banner.description}</p>
-                        <Link to={banner.link} className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-full font-bold hover:bg-yellow-400 transition-colors">
-                          {banner.cta} <ArrowRight className="w-5 h-5" />
+                        <Link to={banner.cta_link} className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-full font-bold hover:bg-yellow-400 transition-colors">
+                          {banner.cta_text} <ArrowRight className="w-5 h-5" />
                         </Link>
                       </div>
                     </div>
@@ -710,24 +797,38 @@ export function HomePage() {
                 <button onClick={prevBanner} className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/60 transition-all shadow-lg cursor-pointer"><ChevronLeft className="w-7 h-7" /></button>
                 <button onClick={nextBanner} className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/60 transition-all shadow-lg cursor-pointer"><ChevronRight className="w-7 h-7" /></button>
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                  {heroBanners.map((_, index) => (<button key={index} onClick={() => setCurrentBanner(index)} className={`h-2 rounded-full transition-all ${currentBanner === index ? 'bg-white w-8' : 'bg-white/50 w-2'}`} />))}
+                  {heroSliders.map((_, index) => (<button key={index} onClick={() => setCurrentBanner(index)} className={`h-2 rounded-full transition-all ${currentBanner === index ? 'bg-white w-8' : 'bg-white/50 w-2'}`} />))}
                 </div>
               </div>
 
-              {/* Mini Banners */}
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                {promoBanners.map((banner, index) => (
-                  <Link key={index} to="/deals" className={`relative h-24 md:h-28 rounded-xl overflow-hidden bg-gradient-to-r ${banner.bgColor} group`}>
-                    <img src={banner.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity" />
-                    <div className="relative z-10 p-3 h-full flex flex-col justify-between">
-                      <div>
-                        <p className="text-white/80 text-xs">{banner.subtitle}</p>
-                        <h4 className="text-white font-bold text-sm md:text-base">{banner.title}</h4>
-                      </div>
-                      <span className="text-yellow-300 font-black text-lg">{banner.discount}</span>
-                    </div>
-                  </Link>
-                ))}
+              {/* Mini Banners - Toujours afficher 3 à la fois avec slider si > 3 */}
+              <div className="relative mt-4">
+                <div className="grid grid-cols-3 gap-3 overflow-hidden">
+                  {/* Afficher 3 bannières à la fois */}
+                  {[0, 1, 2].map((offset) => {
+                    const index = (currentPromoBanner + offset) % promoBannersData.length
+                    const banner = promoBannersData[index]
+                    if (!banner) return null
+                    
+                    return (
+                      <Link 
+                        key={index} 
+                        to={banner.link || '/deals'} 
+                        className={`relative h-24 md:h-28 rounded-xl overflow-hidden bg-gradient-to-r ${banner.bg_color} group transition-all duration-700`}
+                      >
+                        <img src={banner.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity" style={{ objectPosition: banner.image_position || 'center center' }} />
+                        <div className="relative z-10 p-3 h-full flex flex-col justify-between">
+                          <div>
+                            <p className="text-white/80 text-xs">{banner.subtitle}</p>
+                            <h4 className="text-white font-bold text-sm md:text-base">{banner.title}</h4>
+                          </div>
+                          <span className="text-yellow-300 font-black text-lg">{banner.discount}</span>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+                
               </div>
             </div>
 
@@ -737,19 +838,30 @@ export function HomePage() {
                 <h3 className="font-bold flex items-center gap-2"><Zap className="w-5 h-5" /> Top Ventes</h3>
               </div>
               <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm divide-y divide-gray-100">
-                {allProducts.slice(0, 4).map((product) => (
-                  <Link key={product.id} to={`/products/${product.slug || product.id}`} className="flex gap-3 p-3 hover:bg-gray-50 transition-colors">
-                    {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
-                      <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center"><Package className="w-7 h-7 text-gray-400" /></div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h4>
-                      <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(product.base_price)}</p>
-                    </div>
-                  </Link>
-                ))}
+                {featuredTopVentes.length > 0 ? (
+                  featuredTopVentes.slice(0, 6).map((featured) => {
+                    const product = featured.product
+                    if (!product) return null
+                    
+                    return (
+                      <Link key={product.id} to={`/products/${product.slug || product.id}`} className="flex gap-3 p-3 hover:bg-gray-50 transition-colors">
+                        {(product.images?.[0]?.image_url || product.media?.[0]?.image_url) ? (
+                          <img src={product.images?.[0]?.image_url || product.media?.[0]?.image_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center"><Package className="w-7 h-7 text-gray-400" /></div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h4>
+                          <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(product.base_price)} FCFA</p>
+                        </div>
+                      </Link>
+                    )
+                  })
+                ) : (
+                  <div className="p-4 text-center text-gray-500 text-sm">
+                    Aucun produit vedette
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -887,31 +999,47 @@ export function HomePage() {
       )}
 
       {/* Flash Deals */}
-      <section className="py-6 bg-gradient-to-r from-red-500 to-orange-500">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><Zap className="w-6 h-6 text-yellow-300" /></div>
-              <div><h2 className="text-xl font-bold text-white">Ventes Flash</h2><p className="text-white/80 text-sm">Offres limitées - Dépêchez-vous!</p></div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-white/80 text-sm">Se termine dans:</span>
-              <div className="flex gap-1">
-                {[{ value: countdown.hours, label: 'H' }, { value: countdown.minutes, label: 'M' }, { value: countdown.seconds, label: 'S' }].map((item, i) => (
-                  <div key={i} className="bg-white rounded-lg px-3 py-2 text-center min-w-[50px]">
-                    <div className="text-xl font-black text-red-500">{String(item.value).padStart(2, '0')}</div>
-                    <div className="text-[10px] text-gray-500 font-medium">{item.label}</div>
-                  </div>
-                ))}
+      {(activeFlashSale || dealProducts.length > 0) && (
+        <section className={`py-6 bg-gradient-to-r ${activeFlashSale?.flashSale?.bg_color || 'from-red-500 to-orange-500'}`}>
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><Zap className="w-6 h-6 text-yellow-300" /></div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">{activeFlashSale?.flashSale?.title || 'Ventes Flash'}</h2>
+                  <p className="text-white/80 text-sm">{activeFlashSale?.flashSale?.description || 'Offres limitées - Dépêchez-vous!'}</p>
+                </div>
               </div>
+              {activeFlashSale && (
+                <div className="flex items-center gap-3">
+                  <span className="text-white/80 text-sm">Se termine dans:</span>
+                  <div className="flex gap-1">
+                    {countdown.days > 0 && (
+                      <div className="bg-white rounded-lg px-3 py-2 text-center min-w-[50px]">
+                        <div className="text-xl font-black text-red-500">{String(countdown.days).padStart(2, '0')}</div>
+                        <div className="text-[10px] text-gray-500 font-medium">J</div>
+                      </div>
+                    )}
+                    {[
+                      { value: countdown.hours, label: 'H' }, 
+                      { value: countdown.minutes, label: 'M' }, 
+                      { value: countdown.seconds, label: 'S' }
+                    ].map((item, i) => (
+                      <div key={i} className="bg-white rounded-lg px-3 py-2 text-center min-w-[50px]">
+                        <div className="text-xl font-black text-red-500">{String(item.value).padStart(2, '0')}</div>
+                        <div className="text-[10px] text-gray-500 font-medium">{item.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
           {/* Mobile: Horizontal Slider | Desktop: Grid */}
           <div ref={setFlashDealsScrollRef} className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 scrollbar-hide snap-x snap-mandatory md:snap-none">
-            {dealProducts.map((product: any, index: number) => (
+            {dealProducts.length > 0 ? dealProducts.map((product: any) => (
               <Link key={product.id} to={`/products/${product.slug || product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-lg min-w-[160px] md:min-w-0 snap-start">
                 <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                  <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{20 + index * 10}%</div>
+                  <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{getDiscountPercent(product)}%</div>
                   {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
                     <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   ) : (<div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>)}
@@ -919,15 +1047,21 @@ export function HomePage() {
                 <div className="p-2">
                   <h3 className="font-medium text-gray-900 text-xs line-clamp-2 mb-1">{product.name}</h3>
                   <div className="flex items-center gap-1">
-                    <span className="text-red-600 font-bold text-sm">{formatPrice(Number(product.base_price) * 0.8)}</span>
+                    <span className="text-red-600 font-bold text-sm">{formatPrice(product.promo_price)} FCFA</span>
                     <span className="text-gray-400 text-xs line-through">{formatPrice(product.base_price)}</span>
                   </div>
                 </div>
               </Link>
-            ))}
+            )) : (
+              <div className="col-span-full text-center py-8 text-white/80">
+                <p>Aucune promotion en cours</p>
+                <p className="text-sm">Revenez bientôt pour découvrir nos offres !</p>
+              </div>
+            )}
           </div>
         </div>
-      </section>
+        </section>
+      )}
 
       {/* Produits Populaires - Horizontal Slider with Auto-scroll */}
       <section className="py-8 bg-white">

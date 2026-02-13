@@ -39,12 +39,14 @@ class ProductCacheService {
    */
   private getCacheKey(filters: {
     category_id?: number;
+    category_slug?: string;
     store_id?: number;
     search?: string;
     page?: number;
   }): string {
     return JSON.stringify({
       category_id: filters.category_id,
+      category_slug: filters.category_slug,
       store_id: filters.store_id,
       search: filters.search,
       page: filters.page || 0,
@@ -65,6 +67,7 @@ class ProductCacheService {
     page: number,
     filters: {
       category_id?: number;
+      category_slug?: string;
       store_id?: number;
       search?: string;
     } = {}
@@ -77,6 +80,7 @@ class ProductCacheService {
     };
 
     if (filters.category_id) params.category_id = filters.category_id;
+    if (filters.category_slug) params.category = filters.category_slug;
     if (filters.store_id) params.store_id = filters.store_id;
     if (filters.search) params.search = filters.search;
 
@@ -114,6 +118,7 @@ class ProductCacheService {
     page: number = 0,
     filters: {
       category_id?: number;
+      category_slug?: string;
       store_id?: number;
       search?: string;
     } = {}

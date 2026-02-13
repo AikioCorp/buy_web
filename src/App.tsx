@@ -75,7 +75,9 @@ import {
   AdminReportsPage,
   SuperAdminReportsPage,
   AdminModerationPage,
-  AdminAnalyticsPage
+  AdminAnalyticsPage,
+  HomepageManagementPage,
+  FlashSalesManagementPage
 } from './pages/dashboard/admin'
 import AdminShopsPage from './pages/dashboard/admin/AdminShopsPage'
 import AdminProductsPage from './pages/dashboard/admin/AdminProductsPage'
@@ -195,6 +197,8 @@ function App() {
           <Route path="categories" element={<AdminCategoriesPage />} />
           <Route path="analytics" element={<AdminAnalyticsPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
+          <Route path="homepage" element={<HomepageManagementPage />} />
+          <Route path="flash-sales" element={<FlashSalesManagementPage />} />
         </Route>
 
         {/* Routes du dashboard super admin */}
@@ -220,6 +224,8 @@ function App() {
           <Route path="reports" element={<SuperAdminReportsPage />} />
           <Route path="permissions" element={<PermissionsManagementPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
+          <Route path="homepage" element={<HomepageManagementPage />} />
+          <Route path="flash-sales" element={<FlashSalesManagementPage />} />
         </Route>
       </Routes>
     </Router>

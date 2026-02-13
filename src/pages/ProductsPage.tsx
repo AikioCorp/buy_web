@@ -101,9 +101,8 @@ export function ProductsPage() {
       const filters: any = {}
       if (search) filters.search = search
       if (category) {
-        // Trouver l'ID de la catégorie depuis le slug
-        const cat = categories.find(c => c.slug === category)
-        if (cat) filters.category_id = cat.id
+        // Utiliser directement le slug de la catégorie
+        filters.category_slug = category
       }
       
       const response = await productCacheService.getProductsPage(page, filters)
