@@ -216,14 +216,37 @@ const defaultPromoBanners = [
   { title: 'Mode Africaine', subtitle: 'Créations uniques', discount: '-40%', bg_color: 'from-purple-600 to-pink-600', image_url: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400&h=200&fit=crop' },
 ]
 
+// Nombre max de produits par section pour optimiser les performances
+const MAX_PRODUCTS_PER_SECTION = 20
+
+// Skeleton loader pour les produits
+const ProductSkeleton = () => (
+  <div className="min-w-[160px] md:min-w-[240px] bg-white rounded-xl overflow-hidden border border-gray-100 animate-pulse">
+    <div className="aspect-square bg-gray-200"></div>
+    <div className="p-3 space-y-2">
+      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+      <div className="h-5 bg-gray-200 rounded w-1/3"></div>
+    </div>
+  </div>
+)
+
+// Section skeleton pour le chargement initial
+const SectionSkeleton = ({ count = 6 }: { count?: number }) => (
+  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+    {[...Array(count)].map((_, i) => <ProductSkeleton key={i} />)}
+  </div>
+)
+
 export function HomePage() {
-  const { products: apiProducts, refresh: refreshProducts } = useProducts()
+  const { products: apiProducts, isLoading: productsLoading, refresh: refreshProducts } = useProducts()
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
   const [currentBanner, setCurrentBanner] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [dynamicCategories, setDynamicCategories] = useState<DynamicCategory[]>([])
   const [shops, setShops] = useState<Shop[]>([])
   const [hoveredCategory, setHoveredCategory] = useState<DynamicCategory | null>(null)
+  const [isContentLoaded, setIsContentLoaded] = useState(false)
   const navigate = useNavigate()
   const addItem = useCartStore((state) => state.addItem)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
@@ -247,11 +270,18 @@ export function HomePage() {
   const [kitchenScrollRef, setKitchenScrollRef] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    refreshProducts()
-    loadCategories()
-    loadShops()
-    loadHomepageContent()
-    loadActiveFlashSale()
+    const loadAllContent = async () => {
+      // Charger en parallèle pour plus de rapidité
+      await Promise.all([
+        refreshProducts(),
+        loadCategories(),
+        loadShops(),
+        loadHomepageContent(),
+        loadActiveFlashSale()
+      ])
+      setIsContentLoaded(true)
+    }
+    loadAllContent()
   }, [])
 
   const loadHomepageContent = async () => {
@@ -531,17 +561,21 @@ export function HomePage() {
   const promoProducts = allProducts.filter((p: any) => 
     p.promo_price && Number(p.promo_price) > 0 && Number(p.promo_price) < Number(p.base_price)
   )
-  const dealProducts = flashSaleProducts.length > 0 ? flashSaleProducts : promoProducts.slice(0, 12)
+  const dealProducts = flashSaleProducts.length > 0 ? flashSaleProducts.slice(0, MAX_PRODUCTS_PER_SECTION) : promoProducts.slice(0, MAX_PRODUCTS_PER_SECTION)
   
   // Produits populaires: basés sur les ventes (order_count) ou vues (view_count) si disponibles
   const trendingProducts = [...allProducts].sort((a: any, b: any) => {
     const aScore = (a.order_count || 0) * 2 + (a.view_count || 0)
     const bScore = (b.order_count || 0) * 2 + (b.view_count || 0)
     return bScore - aScore
-  }).slice(0, 12)
+  }).slice(0, MAX_PRODUCTS_PER_SECTION)
   
-  const newArrivals = allProducts.slice(0, 16)
-  const bestSellers = [...allProducts].sort((a: any, b: any) => (b.order_count || 0) - (a.order_count || 0)).slice(0, 12)
+  const newArrivals = [...allProducts].sort((a: any, b: any) => {
+    const dateA = new Date(a.created_at || 0).getTime()
+    const dateB = new Date(b.created_at || 0).getTime()
+    return dateB - dateA
+  }).slice(0, MAX_PRODUCTS_PER_SECTION)
+  const bestSellers = [...allProducts].sort((a: any, b: any) => (b.order_count || 0) - (a.order_count || 0)).slice(0, MAX_PRODUCTS_PER_SECTION)
   
   // Calculer le pourcentage de réduction réel
   const getDiscountPercent = (product: any) => {
@@ -1090,11 +1124,15 @@ export function HomePage() {
             </button>
 
             <div ref={setPopularScrollRef} className="flex gap-4 overflow-x-scroll pb-4 snap-x snap-mandatory scrollbar-hide">
-              {trendingProducts.slice(0, 10).map((product: any, index: number) => (
-                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                  <ProductCard product={product} index={index} />
-                </div>
-              ))}
+              {productsLoading ? (
+                <SectionSkeleton count={6} />
+              ) : (
+                trendingProducts.map((product: any, index: number) => (
+                  <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                    <ProductCard product={product} index={index} />
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1116,13 +1154,20 @@ export function HomePage() {
           </div>
           <div className="relative">
             <div ref={setMenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => {
+              {productsLoading ? <SectionSkeleton count={6} /> : allProducts.filter((p: any) => {
                 const name = p.name?.toLowerCase() || '';
                 const cat = p.category?.name?.toLowerCase() || '';
-                return (cat.includes('homme') || name.includes(' homme') || name.includes('masculin') ||
-                  name.includes('polo') || name.includes('chemise') || name.includes('costume')) &&
-                  !name.includes('femme') && !name.includes('fille');
-              }).slice(0, 6).map((product: any, index: number) => (
+                const catSlug = p.category?.slug?.toLowerCase() || '';
+                const desc = p.description?.toLowerCase() || '';
+                const menKeywords = ['homme', 'masculin', 'polo', 'chemise', 'costume', 'cravate', 'mocassin', 'basket homme', 'montre homme', 'jean homme', 'pantalon homme'];
+                const menSlugs = ['homme', 'men', 'mode-homme', 'vetements-homme', 'chaussures-homme'];
+                return (
+                  cat.includes('homme') || 
+                  menSlugs.some(s => catSlug.includes(s)) ||
+                  menKeywords.some(key => name.includes(key)) ||
+                  menKeywords.some(key => desc.includes(key))
+                ) && !name.includes('femme') && !name.includes('fille') && !catSlug.includes('femme');
+              }).slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
                   <ProductCard product={product} index={index} />
                 </div>
@@ -1176,13 +1221,20 @@ export function HomePage() {
             </button>
 
             <div ref={setWomenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory px-2">
-              {allProducts.filter((p: any) => {
+              {productsLoading ? <SectionSkeleton count={6} /> : allProducts.filter((p: any) => {
                 const name = p.name?.toLowerCase() || '';
                 const cat = p.category?.name?.toLowerCase() || '';
-                const womenKeywords = ['robe', 'jupe', 'blouse', 'top femme', 'legging', 'talon', 'femme', 'féminin', 'sac à main', 'maquillage', 'perruque'];
-                return (cat.includes('femme') || womenKeywords.some(key => name.includes(key))) &&
-                  !name.includes('homme') && !name.includes('garçon');
-              }).slice(0, 6).map((product: any, index: number) => (
+                const catSlug = p.category?.slug?.toLowerCase() || '';
+                const desc = p.description?.toLowerCase() || '';
+                const womenKeywords = ['robe', 'jupe', 'blouse', 'top femme', 'legging', 'talon', 'femme', 'féminin', 'sac à main', 'maquillage', 'perruque', 'lingerie', 'bijoux', 'collier', 'bracelet', 'boucle', 'escarpin', 'sandale'];
+                const womenSlugs = ['femme', 'women', 'mode-femme', 'vetements-femme', 'chaussures-femme', 'beaute', 'maquillage', 'bijoux'];
+                return (
+                  cat.includes('femme') || 
+                  womenSlugs.some(s => catSlug.includes(s)) ||
+                  womenKeywords.some(key => name.includes(key)) ||
+                  womenKeywords.some(key => desc.includes(key))
+                ) && !name.includes('homme') && !name.includes('garçon') && !catSlug.includes('homme');
+              }).slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[140px] md:min-w-[200px] snap-start">
                   <ProductCard product={product} index={index} />
                 </div>
@@ -1214,14 +1266,20 @@ export function HomePage() {
           </div>
           <div className="relative">
             <div ref={setKidsScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => {
+              {productsLoading ? <SectionSkeleton count={6} /> : allProducts.filter((p: any) => {
                 const name = p.name?.toLowerCase() || '';
                 const cat = p.category?.name?.toLowerCase() || '';
-                return (cat.includes('enfant') || cat.includes('bébé') || cat.includes('jouet') ||
-                  name.includes('enfant') || name.includes('bébé') || name.includes('jouet') ||
-                  name.includes('fille') || name.includes('garçon')) &&
-                  !name.includes('homme') && !name.includes('femme');
-              }).slice(0, 6).map((product: any, index: number) => (
+                const catSlug = p.category?.slug?.toLowerCase() || '';
+                const desc = p.description?.toLowerCase() || '';
+                const kidsKeywords = ['enfant', 'bébé', 'jouet', 'fille', 'garçon', 'peluche', 'poupée', 'lego', 'puzzle', 'couche', 'biberon', 'poussette', 'landau', 'body', 'pyjama enfant', 'chaussure enfant'];
+                const kidsSlugs = ['enfant', 'bebe', 'jouet', 'kids', 'baby', 'puericulture', 'jouets'];
+                return (
+                  cat.includes('enfant') || cat.includes('bébé') || cat.includes('jouet') ||
+                  kidsSlugs.some(s => catSlug.includes(s)) ||
+                  kidsKeywords.some(key => name.includes(key)) ||
+                  kidsKeywords.some(key => desc.includes(key))
+                ) && !name.includes('homme') && !name.includes('femme') && !catSlug.includes('homme') && !catSlug.includes('femme');
+              }).slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
                 <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
                   <ProductCard product={product} index={index} />
                 </div>
@@ -1231,89 +1289,147 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Section Produits Alimentaires - Creative Design with Slider */}
-      <section className="py-8 bg-gradient-to-br from-green-50 to-emerald-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Produits Alimentaires
-              </h2>
-              <p className="text-gray-600 text-sm mt-1">Frais, savoureux et de qualité</p>
-            </div>
-            <Link to="/products?category=alimentaire" className="text-green-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
-              Voir tout <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="relative">
-            <div ref={setFoodScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => {
-                const name = p.name?.toLowerCase() || '';
-                const cat = p.category?.name?.toLowerCase() || '';
-                const foodKeywords = ['chocolat', 'biscuit', 'café', 'thé', 'jus', 'eau', 'boisson', 'snack', 'chips', 'bonbon', 'riz', 'sucre', 'huile', 'lait', 'pâtes'];
-                return cat.includes('alimentaire') || cat.includes('alimentation') || cat.includes('nourriture') || cat.includes('food') ||
-                  foodKeywords.some(key => name.includes(key));
-              }).slice(0, 6).map((product: any, index: number) => (
-                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                  <ProductCard product={product} index={index} />
+      {/* Section Produits Alimentaires - Affichée seulement si des produits existent */}
+      {(() => {
+        const foodProducts = allProducts.filter((p: any) => {
+          const name = p.name?.toLowerCase() || '';
+          const cat = p.category?.name?.toLowerCase() || '';
+          const catSlug = p.category?.slug?.toLowerCase() || '';
+          const desc = p.description?.toLowerCase() || '';
+          const foodKeywords = ['alimentation', 'alimentaire', 'chocolat', 'biscuit', 'café', 'thé', 'jus', 'eau', 'boisson', 'snack', 'chips', 'bonbon', 'riz', 'sucre', 'huile', 'lait', 'pâtes', 'épice', 'sauce', 'conserve', 'céréale', 'miel', 'confiture', 'fromage', 'yaourt', 'viande', 'poisson', 'fruit', 'légume', 'pain', 'farine', 'sel', 'poivre', 'tomate', 'oignon'];
+          const foodSlugs = ['alimentaire', 'alimentation', 'food', 'epicerie', 'boisson', 'frais', 'bio', 'snack', 'nourriture'];
+          return (
+            catSlug === 'alimentation' || cat === 'alimentation' ||
+            cat.includes('alimentaire') || cat.includes('alimentation') || cat.includes('nourriture') || cat.includes('food') ||
+            foodSlugs.some(s => catSlug.includes(s)) ||
+            foodKeywords.some(key => name.includes(key)) ||
+            foodKeywords.some(key => desc.includes(key))
+          );
+        });
+        
+        if (!productsLoading && foodProducts.length === 0) return null;
+        
+        return (
+          <section className="py-8 bg-gradient-to-br from-green-50 to-emerald-50">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Produits Alimentaires
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">Frais, savoureux et de qualité</p>
                 </div>
-              ))}
+                <Link to="/products?category=alimentaire" className="text-green-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                  Voir tout <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="relative">
+                <div ref={setFoodScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+                  {productsLoading ? <SectionSkeleton count={6} /> : foodProducts.slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
+                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                      <ProductCard product={product} index={index} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
-      {/* Section Beauté - Creative Design with Slider */}
-      <section className="py-8 bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Beauté & Parfumerie
-              </h2>
-              <p className="text-gray-600 text-sm mt-1">Sublimez votre beauté naturelle</p>
-            </div>
-            <Link to="/products?category=beaute" className="text-purple-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
-              Voir tout <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="relative">
-            <div ref={setBeautyScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('beauté') || p.category?.name?.toLowerCase().includes('parfum')).slice(0, 6).map((product: any, index: number) => (
-                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                  <ProductCard product={product} index={index} />
+      {/* Section Beauté - Affichée seulement si des produits existent */}
+      {(() => {
+        const beautyProducts = allProducts.filter((p: any) => {
+          const name = p.name?.toLowerCase() || '';
+          const cat = p.category?.name?.toLowerCase() || '';
+          const catSlug = p.category?.slug?.toLowerCase() || '';
+          const desc = p.description?.toLowerCase() || '';
+          const beautyKeywords = ['parfum', 'maquillage', 'rouge à lèvres', 'mascara', 'fond de teint', 'crème', 'lotion', 'shampoing', 'savon', 'gel douche', 'déodorant', 'soin', 'sérum', 'huile essentielle', 'vernis', 'brosse', 'peigne', 'rasoir'];
+          const beautySlugs = ['beaute', 'beauty', 'parfum', 'maquillage', 'soin', 'hygiene', 'cheveux', 'cosmetique'];
+          return (
+            cat.includes('beauté') || cat.includes('parfum') || cat.includes('cosmétique') ||
+            beautySlugs.some(s => catSlug.includes(s)) ||
+            beautyKeywords.some(key => name.includes(key)) ||
+            beautyKeywords.some(key => desc.includes(key))
+          );
+        });
+        
+        if (!productsLoading && beautyProducts.length === 0) return null;
+        
+        return (
+          <section className="py-8 bg-gradient-to-br from-purple-50 to-pink-50">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Beauté & Parfumerie
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">Sublimez votre beauté naturelle</p>
                 </div>
-              ))}
+                <Link to="/products?category=beaute" className="text-purple-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                  Voir tout <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="relative">
+                <div ref={setBeautyScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+                  {productsLoading ? <SectionSkeleton count={6} /> : beautyProducts.slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
+                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                      <ProductCard product={product} index={index} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
-      {/* Section Cuisine - Creative Design with Slider */}
-      <section className="py-8 bg-gradient-to-br from-orange-50 to-yellow-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Art Culinaire
-              </h2>
-              <p className="text-gray-600 text-sm mt-1">Équipez votre cuisine comme un chef</p>
-            </div>
-            <Link to="/products?category=cuisine" className="text-orange-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
-              Voir tout <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="relative">
-            <div ref={setKitchenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {allProducts.filter((p: any) => p.category?.name?.toLowerCase().includes('cuisine') || p.category?.name?.toLowerCase().includes('ustensile')).slice(0, 6).map((product: any, index: number) => (
-                <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                  <ProductCard product={product} index={index} />
+      {/* Section Cuisine - Affichée seulement si des produits existent */}
+      {(() => {
+        const kitchenProducts = allProducts.filter((p: any) => {
+          const name = p.name?.toLowerCase() || '';
+          const cat = p.category?.name?.toLowerCase() || '';
+          const catSlug = p.category?.slug?.toLowerCase() || '';
+          const desc = p.description?.toLowerCase() || '';
+          const kitchenKeywords = ['cuisine', 'ustensile', 'casserole', 'poêle', 'couteau', 'planche', 'mixeur', 'blender', 'four', 'micro-onde', 'cafetière', 'bouilloire', 'grille-pain', 'robot', 'batteur', 'assiette', 'verre', 'tasse', 'couverts', 'spatule', 'louche'];
+          const kitchenSlugs = ['cuisine', 'kitchen', 'ustensile', 'electromenager', 'vaisselle', 'cuisson'];
+          return (
+            cat.includes('cuisine') || cat.includes('ustensile') || cat.includes('électroménager') ||
+            kitchenSlugs.some(s => catSlug.includes(s)) ||
+            kitchenKeywords.some(key => name.includes(key)) ||
+            kitchenKeywords.some(key => desc.includes(key))
+          );
+        });
+        
+        if (!productsLoading && kitchenProducts.length === 0) return null;
+        
+        return (
+          <section className="py-8 bg-gradient-to-br from-orange-50 to-yellow-50">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Art Culinaire
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">Équipez votre cuisine comme un chef</p>
                 </div>
-              ))}
+                <Link to="/products?category=cuisine" className="text-orange-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                  Voir tout <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="relative">
+                <div ref={setKitchenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+                  {productsLoading ? <SectionSkeleton count={6} /> : kitchenProducts.slice(0, MAX_PRODUCTS_PER_SECTION).map((product: any, index: number) => (
+                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                      <ProductCard product={product} index={index} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
       {/* Nouveautés */}
       <section className="py-8 bg-gray-50">
