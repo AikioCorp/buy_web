@@ -308,18 +308,34 @@ export function HomePage() {
       // Endpoint optimisé : ~200 produits, champs réduits, cache serveur 5min
       const response = await productsService.getHomepageProducts()
       if (!response.error && response.data?.results && response.data.results.length > 20) {
+        if (import.meta.env.DEV) {
+          console.log('📦 Homepage products loaded:', response.data.results.length)
+          const categoryBreakdown = response.data.results.reduce((acc: any, p: any) => {
+            acc[p.category_id] = (acc[p.category_id] || 0) + 1
+            return acc
+          }, {})
+          console.log('📊 Category breakdown:', categoryBreakdown)
+        }
         setApiProducts(response.data.results)
         return
       }
       // Fallback si endpoint pas encore déployé
       const fallback = await productsService.getProducts({ limit: 400, light: true })
       if (fallback.data?.results) {
+        if (import.meta.env.DEV) {
+          console.log('📦 Fallback products loaded:', fallback.data.results.length)
+        }
         setApiProducts(fallback.data.results)
       }
     } catch (err) {
       try {
         const fallback = await productsService.getProducts({ limit: 400, light: true })
-        if (fallback.data?.results) setApiProducts(fallback.data.results)
+        if (fallback.data?.results) {
+          if (import.meta.env.DEV) {
+            console.log('📦 Error fallback products loaded:', fallback.data.results.length)
+          }
+          setApiProducts(fallback.data.results)
+        }
       } catch (e) { console.error('Error loading homepage products:', e) }
     } finally {
       setProductsLoading(false)
@@ -628,7 +644,17 @@ export function HomePage() {
 
   // Cache/mémoisation des listes de produits par grande section
   const modeBaseProducts = useMemo(
-    () => getProductsByCategoryIds(SECTION_CATEGORIES.mode),
+    () => {
+      const products = getProductsByCategoryIds(SECTION_CATEGORIES.mode);
+      if (import.meta.env.DEV) {
+        console.log('🎨 Mode base products computed:', products.length, 'from', allProducts.length, 'total products');
+        console.log('🎯 Looking for category IDs:', SECTION_CATEGORIES.mode);
+        if (products.length > 0) {
+          console.log('📋 Sample mode product:', products[0]);
+        }
+      }
+      return products;
+    },
     [allProducts]
   );
 
@@ -781,28 +807,52 @@ export function HomePage() {
 
   // Produits de mode Homme / Femme basés sur catégorie + heuristiques
   const getModeMenProducts = (): any[] => {
+    if (import.meta.env.DEV) {
+      console.log('🔍 Mode base products count:', modeBaseProducts.length);
+    }
     // 1) Produits explicitement masculins
     const men = modeBaseProducts.filter((p) => isMenProduct(p));
+    if (import.meta.env.DEV) {
+      console.log('👔 Men products found:', men.length);
+    }
     if (men.length >= 4) return men;
 
     // 2) Fallback : produits non explicitement féminins
     const notWomen = modeBaseProducts.filter((p) => !isWomenProduct(p));
+    if (import.meta.env.DEV) {
+      console.log('🚹 Not-women products found:', notWomen.length);
+    }
     if (notWomen.length >= 4) return shuffleArray(notWomen);
 
     // 3) Dernier recours : tous les produits mode (ne jamais laisser la section vide)
+    if (import.meta.env.DEV) {
+      console.log('⚠️ Using all mode products as fallback');
+    }
     return shuffleArray([...modeBaseProducts]);
   };
 
   const getModeWomenProducts = (): any[] => {
+    if (import.meta.env.DEV) {
+      console.log('🔍 Mode base products count (women):', modeBaseProducts.length);
+    }
     // 1) Produits explicitement féminins
     const women = modeBaseProducts.filter((p) => isWomenProduct(p));
+    if (import.meta.env.DEV) {
+      console.log('👗 Women products found:', women.length);
+    }
     if (women.length >= 4) return women;
 
     // 2) Fallback : produits non explicitement masculins
     const notMen = modeBaseProducts.filter((p) => !isMenProduct(p));
+    if (import.meta.env.DEV) {
+      console.log('🚺 Not-men products found:', notMen.length);
+    }
     if (notMen.length >= 4) return shuffleArray(notMen);
 
     // 3) Dernier recours : tous les produits mode
+    if (import.meta.env.DEV) {
+      console.log('⚠️ Using all mode products as fallback (women)');
+    }
     return shuffleArray([...modeBaseProducts]);
   };
 
@@ -1566,12 +1616,17 @@ export function HomePage() {
             <div ref={setMenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
               {productsLoading ? (
                 <SectionSkeleton count={6} />
-              ) : (
+              ) : getModeMenProducts().length > 0 ? (
                 getModeMenProducts().map((product: any, index: number) => (
                   <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
                     <ProductCard product={product} index={index} />
                   </div>
                 ))
+              ) : (
+                <div className="w-full text-center py-8 text-gray-500">
+                  <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Aucun produit disponible pour le moment</p>
+                </div>
               )}
             </div>
           </div>
@@ -1627,12 +1682,17 @@ export function HomePage() {
             <div ref={setWomenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory px-2">
               {productsLoading ? (
                 <SectionSkeleton count={6} />
-              ) : (
+              ) : getModeWomenProducts().length > 0 ? (
                 getModeWomenProducts().map((product: any, index: number) => (
                   <div key={product.id} className="min-w-[140px] md:min-w-[200px] snap-start">
                     <ProductCard product={product} index={index} />
                   </div>
                 ))
+              ) : (
+                <div className="w-full text-center py-8 text-gray-500">
+                  <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Aucun produit disponible pour le moment</p>
+                </div>
               )}
             </div>
           </div>
