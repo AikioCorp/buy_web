@@ -305,13 +305,22 @@ export function HomePage() {
   const loadHomepageProducts = async () => {
     setProductsLoading(true)
     try {
-      // Charger un échantillon couvrant toutes les catégories
-      const response = await productsService.getProducts({ limit: 2000 })
-      if (response.data?.results) {
+      // Endpoint optimisé : ~200 produits, champs réduits, cache serveur 5min
+      const response = await productsService.getHomepageProducts()
+      if (!response.error && response.data?.results && response.data.results.length > 20) {
         setApiProducts(response.data.results)
+        return
+      }
+      // Fallback si endpoint pas encore déployé
+      const fallback = await productsService.getProducts({ limit: 2000 })
+      if (fallback.data?.results) {
+        setApiProducts(fallback.data.results)
       }
     } catch (err) {
-      console.error('Error loading homepage products:', err)
+      try {
+        const fallback = await productsService.getProducts({ limit: 2000 })
+        if (fallback.data?.results) setApiProducts(fallback.data.results)
+      } catch (e) { console.error('Error loading homepage products:', e) }
     } finally {
       setProductsLoading(false)
     }
@@ -637,9 +646,23 @@ export function HomePage() {
     'robe', 'jupe', 'blouse', 'corsage', 'bustier',
     'mademoiselle', 'sac à main', 'pochette femme',
     'vernis', 'rouge à lèvres', 'mascara',
+    'lingerie', 'soutien-gorge', 'culotte', 'nuisette', 'body femme',
+    'collant', 'legging femme', 'tunique', 'débardeur femme',
   ];
 
   const WOMEN_STORE_KEYWORDS = ['mademoiselle', 'de luxe', 'feminine', 'féminin'];
+
+  // Mots-clés typiquement masculins
+  const MEN_ONLY_KEYWORDS = [
+    'cravate', 'noeud papillon', 'costume homme', 'blazer homme',
+    'chemise homme', 'polo homme', 'bermuda homme', 'short homme',
+    'boxer homme', 'caleçon', 'slip homme', 'chaussure homme',
+    'basket homme', 'mocassin homme', 'derby homme', 'richelieu',
+    'rasoir', 'tondeuse barbe', 'after-shave', 'aftershave',
+    'barbier', 'barbe',
+  ];
+
+  const MEN_STORE_KEYWORDS = ['au masculin', 'homme', 'barbier', 'gentlemen'];
 
   const isMenProduct = (product: any): boolean => {
     const name = (product.name || '').toLowerCase();
@@ -653,13 +676,13 @@ export function HomePage() {
     if (WOMEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return false;
     if (WOMEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return false;
 
-    const menKeywords = ['homme', 'masculin', 'men', 'garçon', 'monsieur'];
-    const hasMenKeyword = menKeywords.some((k) => text.includes(k));
-
+    // Produits clairement masculins par leur nom
+    if (MEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return true;
     // Boutique clairement masculine
-    const isMenStore = storeName.includes('au masculin');
+    if (MEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return true;
 
-    return hasMenKeyword || isMenStore;
+    const menKeywords = ['homme', 'masculin', 'men', 'garçon', 'monsieur', 'male', 'man'];
+    return menKeywords.some((k) => text.includes(k));
   };
 
   const isWomenProduct = (product: any): boolean => {
@@ -670,18 +693,17 @@ export function HomePage() {
 
     const text = `${name} ${storeName} ${meta} ${catName}`;
 
+    // Exclure d'abord les produits clairement masculins
+    if (MEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return false;
+    if (MEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return false;
+
     // Produits clairement féminins par leur nom
     if (WOMEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return true;
     // Boutique clairement féminine
     if (WOMEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return true;
 
-    const womenKeywords = ['femme', 'féminin', 'feminine', 'women', 'dame', 'fille'];
-    const hasWomenKeyword = womenKeywords.some((k) => text.includes(k));
-
-    if (!hasWomenKeyword) return false;
-    if (isMenProduct(product)) return false;
-
-    return true;
+    const womenKeywords = ['femme', 'féminin', 'feminine', 'women', 'dame', 'fille', 'woman', 'female'];
+    return womenKeywords.some((k) => text.includes(k));
   };
 
   // Produits de mode Homme / Femme basés sur catégorie + heuristiques
@@ -699,14 +721,16 @@ export function HomePage() {
   };
 
   const getModeWomenProducts = (): any[] => {
-    const women = modeBaseProducts.filter(isWomenProduct);
+    // 1) Produits explicitement féminins
+    const women = modeBaseProducts.filter((p) => isWomenProduct(p));
+    if (women.length >= 4) return women;
 
-    if (women.length > 0) {
-      return women;
-    }
+    // 2) Fallback : produits non explicitement masculins
+    const notMen = modeBaseProducts.filter((p) => !isMenProduct(p));
+    if (notMen.length >= 4) return shuffleArray(notMen);
 
-    // Si aucune correspondance explicite, on exclut au moins les produits marqués comme Homme
-    return modeBaseProducts.filter((p) => !isMenProduct(p));
+    // 3) Dernier recours : tous les produits mode
+    return shuffleArray([...modeBaseProducts]);
   };
 
   // Heuristique pour identifier les produits Enfants/Bébé
@@ -1542,59 +1566,6 @@ export function HomePage() {
       </section>
       </LazySection>
 
-      {/* Section Enfants - Creative Design with Slider (affichée seulement si des produits existent) */}
-      <LazySection>
-      {(() => {
-        const kidsProducts = getKidsProducts();
-
-        if (!productsLoading && kidsProducts.length === 0) return null;
-
-        return (
-          <section className="py-8 bg-gradient-to-br from-blue-50 to-cyan-50">
-            <div className="container mx-auto px-4">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Univers Enfants
-                  </h2>
-                  <p className="text-gray-600 text-sm mt-1">Jouets, vêtements et accessoires pour les petits</p>
-                </div>
-                <Link to="/products?category=enfants" className="text-blue-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
-                  Voir tout <ChevronRight className="w-4 h-4" />
-                </Link>
-              </div>
-              <div className="relative group">
-                <button
-                  onClick={() => kidsScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
-                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-blue-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-
-                <button
-                  onClick={() => kidsScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
-                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-blue-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-
-                <div ref={setKidsScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-                  {productsLoading ? (
-                    <SectionSkeleton count={6} />
-                  ) : (
-                    kidsProducts.map((product: any, index: number) => (
-                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                        <ProductCard product={product} index={index} />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        );
-      })()}
-      </LazySection>
 
       {/* Section Produits Alimentaires - Affichée seulement si des produits existent */}
       <LazySection>
