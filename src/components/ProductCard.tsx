@@ -9,6 +9,7 @@ import { Product } from '@/lib/api/productsService'
 interface ProductCardProps {
   product: Product | any
   showDiscount?: boolean
+  dark?: boolean
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
@@ -29,7 +30,7 @@ const formatPrice = (price: string | number) => {
   return new Intl.NumberFormat('fr-FR').format(Number(price))
 }
 
-export function ProductCard({ product, showDiscount = false }: ProductCardProps) {
+export function ProductCard({ product, showDiscount = false, dark = false }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const addItem = useCartStore((state) => state.addItem)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
@@ -65,7 +66,7 @@ export function ProductCard({ product, showDiscount = false }: ProductCardProps)
   return (
     <Link
       to={`/products/${product.slug || product.id}`}
-      className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+      className={`group rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${dark ? 'bg-white/10 backdrop-blur-sm' : 'bg-white'}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -128,31 +129,31 @@ export function ProductCard({ product, showDiscount = false }: ProductCardProps)
       <div className="p-4">
         {/* Category */}
         {product.category && (
-          <span className="text-xs text-gray-500 uppercase tracking-wide">
+          <span className={`text-xs uppercase tracking-wide ${dark ? 'text-white/70' : 'text-gray-500'}`}>
             {product.category.name || product.category}
           </span>
         )}
         
         {/* Name */}
-        <h3 className="font-semibold text-gray-900 mt-1 line-clamp-2 group-hover:text-[#0f4c2b] transition-colors">
+        <h3 className={`font-semibold mt-1 line-clamp-2 transition-colors ${dark ? 'text-white group-hover:text-white/80' : 'text-gray-900 group-hover:text-[#0f4c2b]'}`}>
           {product.name}
         </h3>
         
         {/* Rating */}
         <div className="flex items-center gap-1 mt-2">
           {[...Array(5)].map((_, i) => (
-            <Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+            <Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : dark ? 'text-white/30' : 'text-gray-300'}`} />
           ))}
-          <span className="text-xs text-gray-500 ml-1">(4.0)</span>
+          <span className={`text-xs ml-1 ${dark ? 'text-white/60' : 'text-gray-500'}`}>(4.0)</span>
         </div>
         
         {/* Price */}
         <div className="mt-2 flex items-center gap-2">
-          <span className="text-lg font-bold text-[#0f4c2b]">
+          <span className={`text-lg font-bold ${dark ? 'text-white' : 'text-[#0f4c2b]'}`}>
             {formatPrice(price)} FCFA
           </span>
           {showDiscount && (
-            <span className="text-sm text-gray-400 line-through">
+            <span className={`text-sm line-through ${dark ? 'text-white/50' : 'text-gray-400'}`}>
               {formatPrice(originalPrice)} FCFA
             </span>
           )}
@@ -160,8 +161,8 @@ export function ProductCard({ product, showDiscount = false }: ProductCardProps)
 
         {/* Store */}
         {product.store && (
-          <p className="text-xs text-gray-500 mt-2">
-            Vendu par <span className="font-medium text-gray-700">{product.store.name}</span>
+          <p className={`text-xs mt-2 ${dark ? 'text-white/60' : 'text-gray-500'}`}>
+            Vendu par <span className={`font-medium ${dark ? 'text-white/80' : 'text-gray-700'}`}>{product.store.name}</span>
           </p>
         )}
       </div>

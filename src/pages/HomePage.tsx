@@ -587,9 +587,8 @@ export function HomePage() {
     beaute: [CATEGORY_IDS.BEAUTE_SANTE, CATEGORY_IDS.SOINS_CORPS, CATEGORY_IDS.SOINS_CHEVEUX, CATEGORY_IDS.MAQUILLAGE, CATEGORY_IDS.PARFUM],
     // Groupe large "maison" (si besoin pour d'autres sections)
     maison: [CATEGORY_IDS.MAISON_JARDIN, CATEGORY_IDS.ELECTROMENAGER, CATEGORY_IDS.GROS_ELECTROMENAGER, CATEGORY_IDS.PRODUITS_ENTRETIEN, CATEGORY_IDS.FLEURS],
-    // Groupe dédié cuisine / art culinaire (inclut le parent Maison pour attraper les produits mal catégorisés)
+    // Groupe dédié cuisine / art culinaire
     cuisine: [
-      CATEGORY_IDS.MAISON_JARDIN,
       CATEGORY_IDS.USTENSILES_CUISINE,
       CATEGORY_IDS.ACCESSOIRES_CUISINE,
       CATEGORY_IDS.MUGS_TASSES,
@@ -634,7 +633,25 @@ export function HomePage() {
   );
 
   const kitchenProducts = useMemo(
-    () => getProductsByCategoryIds(SECTION_CATEGORIES.cuisine),
+    () => {
+      const kitchenKeywords = ['ustensile', 'casserole', 'poêle', 'couteau', 'spatule', 'fouet', 'passoire', 'planche', 'mixeur', 'blender', 'robot', 'micro-onde', 'four', 'friteuse', 'bouilloire', 'cafetière', 'grille-pain', 'batteur', 'hachoir', 'cocotte', 'marmite', 'wok', 'cuiseur', 'réfrigérateur', 'lave-vaisselle', 'congélateur', 'cuisinière', 'plaque', 'hotte', 'électroménager', 'tasse', 'mug', 'assiette', 'bol', 'saladier', 'verre', 'couverts', 'service'];
+      const fromCategories = getProductsByCategoryIds(SECTION_CATEGORIES.cuisine);
+      // Ajouter aussi les produits maison qui matchent des mots-clés cuisine
+      const maisonProducts = getProductsByCategoryIds([CATEGORY_IDS.MAISON_JARDIN]);
+      const maisonKitchen = maisonProducts.filter((p: any) => {
+        const text = `${p.name || ''} ${p.meta_title || ''} ${p.meta_description || ''}`.toLowerCase();
+        return kitchenKeywords.some(k => text.includes(k));
+      });
+      const all = [...fromCategories, ...maisonKitchen].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+      // Trier : ustensiles et électroménager en premier
+      return all.sort((a: any, b: any) => {
+        const textA = `${a.name || ''}`.toLowerCase();
+        const textB = `${b.name || ''}`.toLowerCase();
+        const scoreA = kitchenKeywords.some(k => textA.includes(k)) ? 1 : 0;
+        const scoreB = kitchenKeywords.some(k => textB.includes(k)) ? 1 : 0;
+        return scoreB - scoreA;
+      });
+    },
     [allProducts]
   );
 
@@ -827,7 +844,7 @@ export function HomePage() {
     navigate(`/products/${productId}`)
   }
 
-  const ProductCard = ({ product, index, showDiscount = false }: { product: any, index: number, showDiscount?: boolean }) => {
+  const ProductCard = ({ product, index, showDiscount = false, dark = false }: { product: any, index: number, showDiscount?: boolean, dark?: boolean }) => {
     const discountPercent = getDiscountPercent(product)
     const hasDiscount = showDiscount && discountPercent > 0
     const finalPrice = hasDiscount ? product.promo_price : product.base_price
@@ -835,7 +852,7 @@ export function HomePage() {
     return (
       <Link
         to={`/products/${product.slug || product.id}`}
-        className="group bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
+        className={`group rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 ${dark ? 'bg-white/10 backdrop-blur-sm border border-white/20' : 'bg-white border border-gray-100'}`}
         onMouseEnter={() => {
           setHoveredProduct(product.id)
           setIsAutoScrollPaused(true)
@@ -895,16 +912,16 @@ export function HomePage() {
           </div>
         </div>
         <div className="p-3">
-          <p className="text-xs text-gray-400 mb-0.5">{product.store?.name || product.shop?.name || (typeof product.category === 'string' ? product.category : product.category?.name) || 'BuyMore'}</p>
-          <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-green-600 transition-colors">{product.name}</h3>
+          <p className={`text-xs mb-0.5 ${dark ? 'text-white/70' : 'text-gray-400'}`}>{product.store?.name || product.shop?.name || (typeof product.category === 'string' ? product.category : product.category?.name) || 'BuyMore'}</p>
+          <h3 className={`font-medium text-sm line-clamp-2 mb-1 transition-colors ${dark ? 'text-white group-hover:text-white/80' : 'text-gray-900 group-hover:text-green-600'}`}>{product.name}</h3>
           <div className="flex items-center gap-1 mb-1">
-            {[...Array(5)].map((_, i) => (<Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />))}
-            <span className="text-xs text-gray-400 ml-1">(24)</span>
+            {[...Array(5)].map((_, i) => (<Star key={i} className={`w-3 h-3 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : dark ? 'text-white/30' : 'text-gray-300'}`} />))}
+            <span className={`text-xs ml-1 ${dark ? 'text-white/60' : 'text-gray-400'}`}>(24)</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-green-600 font-bold text-sm">{formatPrice(finalPrice)} <span className="text-xs font-normal">FCFA</span></span>
+            <span className={`font-bold text-sm ${dark ? 'text-white' : 'text-green-600'}`}>{formatPrice(finalPrice)} <span className="text-xs font-normal">FCFA</span></span>
             {hasDiscount && (
-              <span className="text-gray-400 text-xs line-through">{formatPrice(product.base_price)}</span>
+              <span className={`text-xs line-through ${dark ? 'text-white/50' : 'text-gray-400'}`}>{formatPrice(product.base_price)}</span>
             )}
           </div>
         </div>
@@ -1432,14 +1449,21 @@ export function HomePage() {
               {productsLoading ? (
                 <SectionSkeleton count={6} />
               ) : (
-                [...promoProducts, ...beautyProducts, ...modeBaseProducts.filter(isWomenProduct)]
-                  .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
-                  .slice(0, 20)
-                  .map((product: any, index: number) => (
-                    <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                      <ProductCard product={product} index={index} showDiscount />
-                    </div>
-                  ))
+                (() => {
+                  const giftKeywords = ['bouquet', 'fleur', 'glace', 'flower', 'flora'];
+                  const giftProducts = apiProducts.filter((p: any) => {
+                    const text = `${p.name || ''} ${p.meta_title || ''} ${p.meta_description || ''}`.toLowerCase();
+                    return giftKeywords.some(k => text.includes(k));
+                  });
+                  return [...giftProducts, ...promoProducts, ...beautyProducts, ...modeBaseProducts.filter(isWomenProduct)]
+                    .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
+                    .slice(0, 20)
+                    .map((product: any, index: number) => (
+                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                        <ProductCard product={product} index={index} showDiscount dark />
+                      </div>
+                    ));
+                })()
               )}
             </div>
           </div>
