@@ -15,8 +15,9 @@ interface ProductCardProps {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
 
 const getImageUrl = (product: any): string | undefined => {
-  if (!product?.media || product.media.length === 0) return undefined
-  const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
+  const mediaArray = product?.media || product?.images || []
+  if (!mediaArray || mediaArray.length === 0) return undefined
+  const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
   let url = primaryImage?.image_url || primaryImage?.file
   if (!url) return undefined
   if (url.startsWith('http://')) {

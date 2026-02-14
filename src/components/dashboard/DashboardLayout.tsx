@@ -11,7 +11,7 @@ type DashboardLayoutProps = {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [shop, setShop] = useState<Shop | null>(null)
   const { user } = useAuthStore()
   
@@ -36,14 +36,26 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     setSidebarOpen(!sidebarOpen)
   }
 
+  const closeSidebar = () => {
+    setSidebarOpen(false)
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <DashboardSidebar isOpen={sidebarOpen} shop={shop} />
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden" 
+          onClick={closeSidebar} 
+        />
+      )}
+
+      <DashboardSidebar isOpen={sidebarOpen} shop={shop} onClose={closeSidebar} />
       
-      <div className="flex flex-col flex-1 w-full">
+      <div className="flex flex-col flex-1 w-full min-w-0">
         <DashboardHeader toggleSidebar={toggleSidebar} />
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
+        <main className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50">
           {children || <Outlet />}
         </main>
       </div>

@@ -14,6 +14,7 @@ export function useProducts(params?: {
   category_id?: number;
   category_slug?: string;
   search?: string;
+  light?: boolean;
 }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,15 +29,19 @@ export function useProducts(params?: {
   const getCacheKey = useCallback(() => {
     const parts = ['products'];
     if (params?.page) parts.push(`p${params.page}`);
+    if (params?.page_size) parts.push(`ps${params.page_size}`);
+    if (params?.limit) parts.push(`l${params.limit}`);
+    if (params?.offset) parts.push(`o${params.offset}`);
     if (params?.category_id) parts.push(`cat${params.category_id}`);
     if (params?.category_slug) parts.push(`slug_${params.category_slug}`);
     if (params?.search) parts.push(`q_${params.search}`);
+    if (params?.light) parts.push('light');
     return parts.join('_');
-  }, [params?.page, params?.category_id, params?.category_slug, params?.search]);
+  }, [params?.page, params?.page_size, params?.limit, params?.offset, params?.category_id, params?.category_slug, params?.search, params?.light]);
 
   useEffect(() => {
     loadProducts();
-  }, [params?.page, params?.category_id, params?.category_slug, params?.search]);
+  }, [params?.page, params?.page_size, params?.limit, params?.offset, params?.category_id, params?.category_slug, params?.search, params?.light]);
 
   const loadProducts = async (forceRefresh = false) => {
     setIsLoading(true);

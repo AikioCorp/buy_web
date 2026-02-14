@@ -36,8 +36,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymor
 
 // Helper to get image URL
 const getImageUrl = (product: Product): string | undefined => {
-  if (!product.media || product.media.length === 0) return undefined
-  const primaryImage = product.media.find(m => m.is_primary) || product.media[0]
+  const mediaArray = product.media || product.images || []
+  if (!mediaArray || mediaArray.length === 0) return undefined
+  const primaryImage = mediaArray.find(m => m.is_primary) || mediaArray[0]
   let url = primaryImage?.image_url || primaryImage?.file
   if (!url) return undefined
   // Convertir http:// en https:// pour éviter le blocage mixed content
@@ -59,7 +60,7 @@ export function DealsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true)
-      const response = await productsService.getProducts({ page: 1 })
+      const response = await productsService.getProducts({ page: 1, light: true })
       if (response.data?.results && response.data.results.length > 0) {
         setProducts(response.data.results)
       } else if (Array.isArray(response.data) && response.data.length > 0) {

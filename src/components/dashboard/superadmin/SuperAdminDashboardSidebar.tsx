@@ -14,12 +14,14 @@ type SidebarLinkProps = {
   label: string
   badge?: number | string
   end?: boolean
+  onClick?: () => void
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end }) => (
+const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, onClick }) => (
   <NavLink 
     to={to}
     end={end}
+    onClick={onClick}
     className={({ isActive }) => `
       group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
       ${isActive 
@@ -45,9 +47,10 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end }
 
 type SuperAdminDashboardSidebarProps = {
   isOpen: boolean
+  onClose?: () => void
 }
 
-const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({ isOpen }) => {
+const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuthStore()
 
   const handleLogout = async () => {
@@ -67,8 +70,9 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
     <aside 
       className={`
         bg-white border-r border-gray-200 transition-all duration-300 z-30
-        ${isOpen ? 'w-72' : 'w-0 lg:w-20'} 
-        h-full overflow-hidden flex flex-col flex-shrink-0
+        fixed h-full lg:relative flex flex-col flex-shrink-0
+        ${isOpen ? 'w-72 translate-x-0' : 'w-72 -translate-x-full lg:translate-x-0 lg:w-20'}
+        overflow-hidden
       `}
     >
       {/* Logo - Cliquable vers la page d'accueil */}
@@ -130,7 +134,7 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end />
+          <SidebarLink to="/superadmin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={onClose} />
         </div>
 
         {isOpen && (
@@ -139,12 +143,12 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/users" icon={<Users size={20} />} label="Utilisateurs" />
-          <SidebarLink to="/superadmin/businesses" icon={<Briefcase size={20} />} label="Boutiques" />
-          <SidebarLink to="/superadmin/restaurants" icon={<UtensilsCrossed size={20} />} label="Restaurants" />
-          <SidebarLink to="/superadmin/categories" icon={<FolderTree size={20} />} label="Catégories" />
-          <SidebarLink to="/superadmin/products" icon={<Package size={20} />} label="Produits" />
-          <SidebarLink to="/superadmin/orders" icon={<ShoppingBag size={20} />} label="Commandes" />
+          <SidebarLink to="/superadmin/users" icon={<Users size={20} />} label="Utilisateurs" onClick={onClose} />
+          <SidebarLink to="/superadmin/businesses" icon={<Briefcase size={20} />} label="Boutiques" onClick={onClose} />
+          <SidebarLink to="/superadmin/restaurants" icon={<UtensilsCrossed size={20} />} label="Restaurants" onClick={onClose} />
+          <SidebarLink to="/superadmin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={onClose} />
+          <SidebarLink to="/superadmin/products" icon={<Package size={20} />} label="Produits" onClick={onClose} />
+          <SidebarLink to="/superadmin/orders" icon={<ShoppingBag size={20} />} label="Commandes" onClick={onClose} />
         </div>
 
         {isOpen && (
@@ -153,13 +157,13 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/shop-requests" icon={<Store size={20} />} label="Demandes boutiques" />
-          <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" />
-          <SidebarLink to="/superadmin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" />
-          <SidebarLink to="/superadmin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" />
-          <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" />
-          <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" />
-          <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" />
+          <SidebarLink to="/superadmin/shop-requests" icon={<Store size={20} />} label="Demandes boutiques" onClick={onClose} />
+          <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={onClose} />
+          <SidebarLink to="/superadmin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={onClose} />
+          <SidebarLink to="/superadmin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={onClose} />
+          <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" onClick={onClose} />
+          <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={onClose} />
+          <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={onClose} />
         </div>
 
         {isOpen && (
@@ -168,10 +172,10 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" />
-          <SidebarLink to="/superadmin/reports" icon={<FileText size={20} />} label="Rapports" />
-          <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" />
-          <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" />
+          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" onClick={onClose} />
+          <SidebarLink to="/superadmin/reports" icon={<FileText size={20} />} label="Rapports" onClick={onClose} />
+          <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" onClick={onClose} />
+          <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" onClick={onClose} />
         </div>
       </nav>
 

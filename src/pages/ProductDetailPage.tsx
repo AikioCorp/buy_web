@@ -87,7 +87,8 @@ export function ProductDetailPage() {
       if (categoryId) {
         const response = await productsService.getProducts({ 
           category_id: categoryId, 
-          page_size: 5 
+          page_size: 5,
+          light: true,
         })
         if (response.data?.results) {
           // Filter out the current product

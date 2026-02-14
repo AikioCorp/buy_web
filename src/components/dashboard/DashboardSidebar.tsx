@@ -27,9 +27,10 @@ type SidebarLinkProps = {
   badge?: number | string
   end?: boolean
   disabled?: boolean
+  onClick?: () => void
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, disabled }) => {
+const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, disabled, onClick }) => {
   if (disabled) {
     return (
       <div className="group flex items-center gap-3 px-4 py-3 rounded-xl opacity-50 cursor-not-allowed">
@@ -48,6 +49,7 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, 
     <NavLink 
       to={to}
       end={end}
+      onClick={onClick}
       className={({ isActive }) => `
         group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
         ${isActive 
@@ -75,9 +77,10 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, 
 type DashboardSidebarProps = {
   isOpen: boolean
   shop?: Shop | null
+  onClose?: () => void
 }
 
-const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop }) => {
+const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClose }) => {
   const { user, role, logout } = useAuthStore()
   const [stats, setStats] = useState({ products: 0, orders: 0 })
 
@@ -119,8 +122,9 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop }) => 
     <aside 
       className={`
         bg-white border-r border-gray-200 transition-all duration-300 z-30
-        ${isOpen ? 'w-72' : 'w-0 lg:w-20'} 
-        fixed h-full lg:relative overflow-hidden flex flex-col
+        fixed h-full lg:relative flex flex-col
+        ${isOpen ? 'w-72 translate-x-0' : 'w-72 -translate-x-full lg:translate-x-0 lg:w-20'} 
+        overflow-hidden
       `}
     >
       {/* Logo - Cliquable vers la page d'accueil */}
@@ -185,10 +189,10 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop }) => 
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end />
-          <SidebarLink to="/dashboard/store" icon={<Store size={20} />} label="Ma Boutique" />
-          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} disabled={!shop?.is_active} />
-          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} disabled={!shop?.is_active} />
+          <SidebarLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={onClose} />
+          <SidebarLink to="/dashboard/store" icon={<Store size={20} />} label="Ma Boutique" onClick={onClose} />
+          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} disabled={!shop?.is_active} onClick={onClose} />
+          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} disabled={!shop?.is_active} onClick={onClose} />
         </div>
 
         {isOpen && (
@@ -197,9 +201,9 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop }) => 
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" disabled={!shop?.is_active} />
-          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" disabled={!shop?.is_active} />
-          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" disabled={!shop?.is_active} />
+          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" disabled={!shop?.is_active} onClick={onClose} />
+          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" disabled={!shop?.is_active} onClick={onClose} />
+          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" disabled={!shop?.is_active} onClick={onClose} />
         </div>
 
         {isOpen && (
@@ -208,8 +212,8 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop }) => 
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard/settings" icon={<Settings size={20} />} label="Paramètres" />
-          <SidebarLink to="/dashboard/help" icon={<HelpCircle size={20} />} label="Aide & Support" />
+          <SidebarLink to="/dashboard/settings" icon={<Settings size={20} />} label="Paramètres" onClick={onClose} />
+          <SidebarLink to="/dashboard/help" icon={<HelpCircle size={20} />} label="Aide & Support" onClick={onClose} />
         </div>
       </nav>
 

@@ -133,6 +133,7 @@ export const productsService = {
     category_slug?: string;
     search?: string;
     store_id?: number;
+    light?: boolean;
   }) {
     const queryParams = new URLSearchParams();
 
@@ -144,6 +145,7 @@ export const productsService = {
     if (params?.category_slug) queryParams.append('category_slug', params.category_slug);
     if (params?.search) queryParams.append('search', params.search);
     if (params?.store_id) queryParams.append('store_id', params.store_id.toString());
+    if (params?.light) queryParams.append('light', '1');
 
     const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
     return apiClient.get<ProductsResponse>(endpoint);

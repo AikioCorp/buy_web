@@ -77,6 +77,7 @@ class ProductCacheService {
     const params: any = {
       limit: this.BATCH_SIZE,
       offset: offset,
+      light: 1,
     };
 
     if (filters.category_id) params.category_id = filters.category_id;
@@ -93,7 +94,9 @@ class ProductCacheService {
     });
     
     const endpoint = `/api/products?${queryParams.toString()}`;
-    console.log('🔍 API Call:', endpoint);
+    if (import.meta.env.DEV) {
+      console.log('🔍 API Call:', endpoint);
+    }
     const response = await apiClient.get<ProductsResponse>(endpoint);
     
     // Vérifier si la réponse contient une erreur
@@ -129,7 +132,9 @@ class ProductCacheService {
     // Vérifier le cache
     const cached = this.cache.get(cacheKey);
     if (cached && this.isCacheValid(cached)) {
-      console.log(`📦 Cache hit pour page ${page}`);
+      if (import.meta.env.DEV) {
+        console.log(`📦 Cache hit pour page ${page}`);
+      }
       return {
         results: cached.data,
         count: cached.count,
@@ -141,12 +146,16 @@ class ProductCacheService {
     // Vérifier si un chargement est déjà en cours
     const existingPromise = this.loadingPromises.get(cacheKey);
     if (existingPromise) {
-      console.log(`⏳ Chargement en cours pour page ${page}`);
+      if (import.meta.env.DEV) {
+        console.log(`⏳ Chargement en cours pour page ${page}`);
+      }
       return existingPromise;
     }
 
     // Charger depuis l'API
-    console.log(`🌐 Chargement API pour page ${page}`);
+    if (import.meta.env.DEV) {
+      console.log(`🌐 Chargement API pour page ${page}`);
+    }
     const promise = this.fetchProductsPage(page, filters);
     this.loadingPromises.set(cacheKey, promise);
 

@@ -67,7 +67,8 @@ export function ShopDetailPage() {
         // Charger les produits de la boutique depuis l'API
         try {
           const productsResponse = await productsService.getProducts({ 
-            store_id: shopResponse.data.id
+            store_id: shopResponse.data.id,
+            light: true
           })
           if (productsResponse.data?.results) {
             setProducts(productsResponse.data.results)
@@ -245,6 +246,7 @@ export function ShopDetailPage() {
                       <img
                         src={getProductImage(product)}
                         alt={product.name}
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (

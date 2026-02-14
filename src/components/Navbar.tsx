@@ -177,10 +177,14 @@ export function Navbar() {
     const loadShops = async () => {
       try {
         const shopsResponse = await shopsService.getPublicShops(1, 8)
-        console.log('Navbar loadShops response:', shopsResponse)
+        if (import.meta.env.DEV) {
+          console.log('Navbar loadShops response:', shopsResponse)
+        }
 
         if (shopsResponse.data?.results) {
-          console.log('Navbar: Using API shops, count:', shopsResponse.data.results.length)
+          if (import.meta.env.DEV) {
+            console.log('Navbar: Using API shops, count:', shopsResponse.data.results.length)
+          }
           setShops(shopsResponse.data.results.slice(0, 8))
         } else {
           setShops([])
@@ -216,15 +220,16 @@ export function Navbar() {
 
       try {
         // Recherche dans les produits
-        const productsResponse = await productsService.getProducts({ search: searchQuery, page_size: 5 })
+        const productsResponse = await productsService.getProducts({ search: searchQuery, page_size: 5, light: true })
         if (productsResponse.data?.results) {
           productsResponse.data.results.forEach((product: any) => {
+            const imageUrl = product.media?.[0]?.image_url || product.images?.[0]?.image_url || product.images?.[0]?.file
             suggestions.push({
               type: 'product',
               id: product.id,
               name: product.name,
               slug: product.slug,
-              image: product.media?.[0]?.image_url,
+              image: imageUrl,
               price: product.base_price
             })
           })

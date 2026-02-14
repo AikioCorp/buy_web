@@ -56,7 +56,7 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
       {/* Toggle Sidebar */}
       <button
         onClick={toggleSidebar}
-        className="p-2.5 rounded-xl text-gray-600 hover:bg-gray-100 focus:outline-none transition-colors lg:hidden"
+        className="p-2.5 rounded-xl text-gray-600 hover:bg-gray-100 focus:outline-none transition-colors"
       >
         <Menu size={22} />
       </button>

@@ -93,7 +93,7 @@ const ProductSuggestion = ({
   <div className="group">
     <div className="h-36 bg-gray-100 rounded-lg mb-2 overflow-hidden group-hover:shadow-md transition-all">
       {image ? (
-        <img src={image} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+        <img src={image} alt={name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <Package size={24} className="text-gray-400" />
@@ -109,7 +109,7 @@ const ClientDashboardPage: React.FC = () => {
   const { user } = useAuthStore()
   const { orders, isLoading: ordersLoading } = useOrders()
   const { favorites, isLoading: favoritesLoading } = useFavorites()
-  const { products } = useProducts()
+  const { products } = useProducts({ page: 1, page_size: 8, light: true })
   const [tab, setTab] = useState<'overview' | 'wishlist'>('overview')
 
   const firstName = user?.first_name || user?.username || 'Utilisateur'
@@ -242,7 +242,7 @@ const ClientDashboardPage: React.FC = () => {
                       key={product.id}
                       name={product.name}
                       price={`${parseFloat(product.base_price).toLocaleString()} FCFA`}
-                      image={getImageUrl(product.media) || ''}
+                      image={getImageUrl(product.media || (product as any).images) || ''}
                     />
                   ))
                 )}
@@ -355,9 +355,9 @@ const ClientDashboardPage: React.FC = () => {
               {favorites.slice(0, 8).map((favorite) => (
                 <div key={favorite.id} className="group bg-gray-50 rounded-lg p-4 hover:shadow transition-all">
                   <div className="h-32 bg-gray-200 rounded mb-3 flex items-center justify-center overflow-hidden">
-                    {getImageUrl(favorite.product.media) ? (
+                    {getImageUrl(favorite.product.media || (favorite.product as any).images) ? (
                       <img 
-                        src={getImageUrl(favorite.product.media)!} 
+                        src={getImageUrl(favorite.product.media || (favorite.product as any).images)!} 
                         alt={favorite.product.name}
                         className="w-full h-full object-cover"
                       />

@@ -50,6 +50,7 @@ const SuperAdminProductsPage: React.FC = () => {
   const [stockValue, setStockValue] = useState<number>(0)
 
   const pageSize = 50
+  const isDev = import.meta.env.DEV
 
   useEffect(() => {
     loadInitialData()
@@ -94,17 +95,23 @@ const SuperAdminProductsPage: React.FC = () => {
         store_id: selectedShop || undefined
       })
 
-      console.log('Products response:', response)
-      console.log('Response data type:', Array.isArray(response.data) ? 'Array' : typeof response.data)
-      console.log('Response data count:', response.data?.count, 'results length:', response.data?.results?.length)
+      if (isDev) {
+        console.log('Products response:', response)
+        console.log('Response data type:', Array.isArray(response.data) ? 'Array' : typeof response.data)
+        console.log('Response data count:', response.data?.count, 'results length:', response.data?.results?.length)
+      }
 
       if (response.data) {
         if (Array.isArray(response.data)) {
-          console.log('⚠️ Backend returned array (no pagination support), length:', response.data.length)
+          if (isDev) {
+            console.log('⚠️ Backend returned array (no pagination support), length:', response.data.length)
+          }
           setProducts(response.data)
           setTotalCount(response.data.length)
         } else if (response.data.results) {
-          console.log('✅ Backend returned paginated response, count:', response.data.count, 'results:', response.data.results.length)
+          if (isDev) {
+            console.log('✅ Backend returned paginated response, count:', response.data.count, 'results:', response.data.results.length)
+          }
           setProducts(response.data.results)
           setTotalCount(response.data.count || response.data.results.length)
         } else {

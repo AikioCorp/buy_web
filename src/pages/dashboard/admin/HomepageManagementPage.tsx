@@ -57,7 +57,7 @@ export default function HomepageManagementPage() {
         homepageService.getSliders(true),
         homepageService.getBanners(true),
         homepageService.getFeaturedProducts(undefined, true),
-        productsService.getProducts({ page: 1, page_size: 1000 }) // Augmenter pour avoir tous les produits
+        productsService.getProducts({ page: 1, page_size: 1000, light: true }) // Charge léger pour la recherche
       ])
       if (s.data) setSliders(s.data)
       if (b.data) setBanners(b.data)

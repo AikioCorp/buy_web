@@ -312,13 +312,13 @@ export function HomePage() {
         return
       }
       // Fallback si endpoint pas encore déployé
-      const fallback = await productsService.getProducts({ limit: 2000 })
+      const fallback = await productsService.getProducts({ limit: 400, light: true })
       if (fallback.data?.results) {
         setApiProducts(fallback.data.results)
       }
     } catch (err) {
       try {
-        const fallback = await productsService.getProducts({ limit: 2000 })
+        const fallback = await productsService.getProducts({ limit: 400, light: true })
         if (fallback.data?.results) setApiProducts(fallback.data.results)
       } catch (e) { console.error('Error loading homepage products:', e) }
     } finally {
@@ -327,18 +327,33 @@ export function HomePage() {
   }
 
   useEffect(() => {
-    const loadAllContent = async () => {
-      // Charger en parallèle pour plus de rapidité
+    let cancelled = false
+    const loadCriticalContent = async () => {
+      // Charger le contenu critique en priorité
       await Promise.all([
         loadHomepageProducts(),
-        loadCategories(),
-        loadShops(),
         loadHomepageContent(),
         loadActiveFlashSale()
       ])
-      setIsContentLoaded(true)
+      if (!cancelled) setIsContentLoaded(true)
     }
-    loadAllContent()
+
+    const loadDeferredContent = () => {
+      if (cancelled) return
+      Promise.all([
+        loadCategories(),
+        loadShops()
+      ]).catch(() => undefined)
+    }
+
+    loadCriticalContent()
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      ;(window as any).requestIdleCallback(loadDeferredContent)
+    } else {
+      setTimeout(loadDeferredContent, 1200)
+    }
+
+    return () => { cancelled = true }
   }, [])
 
   const loadHomepageContent = async () => {
@@ -623,7 +638,48 @@ export function HomePage() {
   );
 
   const foodProducts = useMemo(
-    () => getProductsByCategoryIds(SECTION_CATEGORIES.alimentation),
+    () => {
+      const foodKeywords = [
+        'alimentaire', 'nourriture', 'épicerie', 'epicerie', 'riz', 'pâte', 'pates', 'huile',
+        'sucre', 'sel', 'farine', 'lait', 'beurre', 'fromage', 'yaourt', 'yogourt',
+        'viande', 'poulet', 'boeuf', 'poisson', 'crevette', 'thon', 'sardine',
+        'tomate', 'oignon', 'légume', 'legume', 'fruit', 'banane', 'mangue', 'orange', 'pomme', 'ananas',
+        'jus', 'boisson', 'eau', 'soda', 'coca', 'bière', 'biere', 'vin', 'café', 'cafe', 'thé', 'the',
+        'chocolat', 'biscuit', 'gâteau', 'gateau', 'bonbon', 'confiserie', 'snack',
+        'conserve', 'sauce', 'mayonnaise', 'ketchup', 'moutarde', 'vinaigre',
+        'céréale', 'cereale', 'miel', 'confiture', 'nutella', 'nescafé', 'nescafe',
+        'surgelé', 'surgele', 'frais', 'glace', 'crème', 'creme',
+        'pain', 'spaghetti', 'macaroni', 'couscous', 'semoule', 'attiéké', 'attieke',
+        'cube', 'maggi', 'bouillon', 'épice', 'epice', 'piment', 'poivre', 'curry',
+        'laitier', 'alimentaire', 'comestible', 'food', 'drink',
+      ];
+      const nonFoodKeywords = [
+        'téléphone', 'telephone', 'phone', 'smartphone', 'iphone', 'samsung galaxy',
+        'ordinateur', 'laptop', 'tablette', 'tablet', 'écouteur', 'ecouteur', 'casque audio',
+        'chaussure', 'robe', 'pantalon', 'chemise', 'jupe', 'sac', 'montre', 'bijou',
+        'parfum', 'maquillage', 'crème visage', 'shampooing', 'shampoing',
+        'meuble', 'canapé', 'canape', 'lit', 'matelas', 'rideau', 'tapis',
+        'jouet', 'peluche', 'poupée', 'poupee',
+      ];
+      // Les sous-catégories spécifiques sont fiables
+      const specificFoodCatIds = [
+        CATEGORY_IDS.EPICERIE_SALEE, CATEGORY_IDS.EPICERIE_SUCREE,
+        CATEGORY_IDS.FRAIS_SURGELES, CATEGORY_IDS.BOISSONS_SNACKING,
+        CATEGORY_IDS.CAFE_THE, CATEGORY_IDS.PRODUITS_LAITIERS, CATEGORY_IDS.VIANDES_POISSONS,
+      ];
+      const fromSpecific = allProducts.filter((p: any) =>
+        p.category_id && specificFoodCatIds.includes(p.category_id)
+      );
+      // La catégorie parente large nécessite un filtrage par mots-clés
+      const fromParent = allProducts.filter((p: any) => {
+        if (p.category_id !== CATEGORY_IDS.ALIMENTATION) return false;
+        const text = `${p.name || ''} ${p.meta_title || ''} ${p.meta_description || ''} ${p.category?.name || ''}`.toLowerCase();
+        if (nonFoodKeywords.some(k => text.includes(k))) return false;
+        return foodKeywords.some(k => text.includes(k));
+      });
+      const all = [...fromSpecific, ...fromParent].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+      return shuffleArray(all);
+    },
     [allProducts]
   );
 
@@ -880,9 +936,9 @@ export function HomePage() {
               ⭐ TOP
             </div>
           )}
-          {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+          {(getImageUrl(product) || product.media?.[0]?.image_url || (product as any).images?.[0]?.image_url) ? (
             <img
-              src={getImageUrl(product) || product.media?.[0]?.image_url}
+              src={getImageUrl(product) || product.media?.[0]?.image_url || (product as any).images?.[0]?.image_url}
               alt={product.name}
               loading="lazy"
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"

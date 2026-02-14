@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, Filter, Grid, List, ShoppingCart, Heart, X, SlidersHorizontal, Star, Package, ChevronDown, ChevronUp, Tag, DollarSign } from 'lucide-react'
-import { productsService, Product } from '../lib/api/productsService'
+import { Product } from '../lib/api/productsService'
 import { categoriesService } from '../lib/api/categoriesService'
 import productCacheService from '../services/productCache.service'
 import { useFavoritesStore } from '../store/favoritesStore'
@@ -140,8 +140,7 @@ export function ProductsPage() {
       const response = await categoriesService.getCategories()
       if (response.data && Array.isArray(response.data)) {
         setCategories(response.data)
-        // Filter categories that have products
-        filterCategoriesWithProducts(response.data)
+        setCategoriesWithProducts(response.data)
       } else {
         setCategories([])
         setCategoriesWithProducts([])
@@ -150,23 +149,6 @@ export function ProductsPage() {
       console.error('Error loading categories:', error)
       setCategories([])
       setCategoriesWithProducts([])
-    }
-  }
-
-  const filterCategoriesWithProducts = async (allCategories: CategoryItem[]) => {
-    try {
-      // Check each category for products in parallel
-      const categoriesWithProductsPromises = allCategories.map(async (cat) => {
-        const response = await productsService.getProducts({ category_slug: cat.slug, page_size: 1 })
-        return response.data && response.data.count > 0 ? cat : null
-      })
-      
-      const results = await Promise.all(categoriesWithProductsPromises)
-      const filtered = results.filter((cat): cat is CategoryItem => cat !== null)
-      setCategoriesWithProducts(filtered)
-    } catch (error) {
-      console.error('Error filtering categories:', error)
-      setCategoriesWithProducts(allCategories)
     }
   }
 

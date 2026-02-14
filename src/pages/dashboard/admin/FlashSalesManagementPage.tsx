@@ -49,7 +49,7 @@ export default function FlashSalesManagementPage() {
     try {
       const [salesRes, productsRes] = await Promise.all([
         flashSalesService.getFlashSales(true),
-        productsService.getProducts({ page: 1, page_size: 1000 })
+        productsService.getProducts({ page: 1, page_size: 1000, light: true })
       ])
       
       if (salesRes.data) setFlashSales(salesRes.data)
