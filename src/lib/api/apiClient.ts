@@ -113,7 +113,10 @@ class ApiClient {
         }
         console.error('API Error:', response.status, errorMessage, data);
         console.error('Failed endpoint:', endpoint);
-        console.error('Request headers:', headers);
+        console.error('Request headers:', {
+          ...this.getHeaders(),
+          ...options.headers,
+        });
         
         // Auto-logout on 401 Unauthorized (token expired or invalid)
         if (response.status === 401) {
