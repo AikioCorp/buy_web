@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Menu, Bell, Search, ChevronDown, LogOut, AlertCircle, Home, Grid, Store as StoreIcon, Heart } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Bell, Search, ChevronDown, LogOut, AlertCircle, Home, Grid, Store as StoreIcon, Heart } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 import NotificationBell from '../../NotificationBell'
 import { shopsService } from '../../../lib/api/shopsService'
 
 interface SuperAdminDashboardHeaderProps {
   toggleSidebar: () => void
+  isSidebarOpen: boolean
 }
 
-const SuperAdminDashboardHeader: React.FC<SuperAdminDashboardHeaderProps> = ({ toggleSidebar }) => {
+const SuperAdminDashboardHeader: React.FC<SuperAdminDashboardHeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
   const navigate = useNavigate()
   const { logout, user } = useAuthStore()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -58,8 +59,9 @@ const SuperAdminDashboardHeader: React.FC<SuperAdminDashboardHeaderProps> = ({ t
       <button
         onClick={toggleSidebar}
         className="p-2 rounded-md text-gray-600 hover:bg-gray-100 focus:outline-none"
+        title={isSidebarOpen ? 'Réduire le menu' : 'Ouvrir le menu'}
       >
-        <Menu size={20} />
+        {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
       </button>
 
       {/* Navigation Menu */}

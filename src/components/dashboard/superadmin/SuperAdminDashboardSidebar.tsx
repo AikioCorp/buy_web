@@ -17,31 +17,42 @@ type SidebarLinkProps = {
   onClick?: () => void
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, onClick }) => (
+const SidebarLink: React.FC<SidebarLinkProps & { isCollapsed?: boolean }> = ({ to, icon, label, badge, end, onClick, isCollapsed }) => (
   <NavLink 
     to={to}
     end={end}
     onClick={onClick}
     className={({ isActive }) => `
-      group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+      group flex items-center gap-3 rounded-xl transition-all duration-200 relative
+      ${isCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3'}
       ${isActive 
         ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25' 
         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
     `}
+    title={isCollapsed ? label : undefined}
   >
     <div className="w-5 h-5 flex-shrink-0">{icon}</div>
-    <span className="font-medium flex-1">{label}</span>
-    {badge !== undefined && (
-      <span className={`
-        px-2 py-0.5 text-xs font-semibold rounded-full
-        ${typeof badge === 'number' && badge > 0 
-          ? 'bg-red-500 text-white' 
-          : 'bg-gray-200 text-gray-600'}
-      `}>
-        {badge}
+    {!isCollapsed && (
+      <>
+        <span className="font-medium flex-1">{label}</span>
+        {badge !== undefined && (
+          <span className={`
+            px-2 py-0.5 text-xs font-semibold rounded-full
+            ${typeof badge === 'number' && badge > 0 
+              ? 'bg-red-500 text-white' 
+              : 'bg-gray-200 text-gray-600'}
+          `}>
+            {badge}
+          </span>
+        )}
+        <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+      </>
+    )}
+    {isCollapsed && badge !== undefined && typeof badge === 'number' && badge > 0 && (
+      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+        {badge > 9 ? '9+' : badge}
       </span>
     )}
-    <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
   </NavLink>
 )
 
@@ -134,7 +145,7 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={onClose} />
+          <SidebarLink to="/superadmin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={onClose} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -143,12 +154,12 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/users" icon={<Users size={20} />} label="Utilisateurs" onClick={onClose} />
-          <SidebarLink to="/superadmin/businesses" icon={<Briefcase size={20} />} label="Boutiques" onClick={onClose} />
-          <SidebarLink to="/superadmin/restaurants" icon={<UtensilsCrossed size={20} />} label="Restaurants" onClick={onClose} />
-          <SidebarLink to="/superadmin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={onClose} />
-          <SidebarLink to="/superadmin/products" icon={<Package size={20} />} label="Produits" onClick={onClose} />
-          <SidebarLink to="/superadmin/orders" icon={<ShoppingBag size={20} />} label="Commandes" onClick={onClose} />
+          <SidebarLink to="/superadmin/users" icon={<Users size={20} />} label="Utilisateurs" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/businesses" icon={<Briefcase size={20} />} label="Boutiques" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/restaurants" icon={<UtensilsCrossed size={20} />} label="Restaurants" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/products" icon={<Package size={20} />} label="Produits" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/orders" icon={<ShoppingBag size={20} />} label="Commandes" onClick={onClose} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -157,13 +168,13 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/shop-requests" icon={<Store size={20} />} label="Demandes boutiques" onClick={onClose} />
-          <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={onClose} />
-          <SidebarLink to="/superadmin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={onClose} />
-          <SidebarLink to="/superadmin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={onClose} />
-          <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" onClick={onClose} />
-          <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={onClose} />
-          <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={onClose} />
+          <SidebarLink to="/superadmin/shop-requests" icon={<Store size={20} />} label="Demandes boutiques" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={onClose} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -172,10 +183,10 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" onClick={onClose} />
-          <SidebarLink to="/superadmin/reports" icon={<FileText size={20} />} label="Rapports" onClick={onClose} />
-          <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" onClick={onClose} />
-          <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" onClick={onClose} />
+          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/reports" icon={<FileText size={20} />} label="Rapports" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" onClick={onClose} isCollapsed={!isOpen} />
         </div>
       </nav>
 
@@ -183,7 +194,10 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
       <div className="p-3 border-t border-gray-100">
         <button 
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+          className={`w-full flex items-center gap-3 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all ${
+            isOpen ? 'px-4' : 'px-2 justify-center'
+          }`}
+          title={!isOpen ? 'Déconnexion' : undefined}
         >
           <LogOut size={20} />
           {isOpen && <span className="font-medium">Déconnexion</span>}

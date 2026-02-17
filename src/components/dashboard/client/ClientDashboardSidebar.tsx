@@ -20,19 +20,21 @@ type SidebarLinkProps = {
   onClick?: () => void
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, onClick }) => (
+const SidebarLink: React.FC<SidebarLinkProps & { isCollapsed?: boolean }> = ({ to, icon, label, onClick, isCollapsed }) => (
   <NavLink 
     to={to}
     onClick={onClick}
     className={({ isActive }) => `
-      flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+      flex items-center gap-3 rounded-lg transition-all relative
+      ${isCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3'}
       ${isActive 
         ? 'bg-green-700 text-white' 
         : 'text-gray-600 hover:bg-green-50 hover:text-green-700'}
     `}
+    title={isCollapsed ? label : undefined}
   >
-    <div className="w-5 h-5">{icon}</div>
-    <span className="font-medium">{label}</span>
+    <div className="w-5 h-5 flex-shrink-0">{icon}</div>
+    {!isCollapsed && <span className="font-medium">{label}</span>}
   </NavLink>
 )
 
@@ -64,15 +66,15 @@ const ClientDashboardSidebar: React.FC<ClientDashboardSidebarProps> = ({ isOpen,
       
       <nav className="mt-4 px-2 flex-1 overflow-y-auto">
         <div className="space-y-1">
-          <SidebarLink to="/client" icon={<Home />} label="Tableau de bord" onClick={onClose} />
-          <SidebarLink to="/client/orders" icon={<ShoppingBag />} label="Mes commandes" onClick={onClose} />
-          <SidebarLink to="/client/favorites" icon={<Heart />} label="Favoris" onClick={onClose} />
-          <SidebarLink to="/client/profile" icon={<User />} label="Profil" onClick={onClose} />
-          <SidebarLink to="/client/addresses" icon={<MapPin />} label="Adresses" onClick={onClose} />
-          <SidebarLink to="/client/payments" icon={<CreditCard />} label="Paiements" onClick={onClose} />
-          <SidebarLink to="/client/messages" icon={<MessageSquare />} label="Messages" onClick={onClose} />
-          <SidebarLink to="/client/notifications" icon={<Bell />} label="Notifications" onClick={onClose} />
-          <SidebarLink to="/client/settings" icon={<Settings />} label="Paramètres" onClick={onClose} />
+          <SidebarLink to="/client" icon={<Home />} label="Tableau de bord" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/orders" icon={<ShoppingBag />} label="Mes commandes" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/favorites" icon={<Heart />} label="Favoris" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/profile" icon={<User />} label="Profil" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/addresses" icon={<MapPin />} label="Adresses" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/payments" icon={<CreditCard />} label="Paiements" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/messages" icon={<MessageSquare />} label="Messages" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/notifications" icon={<Bell />} label="Notifications" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/settings" icon={<Settings />} label="Paramètres" onClick={onClose} isCollapsed={!isOpen} />
         </div>
       </nav>
       

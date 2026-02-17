@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { 
-  Menu, Search, ChevronDown, ShoppingCart, 
+  PanelLeftClose, PanelLeftOpen, Search, ChevronDown, ShoppingCart, 
   User, LogOut, Settings, HelpCircle, ExternalLink, Package, Home, Grid, Store as StoreIcon, Heart
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
@@ -10,9 +10,10 @@ import NotificationBell from '../../NotificationBell'
 
 interface ClientDashboardHeaderProps {
   toggleSidebar: () => void
+  isSidebarOpen: boolean
 }
 
-const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSidebar }) => {
+const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
   const navigate = useNavigate()
   const { logout, user } = useAuthStore()
   const cartItems = useCartStore((state) => state.items)
@@ -57,8 +58,9 @@ const ClientDashboardHeader: React.FC<ClientDashboardHeaderProps> = ({ toggleSid
       <button
         onClick={toggleSidebar}
         className="p-2.5 rounded-xl text-gray-600 hover:bg-gray-100 focus:outline-none transition-colors"
+        title={isSidebarOpen ? 'Réduire le menu' : 'Ouvrir le menu'}
       >
-        <Menu size={22} />
+        {isSidebarOpen ? <PanelLeftClose size={22} /> : <PanelLeftOpen size={22} />}
       </button>
 
       {/* Navigation Menu */}
