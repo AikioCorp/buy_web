@@ -41,6 +41,9 @@ const allPermissions: Permission[] = [
   { id: 'orders_create', name: 'Créer des commandes', description: 'Créer de nouvelles commandes', icon: <ShoppingBag size={16} />, category: 'orders' },
   { id: 'orders_manage', name: 'Gérer les commandes', description: 'Modifier le statut des commandes', icon: <ShoppingBag size={16} />, category: 'orders' },
   { id: 'orders_cancel', name: 'Annuler les commandes', description: 'Annuler des commandes', icon: <AlertTriangle size={16} />, category: 'orders' },
+  { id: 'orders_split_view', name: 'Voir commandes séparées', description: 'Voir les commandes séparées par boutique', icon: <Store size={16} />, category: 'orders' },
+  { id: 'delivery_manage', name: 'Gérer la livraison', description: 'Configurer les frais de livraison proportionnels et globaux', icon: <ShoppingBag size={16} />, category: 'orders' },
+  { id: 'delivery_free_threshold', name: 'Livraison gratuite', description: 'Configurer le seuil de livraison gratuite (>50k XOF)', icon: <Sparkles size={16} />, category: 'orders' },
   
   // Moderation
   { id: 'moderation_view', name: 'Voir la modération', description: 'Accès à la page de modération', icon: <Eye size={16} />, category: 'moderation' },
@@ -81,10 +84,10 @@ const SuperAdminPermissionsPage: React.FC = () => {
       setLoading(true)
       setError(null)
       
-      const response = await usersService.getAllUsers(1, 100)
+      const response = await usersService.getAllUsers(1, 200)
       
       if (response.data) {
-        // Filtrer uniquement les admins (is_staff = true, is_superuser = false)
+        // Filtrer tous les admins (is_staff = true, avec ou sans is_superuser)
         let allUsers: UserData[] = []
         if (Array.isArray(response.data)) {
           allUsers = response.data
@@ -92,7 +95,25 @@ const SuperAdminPermissionsPage: React.FC = () => {
           allUsers = response.data.results
         }
         
-        const adminUsers = allUsers.filter(u => u.is_staff && !u.is_superuser)
+        console.log('Total utilisateurs chargés:', allUsers.length)
+        console.log('Exemple utilisateur:', allUsers[0])
+        
+        // Afficher tous les utilisateurs avec is_staff = true
+        let adminUsers = allUsers.filter(u => u.is_staff)
+        console.log('Admins avec is_staff=true:', adminUsers.length)
+        
+        // Fallback: Si aucun admin trouvé, afficher aussi les superusers
+        if (adminUsers.length === 0) {
+          adminUsers = allUsers.filter(u => u.is_superuser || u.is_staff)
+          console.log('Admins avec is_superuser ou is_staff:', adminUsers.length)
+        }
+        
+        // Dernier fallback: afficher les 5 premiers utilisateurs pour debug
+        if (adminUsers.length === 0 && allUsers.length > 0) {
+          console.warn('⚠️ Aucun admin trouvé - affichage des premiers utilisateurs pour debug')
+          adminUsers = allUsers.slice(0, 5)
+        }
+        
         setAdmins(adminUsers)
       }
     } catch (err: any) {
@@ -144,9 +165,17 @@ const SuperAdminPermissionsPage: React.FC = () => {
       // Save permissions via API
       await usersService.updateUser(selectedAdmin.id, { permissions: adminPermissions } as any)
       
+      // Update local state instead of reloading from API (cache system)
+      setAdmins(prevAdmins => 
+        prevAdmins.map(admin => 
+          admin.id === selectedAdmin.id 
+            ? { ...admin, permissions: adminPermissions } as any
+            : admin
+        )
+      )
+      
       setIsEditModalOpen(false)
       setSelectedAdmin(null)
-      loadAdmins() // Reload to get updated data
       showToast('Permissions mises à jour avec succès!', 'success')
     } catch (err: any) {
       showToast(err.message || 'Erreur lors de la sauvegarde des permissions', 'error')
@@ -184,7 +213,7 @@ const SuperAdminPermissionsPage: React.FC = () => {
               <p className="text-white/80 mt-1">Contrôlez les accès de vos administrateurs</p>
             </div>
           </div>
-          <div className="flex items-center gap-6 mt-6">
+          <div className="flex items-center gap-6 mt-6 flex-wrap">
             <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
               <Users size={18} />
               <span className="font-medium">{admins.length} Administrateurs</span>
@@ -193,6 +222,12 @@ const SuperAdminPermissionsPage: React.FC = () => {
               <Sparkles size={18} />
               <span className="font-medium">{allPermissions.length} Permissions disponibles</span>
             </div>
+            {admins.length === 0 && !loading && (
+              <div className="flex items-center gap-2 bg-yellow-500/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-yellow-300/30">
+                <AlertTriangle size={18} />
+                <span className="font-medium">Aucun admin trouvé - Voir console (F12)</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -242,9 +277,25 @@ const SuperAdminPermissionsPage: React.FC = () => {
             <UserCog className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun administrateur trouvé</h3>
-          <p className="text-gray-500 max-w-md mx-auto">
+          <p className="text-gray-500 max-w-md mx-auto mb-6">
             Il n'y a pas encore d'administrateurs à gérer. Les administrateurs sont les utilisateurs avec le statut "staff".
           </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 max-w-2xl mx-auto text-left">
+            <p className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+              <AlertTriangle size={16} />
+              Comment créer un administrateur ?
+            </p>
+            <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+              <li>Allez sur <strong>SuperAdmin → Utilisateurs</strong></li>
+              <li>Trouvez l'utilisateur que vous voulez promouvoir</li>
+              <li>Cliquez sur <strong>Modifier</strong></li>
+              <li>Cochez <strong>"Staff"</strong> pour en faire un administrateur</li>
+              <li>Revenez sur cette page et cliquez sur <strong>Actualiser</strong></li>
+            </ol>
+            <p className="text-xs text-blue-700 mt-4 italic">
+              💡 Astuce: Vérifiez la console du navigateur (F12) pour voir les logs de debug
+            </p>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

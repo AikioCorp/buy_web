@@ -1,7 +1,7 @@
 import React from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { 
-  LayoutDashboard, Users, TrendingUp, 
+  LayoutDashboard, Users, TrendingUp, Wallet,
   Shield, Briefcase, FolderTree, Package, ShoppingBag, UtensilsCrossed,
   LogOut, ChevronRight, Crown, ExternalLink, Globe, AlertCircle,
   MessageSquare, Star, User, Store, Bell, FileText, LayoutGrid, Zap
@@ -167,6 +167,7 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           <SidebarLink to="/superadmin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/superadmin/products" icon={<Package size={20} />} label="Produits" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/superadmin/orders" icon={<ShoppingBag size={20} />} label="Commandes" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/revenue" icon={<Wallet size={20} />} label="Revenus & Retraits" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (

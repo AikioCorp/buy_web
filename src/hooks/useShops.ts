@@ -59,17 +59,13 @@ export function useShop(id: number) {
     setError(null);
 
     try {
-      // Essayer d'abord getMyShop, sinon chercher dans la liste publique
-      const response = await shopsService.getPublicShops();
+      // Use getShopById instead of loading ALL shops
+      const response = await shopsService.getShopById(id);
 
-      if (response.data) {
-        const shopsList = 'results' in response.data ? response.data.results : response.data as unknown as Shop[];
-        const foundShop = shopsList.find(s => s.id === id);
-        if (foundShop) {
-          setShop(foundShop);
-        } else {
-          setError('Boutique non trouvée');
-        }
+      if (!response.data) {
+        setError('Boutique non trouvée');
+      } else {
+        setShop(response.data);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement de la boutique');

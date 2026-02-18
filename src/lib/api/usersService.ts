@@ -50,10 +50,10 @@ class UsersService {
     }
   }
 
-  async getAllUsers(page: number = 1, _pageSize: number = 20) {
+  async getAllUsers(page: number = 1, pageSize: number = 20) {
     try {
       const response = await apiClient.get<UsersListResponse>(
-        `/api/admin/users/?page=${page}`
+        `/api/admin/users/?page=${page}&page_size=${pageSize}`
       )
       return {
         data: response.data,

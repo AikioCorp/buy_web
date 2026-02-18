@@ -41,7 +41,7 @@ export function useProducts(params?: {
 
   useEffect(() => {
     loadProducts();
-  }, [params?.page, params?.page_size, params?.limit, params?.offset, params?.category_id, params?.category_slug, params?.search, params?.light]);
+  }, [params?.page, params?.page_size, params?.limit, params?.offset, params?.category_id, params?.category_slug, params?.search, params?.light, getCacheKey]);
 
   const loadProducts = async (forceRefresh = false) => {
     setIsLoading(true);

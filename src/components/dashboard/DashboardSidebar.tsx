@@ -16,8 +16,7 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
-import { productsService } from '../../lib/api/productsService'
-import { ordersService } from '../../lib/api/ordersService'
+import { vendorService } from '../../lib/api/vendorService'
 import { Shop } from '../../lib/api/shopsService'
 
 type SidebarLinkProps = {
@@ -97,15 +96,12 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClo
 
   const loadStats = async () => {
     try {
-      const [productsRes, ordersRes] = await Promise.all([
-        productsService.getMyProducts(),
-        ordersService.getOrders()
-      ])
-      
-      const products = productsRes.data ? (Array.isArray(productsRes.data) ? productsRes.data.length : 0) : 0
-      const orders = ordersRes.data ? (Array.isArray(ordersRes.data) ? ordersRes.data.length : 0) : 0
-      
-      setStats({ products, orders })
+      const res = await vendorService.getStats()
+      if (res.data) {
+        const d = (res.data as any).data || res.data
+        // Use pending_orders instead of total orders_count to show only new orders
+        setStats({ products: d.products_count || 0, orders: d.pending_orders || 0 })
+      }
     } catch (error) {
       console.error('Erreur chargement stats sidebar:', error)
     }

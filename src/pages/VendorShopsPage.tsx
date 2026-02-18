@@ -21,7 +21,11 @@ export function VendorShopsPage() {
     phone: '', whatsapp: '', email: '', delivery_base_fee: 1000, delivery_available: true
   })
 
-  useEffect(() => { loadMyShop() }, [user])
+  useEffect(() => { 
+    if (user?.id) {
+      loadMyShop() 
+    }
+  }, [user?.id])
 
   const loadMyShop = async () => {
     try {

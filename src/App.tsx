@@ -97,6 +97,7 @@ import AdminMessagesPage from './pages/dashboard/admin/AdminMessagesPage'
 import AdminNotificationsPage from './pages/dashboard/admin/AdminNotificationsPage'
 import SuperAdminShopRequestsPage from './pages/dashboard/admin/SuperAdminShopRequestsPage'
 import AdminCategoriesPage from './pages/dashboard/admin/AdminCategoriesPage'
+import AdminRevenuePage from './pages/dashboard/admin/AdminRevenuePage'
 import { useAuthStore } from './stores/authStore'
 
 function App() {
@@ -199,6 +200,7 @@ function App() {
           <Route path="profile" element={<AdminProfilePage />} />
           <Route path="homepage" element={<HomepageManagementPage />} />
           <Route path="flash-sales" element={<FlashSalesManagementPage />} />
+          <Route path="revenue" element={<AdminRevenuePage />} />
         </Route>
 
         {/* Routes du dashboard super admin */}
@@ -226,6 +228,7 @@ function App() {
           <Route path="profile" element={<AdminProfilePage />} />
           <Route path="homepage" element={<HomepageManagementPage />} />
           <Route path="flash-sales" element={<FlashSalesManagementPage />} />
+          <Route path="revenue" element={<AdminRevenuePage />} />
         </Route>
       </Routes>
     </Router>

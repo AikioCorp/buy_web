@@ -36,10 +36,13 @@ export function useOrders() {
       if (response.error) {
         setError(response.error);
       } else if (response.data) {
+        // Backend wraps response in { success: true, data: [...] }
+        const raw = response.data as any;
+        const unwrapped = raw.data || raw;
         // Handle both array and paginated response formats
-        const ordersData = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as any).results || [];
+        const ordersData = Array.isArray(unwrapped) 
+          ? unwrapped 
+          : unwrapped.results || [];
         setOrders(ordersData);
       }
     } catch (err) {

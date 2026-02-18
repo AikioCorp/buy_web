@@ -4,7 +4,7 @@ import {
   Users, Package, ArrowUpRight, ArrowDownRight,
   DollarSign, Target, Percent, Loader2
 } from 'lucide-react'
-import { ordersService } from '../../lib/api/ordersService'
+import { vendorService } from '../../lib/api/vendorService'
 
 // Stat Card
 const StatCard = ({ 
@@ -96,45 +96,43 @@ const AnalyticsPage: React.FC = () => {
     try {
       setLoading(true)
       
-      // Charger les commandes
-      const ordersResponse = await ordersService.getOrders()
-      const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
-      
-      // Calculer le chiffre d'affaires
-      const totalRevenue = orders.reduce((sum, order) => {
-        return sum + (parseFloat(order.total_amount) || 0)
-      }, 0)
+      // Use lightweight stats endpoint instead of loading ALL orders
+      const [statsRes, revenueRes] = await Promise.all([
+        vendorService.getStats(),
+        vendorService.getRevenue({ page_size: 50 }),
+      ])
 
-      // Top produits (basé sur les commandes)
-      const productSales: Record<string, { name: string; sales: number; revenue: number }> = {}
-      orders.forEach(order => {
-        order.items?.forEach(item => {
-          const productId = item.product?.id?.toString() || 'unknown'
-          if (!productSales[productId]) {
-            productSales[productId] = {
-              name: item.product?.name || 'Produit inconnu',
-              sales: 0,
-              revenue: 0
-            }
+      let totalRevenue = 0
+      let totalOrders = 0
+      const topProducts: { name: string; sales: number; revenue: string }[] = []
+
+      if (statsRes.data) {
+        const d = (statsRes.data as any).data || statsRes.data
+        totalRevenue = d.revenue_total || 0
+        totalOrders = d.orders_count || 0
+      }
+
+      // Build top products from revenue transactions
+      if (revenueRes.data) {
+        const rd = (revenueRes.data as any).data || revenueRes.data
+        const txns = rd.transactions || []
+        const productSales: Record<string, { name: string; sales: number; revenue: number }> = {}
+        txns.forEach((txn: any) => {
+          const name = txn.product_name || 'Produit'
+          if (!productSales[name]) {
+            productSales[name] = { name, sales: 0, revenue: 0 }
           }
-          productSales[productId].sales += item.quantity
-          productSales[productId].revenue += parseFloat(item.unit_price) * item.quantity
+          productSales[name].sales += txn.quantity || 0
+          productSales[name].revenue += parseFloat(txn.total_price) || 0
         })
-      })
-
-      const topProducts = Object.values(productSales)
-        .sort((a, b) => b.sales - a.sales)
-        .slice(0, 5)
-        .map(p => ({
-          name: p.name,
-          sales: p.sales,
-          revenue: `${p.revenue.toLocaleString()} XOF`
-        }))
+        const sorted = Object.values(productSales).sort((a, b) => b.sales - a.sales).slice(0, 5)
+        sorted.forEach(p => topProducts.push({ name: p.name, sales: p.sales, revenue: `${p.revenue.toLocaleString()} XOF` }))
+      }
 
       setStats({
         revenue: totalRevenue,
-        orders: orders.length,
-        visitors: 0, // Pas de données de visiteurs dans l'API
+        orders: totalOrders,
+        visitors: 0,
         conversionRate: 0,
         products: topProducts
       })

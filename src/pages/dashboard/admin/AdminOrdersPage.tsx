@@ -1,11 +1,44 @@
 import React, { useState, useEffect } from 'react'
 import {
   Search, ShoppingCart, Eye, X, CheckCircle, Clock, Truck, XCircle,
-  AlertTriangle, Ban, Loader2, RefreshCw, Package, MapPin, Phone, CreditCard
+  AlertTriangle, Ban, Loader2, RefreshCw, Package, MapPin, Phone, CreditCard, Edit, User
 } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { useToast } from '../../../components/Toast'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+
+const getImageUrl = (item: any): string | null => {
+  if (!item) return null;
+
+  // 1. Try direct product_image field
+  if (item.product_image) {
+    const url = item.product_image;
+    if (url.startsWith('http://')) return url.replace('http://', 'https://');
+    if (url.startsWith('https://')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+
+  // 2. Try nested product.media or product.images
+  const product = item.product || item;
+  const mediaArray = product?.media || product?.images || [];
+
+  if (Array.isArray(mediaArray) && mediaArray.length > 0) {
+    const primaryImage = mediaArray.find((m: any) => m.is_primary) || mediaArray[0];
+    let url = primaryImage?.image_url || primaryImage?.file || primaryImage?.image;
+
+    if (url) {
+      if (typeof url === 'string') {
+        if (url.startsWith('http://')) return url.replace('http://', 'https://');
+        if (url.startsWith('https://')) return url;
+        return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+      }
+    }
+  }
+
+  return null;
+}
 
 const AdminOrdersPage: React.FC = () => {
   const { showToast } = useToast()
@@ -25,8 +58,42 @@ const AdminOrdersPage: React.FC = () => {
 
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null)
+  const [orderToUpdate, setOrderToUpdate] = useState<Order | null>(null)
+  const [newStatus, setNewStatus] = useState<OrderStatus>('pending')
+  const [statusNote, setStatusNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+
+  const handleProductClick = (productId: number) => {
+    if (productId) {
+      window.open(`/products/${productId}`, '_blank')
+    }
+  }
+
+  const handleStatusClick = (order: Order) => {
+    setOrderToUpdate(order)
+    setNewStatus(order.status)
+    setStatusNote('')
+    setIsStatusModalOpen(true)
+  }
+
+  const handleUpdateStatus = async () => {
+    if (!orderToUpdate || !canManageOrders()) return
+
+    try {
+      setActionLoading(true)
+      await ordersService.updateOrderStatus(orderToUpdate.id, newStatus)
+      showToast('Statut de la commande mis à jour avec succès', 'success')
+      setIsStatusModalOpen(false)
+      setOrderToUpdate(null)
+      loadOrders()
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la mise à jour du statut', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   const pageSize = 20
 
@@ -92,18 +159,6 @@ const AdminOrdersPage: React.FC = () => {
     setIsViewModalOpen(true)
   }
 
-  const handleUpdateStatus = async (order: Order, newStatus: OrderStatus) => {
-    if (!canManageOrders()) return
-    try {
-      setActionLoading(true)
-      await ordersService.updateOrderStatus(order.id, newStatus)
-      loadOrders()
-    } catch (err: any) {
-      showToast(err.message || 'Erreur lors de la mise à jour', 'error')
-    } finally {
-      setActionLoading(false)
-    }
-  }
 
   const handleCancelOrder = async (order: Order) => {
     if (!canCancelOrders()) return
@@ -218,32 +273,25 @@ const AdminOrdersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Clickable to filter */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg">
-          <p className="text-blue-100 text-sm">Total</p>
-          <p className="text-2xl font-bold mt-1">{stats.total}</p>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-500 to-amber-500 rounded-2xl p-4 text-white shadow-lg">
-          <p className="text-yellow-100 text-sm">En attente</p>
-          <p className="text-2xl font-bold mt-1">{stats.pending}</p>
-        </div>
-        <div className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl p-4 text-white shadow-lg">
-          <p className="text-blue-100 text-sm">En cours</p>
-          <p className="text-2xl font-bold mt-1">{stats.processing}</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl p-4 text-white shadow-lg">
-          <p className="text-purple-100 text-sm">Expédiées</p>
-          <p className="text-2xl font-bold mt-1">{stats.shipped}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 text-white shadow-lg">
-          <p className="text-green-100 text-sm">Livrées</p>
-          <p className="text-2xl font-bold mt-1">{stats.delivered}</p>
-        </div>
-        <div className="bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl p-4 text-white shadow-lg">
-          <p className="text-red-100 text-sm">Annulées</p>
-          <p className="text-2xl font-bold mt-1">{stats.cancelled}</p>
-        </div>
+        {([
+          { key: 'all' as const, label: 'Total', value: stats.total, gradient: 'from-blue-500 to-blue-600', light: 'text-blue-100', ring: 'ring-blue-300' },
+          { key: 'pending' as const, label: 'En attente', value: stats.pending, gradient: 'from-yellow-500 to-amber-500', light: 'text-yellow-100', ring: 'ring-yellow-300' },
+          { key: 'processing' as const, label: 'En cours', value: stats.processing, gradient: 'from-blue-400 to-cyan-500', light: 'text-blue-100', ring: 'ring-cyan-300' },
+          { key: 'shipped' as const, label: 'Expédiées', value: stats.shipped, gradient: 'from-purple-500 to-violet-600', light: 'text-purple-100', ring: 'ring-purple-300' },
+          { key: 'delivered' as const, label: 'Livrées', value: stats.delivered, gradient: 'from-green-500 to-emerald-600', light: 'text-green-100', ring: 'ring-green-300' },
+          { key: 'cancelled' as const, label: 'Annulées', value: stats.cancelled, gradient: 'from-red-500 to-rose-600', light: 'text-red-100', ring: 'ring-red-300' },
+        ]).map(card => (
+          <button
+            key={card.key}
+            onClick={() => { setStatusFilter(card.key); setCurrentPage(1) }}
+            className={`bg-gradient-to-br ${card.gradient} rounded-2xl p-4 text-white shadow-lg text-left transition-all hover:scale-105 hover:shadow-xl ${statusFilter === card.key ? `ring-4 ${card.ring} scale-105` : ''}`}
+          >
+            <p className={`${card.light} text-sm`}>{card.label}</p>
+            <p className="text-2xl font-bold mt-1">{card.value}</p>
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -332,19 +380,13 @@ const AdminOrdersPage: React.FC = () => {
                           <Eye size={18} />
                         </button>
                         {canManageOrders() && order.status !== 'delivered' && order.status !== 'cancelled' && (
-                          <select
-                            value=""
-                            onChange={(e) => {
-                              if (e.target.value) handleUpdateStatus(order, e.target.value as OrderStatus)
-                            }}
-                            className="px-2 py-1 text-sm bg-gray-50 border border-gray-200 rounded-lg"
-                            disabled={actionLoading}
+                          <button
+                            onClick={() => handleStatusClick(order)}
+                            className="p-2 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-lg"
+                            title="Modifier le statut"
                           >
-                            <option value="">Changer statut</option>
-                            {order.status === 'pending' && <option value="processing">En cours</option>}
-                            {order.status === 'processing' && <option value="shipped">Expédié</option>}
-                            {order.status === 'shipped' && <option value="delivered">Livré</option>}
-                          </select>
+                            <Edit size={18} />
+                          </button>
                         )}
                         {canCancelOrders() && order.status !== 'delivered' && order.status !== 'cancelled' && (
                           <button onClick={() => handleCancelOrder(order)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg" title="Annuler">
@@ -439,33 +481,59 @@ const AdminOrdersPage: React.FC = () => {
 
               {/* Items */}
               <div>
+                {/* Show stores involved */}
+                {(viewingOrder as any).stores && (viewingOrder as any).stores.length > 1 && (
+                  <div className="mb-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                    <p className="text-sm font-medium text-indigo-800 flex items-center gap-2">
+                      <User size={16} />
+                      Commande multi-boutiques: {(viewingOrder as any).stores.map((s: any) => s.name).join(', ')}
+                    </p>
+                  </div>
+                )}
                 <h3 className="font-semibold text-gray-900 mb-3">
                   Articles ({((viewingOrder as any).order_items || viewingOrder.items || []).length})
                 </h3>
                 <div className="space-y-2">
                   {((viewingOrder as any).order_items || []).length > 0 ? (
-                    (viewingOrder as any).order_items.map((item: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
-                            {getImageUrl(item) ? (
-                              <img
-                                src={getImageUrl(item)!}
-                                alt={item.product_name || 'Produit'}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <Package size={20} className="text-gray-400" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{item.product_name || 'Produit'}</p>
-                            <p className="text-sm text-gray-500">Qté: {item.quantity} × {parseFloat(item.unit_price || '0').toLocaleString()} FCFA</p>
-                          </div>
+                    (viewingOrder as any).order_items.map((item: any, index: number) => {
+                      const storeName = (viewingOrder as any).stores?.find((s: any) => s.id === item.store_id)?.name;
+                      return (
+                      <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-indigo-200 transition-colors">
+                        <button
+                          onClick={() => handleProductClick(item.product_id || item.product?.id)}
+                          className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-indigo-500 transition-all cursor-pointer"
+                          title="Voir le produit"
+                        >
+                          {getImageUrl(item) ? (
+                            <img
+                              src={getImageUrl(item)!}
+                              alt={item.product_name || 'Produit'}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                              <Package className="text-gray-400" size={24} />
+                            </div>
+                          )}
+                        </button>
+                        <div className="flex-1">
+                          <button
+                            onClick={() => handleProductClick(item.product_id || item.product?.id)}
+                            className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors text-left block"
+                          >
+                            {item.product_name || 'Produit'}
+                          </button>
+                          <p className="text-sm text-gray-500">
+                            Quantité: {item.quantity}
+                            {storeName && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">{storeName}</span>}
+                          </p>
                         </div>
-                        <p className="font-bold text-green-600">{parseFloat(item.total_price || '0').toLocaleString()} FCFA</p>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">{parseFloat(item.unit_price || '0').toLocaleString()} FCFA</div>
+                          <div className="font-semibold text-gray-900">{parseFloat(item.total_price || '0').toLocaleString()} FCFA</div>
+                        </div>
                       </div>
-                    ))
+                    )})
                   ) : viewingOrder.items?.length ? (
                     viewingOrder.items.map((item, index) => (
                       <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
@@ -503,6 +571,88 @@ const AdminOrdersPage: React.FC = () => {
                 <span className="font-semibold text-lg">Total</span>
                 <span className="text-3xl font-bold">{parseFloat(viewingOrder.total_amount || '0').toLocaleString()} FCFA</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Status Modal - SuperAdmin Style */}
+      {isStatusModalOpen && orderToUpdate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Modifier le statut</h2>
+              <p className="text-sm text-gray-500">Commande #{orderToUpdate.id}</p>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Statut actuel
+                </label>
+                <div>{getStatusInfo(orderToUpdate.status).label}</div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nouveau statut
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="pending">En attente</option>
+                  <option value="confirmed">Confirmée</option>
+                  <option value="processing">En préparation</option>
+                  <option value="shipped">Expédiée</option>
+                  <option value="delivered">Livrée</option>
+                  <option value="cancelled">Annulée</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Note pour le client (optionnel)
+                </label>
+                <textarea
+                  value={statusNote}
+                  onChange={(e) => setStatusNote(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Ajouter une note..."
+                />
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> Le client sera notifié par email et SMS du changement de statut.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setIsStatusModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                disabled={actionLoading}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleUpdateStatus}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Mise à jour...
+                  </>
+                ) : (
+                  'Mettre à jour'
+                )}
+              </button>
             </div>
           </div>
         </div>

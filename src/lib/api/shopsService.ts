@@ -226,8 +226,8 @@ export const shopsService = {
    * @param userId - ID de l'utilisateur connecté pour filtrer les boutiques
    */
   async getMyShop(userId?: string) {
-    // Include inactive shops for authenticated users to see pending shops
-    const response = await apiClient.get<{ results: Shop[]; count: number } | Shop[]>('/api/shops?include_inactive=true');
+    // Use page_size=1 to avoid loading ALL shops - backend filters by owner_id for non-admin users
+    const response = await apiClient.get<{ results: Shop[]; count: number } | Shop[]>('/api/shops?include_inactive=true&page_size=5');
     
     // Handle both response formats: { results: [...] } or direct array
     let shops: Shop[] = [];
@@ -239,7 +239,7 @@ export const shopsService = {
       }
     }
     
-    // Filter shops by owner_id on frontend since backend may not filter correctly
+    // Filter shops by owner_id on frontend as safety check
     if (userId) {
       shops = shops.filter(shop => String(shop.owner_id) === String(userId));
     }

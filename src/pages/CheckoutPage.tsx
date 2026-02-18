@@ -167,6 +167,10 @@ export function CheckoutPage() {
   
   // Calcul automatique des frais de livraison en fonction de la commune
   const getDeliveryFee = (): number => {
+    const subtotal = getTotal()
+    // Livraison gratuite pour les commandes >= 50000 XOF
+    if (subtotal >= 50000) return 0
+    
     if (!shippingAddress.commune) return 1000 // Frais par défaut
     return BAMAKO_ZONES[shippingAddress.commune]?.frais_livraison || 1000
   }
@@ -535,21 +539,40 @@ export function CheckoutPage() {
                     </div>
 
                     {/* Frais de livraison automatique */}
-                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className={`mt-6 p-4 border rounded-lg ${getDeliveryFee() === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-green-50 border-green-200'}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Truck className="h-5 w-5 text-green-600" />
-                          <span className="font-medium text-green-800">Livraison à Bamako</span>
+                          <Truck className={`h-5 w-5 ${getDeliveryFee() === 0 ? 'text-emerald-600' : 'text-green-600'}`} />
+                          <span className={`font-medium ${getDeliveryFee() === 0 ? 'text-emerald-800' : 'text-green-800'}`}>
+                            {getDeliveryFee() === 0 ? 'Livraison Gratuite !' : 'Livraison à Bamako'}
+                          </span>
                         </div>
-                        <span className="font-bold text-green-700">{formatPrice(getDeliveryFee(), 'XOF')}</span>
+                        <span className={`font-bold ${getDeliveryFee() === 0 ? 'text-emerald-700' : 'text-green-700'}`}>
+                          {getDeliveryFee() === 0 ? 'GRATUIT' : formatPrice(getDeliveryFee(), 'XOF')}
+                        </span>
                       </div>
-                      {shippingAddress.commune && (
-                        <p className="text-sm text-green-600 mt-2">
-                          {shippingAddress.commune === 'Commune VI' 
-                            ? 'Zone périphérique - Délai de livraison: 24-48h'
-                            : 'Zone centrale - Délai de livraison: sous 24h'
-                          }
+                      {getDeliveryFee() === 0 ? (
+                        <p className="text-sm text-emerald-600 mt-2 flex items-center gap-1">
+                          <CheckCircle size={14} />
+                          Votre commande dépasse 50 000 XOF - Livraison offerte !
                         </p>
+                      ) : (
+                        <>
+                          {shippingAddress.commune && (
+                            <p className="text-sm text-green-600 mt-2">
+                              {shippingAddress.commune === 'Commune VI' 
+                                ? 'Zone périphérique - Délai de livraison: 24-48h'
+                                : 'Zone centrale - Délai de livraison: sous 24h'
+                              }
+                            </p>
+                          )}
+                          {getTotal() < 50000 && (
+                            <p className="text-xs text-gray-600 mt-2 flex items-center gap-1">
+                              <AlertCircle size={12} />
+                              Plus que {formatPrice(50000 - getTotal(), 'XOF')} pour la livraison gratuite
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

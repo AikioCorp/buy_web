@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react'
-import { Search, UserPlus, Edit2, Trash2, Shield, ShieldCheck, Store, User as UserIcon, X, Save, Key, LayoutGrid, List, Filter, Bell, Send, Eye, EyeOff, Copy, RefreshCcw, Mail } from 'lucide-react'
+import { Search, UserPlus, Edit2, Trash2, Shield, ShieldCheck, Store, User as UserIcon, X, Save, Key, LayoutGrid, List, Filter, Bell, Send, Eye, EyeOff, Copy, RefreshCcw, Mail, Info } from 'lucide-react'
 import { usersService, UserData, CreateUserData } from '../../../lib/api/usersService'
 import { notificationsService } from '../../../lib/api/notificationsService'
 import { messagesService } from '../../../lib/api/messagesService'
+import { shopsService } from '../../../lib/api/shopsService'
 import { MessageSquare } from 'lucide-react'
 import { useToast } from '../../../components/Toast'
 import { useConfirm } from '../../../components/ConfirmModal'
+import { UserInfoModal } from './SuperAdminUsersPage_InfoModal'
 
 const SuperAdminUsersPage: React.FC = () => {
   const { showToast } = useToast()
   const { confirm, alert: showAlert } = useConfirm()
   const [users, setUsers] = useState<UserData[]>([])
+  const [allUsers, setAllUsers] = useState<UserData[]>([]) // Cache de tous les utilisateurs
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -55,11 +58,17 @@ const SuperAdminUsersPage: React.FC = () => {
   const [msgContent, setMsgContent] = useState('')
   const [msgSending, setMsgSending] = useState(false)
 
-  const pageSize = 20
+  // User info modal state
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
+  const [userToView, setUserToView] = useState<UserData | null>(null)
+  const [userShop, setUserShop] = useState<any>(null)
+  const [loadingShop, setLoadingShop] = useState(false)
+
+  const pageSize = 100
 
   useEffect(() => {
     loadUsers()
-  }, [currentPage, searchQuery])
+  }, [currentPage, searchQuery]) // Removed selectedFilter - filtering is now local
 
   const loadUsers = async () => {
     try {
@@ -76,22 +85,27 @@ const SuperAdminUsersPage: React.FC = () => {
       console.log('API Response:', response)
 
       if (response.data) {
+        let loadedUsers: UserData[] = []
         // L'API peut retourner directement un tableau ou un objet paginé
         if (Array.isArray(response.data)) {
-          setUsers(response.data)
+          loadedUsers = response.data
           setTotalCount(response.data.length)
         } else if (response.data.results) {
-          setUsers(response.data.results)
+          loadedUsers = response.data.results
           setTotalCount(response.data.count)
         } else {
           // Si la réponse est un objet avec les utilisateurs directement
           console.log('Format de réponse inattendu:', response.data)
-          setUsers([])
+          loadedUsers = []
           setTotalCount(0)
         }
+        
+        // Store in cache
+        setAllUsers(loadedUsers)
+        setUsers(loadedUsers)
       }
     } catch (err: any) {
-      console.error('Erreur API:', err)
+      console.error('Erreur chargement utilisateurs:', err)
       setError(err.message || 'Erreur lors du chargement des utilisateurs')
     } finally {
       setLoading(false)
@@ -325,6 +339,29 @@ const SuperAdminUsersPage: React.FC = () => {
     setIsMsgModalOpen(true)
   }
 
+  const handleOpenInfoModal = async (user: UserData) => {
+    setUserToView(user)
+    setUserShop(null)
+    setIsInfoModalOpen(true)
+    
+    // Load shop if user is a vendor
+    if (user.is_seller) {
+      try {
+        setLoadingShop(true)
+        const response = await shopsService.getAllShops(1, 200)
+        if (response.data) {
+          const shops = Array.isArray(response.data) ? response.data : response.data.results || []
+          const vendorShop = shops.find((shop: any) => shop.owner_id === user.id)
+          setUserShop(vendorShop || null)
+        }
+      } catch (err) {
+        console.error('Error loading shop:', err)
+      } finally {
+        setLoadingShop(false)
+      }
+    }
+  }
+
   const handleSendMessage = async () => {
     if (!userToMessage || !msgContent.trim()) {
       showToast('Veuillez écrire un message', 'error')
@@ -399,9 +436,10 @@ const SuperAdminUsersPage: React.FC = () => {
     })
   }
 
+  // Filter from cache (allUsers) instead of users to avoid API reload
   const filteredUsers = selectedFilter === 'all'
-    ? (users || [])
-    : (users || []).filter(user => {
+    ? (allUsers || [])
+    : (allUsers || []).filter(user => {
       if (selectedFilter === 'super_admin') return user.is_superuser
       if (selectedFilter === 'admin') return user.is_staff && !user.is_superuser
       if (selectedFilter === 'vendor') return user.is_seller
@@ -501,7 +539,10 @@ const SuperAdminUsersPage: React.FC = () => {
               {(['all', 'client', 'vendor', 'admin'] as const).map((filter) => (
                 <button
                   key={filter}
-                  onClick={() => setSelectedFilter(filter as any)}
+                  onClick={() => {
+                    setSelectedFilter(filter as any)
+                    setCurrentPage(1)
+                  }}
                   className={`flex-1 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${selectedFilter === filter
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
@@ -613,6 +654,9 @@ const SuperAdminUsersPage: React.FC = () => {
                         <MessageSquare size={20} />
                       </button>
                       <div className="w-px h-6 bg-gray-200"></div>
+                      <button onClick={() => handleOpenInfoModal(user)} className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Voir détails">
+                        <Info size={20} />
+                      </button>
                       <button onClick={() => handleEditUser(user)} className="p-2.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Editer">
                         <Edit2 size={20} />
                       </button>
@@ -676,6 +720,9 @@ const SuperAdminUsersPage: React.FC = () => {
                         </button>
                         <button onClick={() => handleOpenMsgModal(user)} className="p-2 hover:bg-cyan-50 text-gray-400 hover:text-cyan-600 rounded-lg" title="Message">
                           <MessageSquare size={18} />
+                        </button>
+                        <button onClick={() => handleOpenInfoModal(user)} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg" title="Voir détails">
+                          <Info size={18} />
                         </button>
                         <button onClick={() => handleEditUser(user)} className="p-2 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-lg">
                           <Edit2 size={18} />
@@ -1327,6 +1374,15 @@ const SuperAdminUsersPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* User Info Modal */}
+      <UserInfoModal
+        isOpen={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+        user={userToView}
+        userShop={userShop}
+        loadingShop={loadingShop}
+      />
     </div >
   )
 }

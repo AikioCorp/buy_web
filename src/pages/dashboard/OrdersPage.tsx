@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   Package, Search, Eye, X, Clock, Loader2, RefreshCw,
   Truck, CheckCircle, XCircle, ShoppingBag, Phone, MapPin,
-  User, Calendar, CreditCard, MessageSquare, Printer, Download
+  User, Calendar, CreditCard, MessageSquare, Printer, Download, Edit
 } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../lib/api/ordersService'
 import { useToast } from '../../components/Toast'
@@ -59,11 +59,17 @@ const OrdersPage: React.FC = () => {
   const [statusNote, setStatusNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
+  const handleProductClick = (productId: number) => {
+    if (productId) {
+      window.open(`/products/${productId}`, '_blank')
+    }
+  }
+
   const pageSize = 20
 
   useEffect(() => {
     loadOrders()
-  }, [currentPage, searchQuery, selectedStatus])
+  }, [currentPage])
 
   const loadOrders = async () => {
     try {
@@ -73,12 +79,16 @@ const OrdersPage: React.FC = () => {
       const response = await ordersService.getOrders()
 
       if (response.data) {
-        if (Array.isArray(response.data)) {
-          setOrders(response.data)
-          setTotalCount(response.data.length)
-        } else if (response.data.results) {
-          setOrders(response.data.results)
-          setTotalCount(response.data.count)
+        // Backend wraps response in { success: true, data: [...] }
+        const raw = response.data as any
+        const ordersData = raw.data || raw
+
+        if (Array.isArray(ordersData)) {
+          setOrders(ordersData)
+          setTotalCount(ordersData.length)
+        } else if (ordersData.results) {
+          setOrders(ordersData.results)
+          setTotalCount(ordersData.count)
         } else {
           setOrders([])
           setTotalCount(0)
@@ -217,44 +227,27 @@ const OrdersPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-          <div className="flex items-center gap-2">
-            <Clock className="text-yellow-600" size={20} />
-            <span className="text-sm font-medium text-yellow-800">En attente</span>
-          </div>
-          <p className="text-2xl font-bold text-yellow-900 mt-2">
-            {orders.filter(o => o.status === 'pending').length}
-          </p>
-        </div>
-        <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-          <div className="flex items-center gap-2">
-            <Package className="text-purple-600" size={20} />
-            <span className="text-sm font-medium text-purple-800">En préparation</span>
-          </div>
-          <p className="text-2xl font-bold text-purple-900 mt-2">
-            {orders.filter(o => o.status === 'processing').length}
-          </p>
-        </div>
-        <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-          <div className="flex items-center gap-2">
-            <Truck className="text-indigo-600" size={20} />
-            <span className="text-sm font-medium text-indigo-800">Expédiées</span>
-          </div>
-          <p className="text-2xl font-bold text-indigo-900 mt-2">
-            {orders.filter(o => o.status === 'shipped').length}
-          </p>
-        </div>
-        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="text-green-600" size={20} />
-            <span className="text-sm font-medium text-green-800">Livrées</span>
-          </div>
-          <p className="text-2xl font-bold text-green-900 mt-2">
-            {orders.filter(o => o.status === 'delivered').length}
-          </p>
-        </div>
+      {/* Stats Cards - Clickable to filter */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        {([
+          { key: '' as const, label: 'Toutes', value: orders.length, bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', bold: 'text-gray-900', ring: 'ring-gray-400', icon: <ShoppingBag className="text-gray-600" size={20} /> },
+          { key: 'pending' as const, label: 'En attente', value: orders.filter(o => o.status === 'pending').length, bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', bold: 'text-yellow-900', ring: 'ring-yellow-400', icon: <Clock className="text-yellow-600" size={20} /> },
+          { key: 'processing' as const, label: 'En préparation', value: orders.filter(o => o.status === 'processing').length, bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', bold: 'text-purple-900', ring: 'ring-purple-400', icon: <Package className="text-purple-600" size={20} /> },
+          { key: 'shipped' as const, label: 'Expédiées', value: orders.filter(o => o.status === 'shipped').length, bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', bold: 'text-indigo-900', ring: 'ring-indigo-400', icon: <Truck className="text-indigo-600" size={20} /> },
+          { key: 'delivered' as const, label: 'Livrées', value: orders.filter(o => o.status === 'delivered').length, bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-800', bold: 'text-green-900', ring: 'ring-green-400', icon: <CheckCircle className="text-green-600" size={20} /> },
+        ]).map(card => (
+          <button
+            key={card.key}
+            onClick={() => { setSelectedStatus(card.key as OrderStatus | ''); setCurrentPage(1) }}
+            className={`${card.bg} rounded-lg p-4 border ${card.border} text-left transition-all hover:shadow-md ${selectedStatus === card.key ? `ring-2 ${card.ring} shadow-md` : ''}`}
+          >
+            <div className="flex items-center gap-2">
+              {card.icon}
+              <span className={`text-sm font-medium ${card.text}`}>{card.label}</span>
+            </div>
+            <p className={`text-2xl font-bold ${card.bold} mt-2`}>{card.value}</p>
+          </button>
+        ))}
       </div>
 
       <div className="bg-white rounded-lg shadow mb-6">
@@ -345,16 +338,16 @@ const OrdersPage: React.FC = () => {
                             <ShoppingBag className="text-emerald-600" size={20} />
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">#{order.id}</div>
+                            <div className="text-sm font-medium text-gray-900">#{(order as any).order_number || order.id}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">Client #{order.customer}</div>
+                        <div className="text-sm text-gray-900">{(order as any).shipping_full_name || `Client #${(order as any).customer_id || order.customer}`}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {order.items?.length || 0} article{(order.items?.length || 0) > 1 ? 's' : ''}
+                          {((order as any).order_items || order.items)?.length || 0} article{(((order as any).order_items || order.items)?.length || 0) > 1 ? 's' : ''}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -458,15 +451,15 @@ const OrdersPage: React.FC = () => {
                 <div className="grid sm:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <User size={16} className="text-gray-400" />
-                    <span>Client #{viewingOrder.customer}</span>
+                    <span>{(viewingOrder as any).shipping_full_name || `Client #${(viewingOrder as any).customer_id || viewingOrder.customer}`}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Phone size={16} className="text-gray-400" />
-                    <span>{(viewingOrder as any).phone || 'Non renseigné'}</span>
+                    <span>{(viewingOrder as any).shipping_phone || (viewingOrder as any).phone || 'Non renseigné'}</span>
                   </div>
                   <div className="flex items-start gap-2 sm:col-span-2">
                     <MapPin size={16} className="text-gray-400 mt-0.5" />
-                    <span>{(viewingOrder as any).shipping_address || 'Adresse non renseignée'}</span>
+                    <span>{(viewingOrder as any).shipping_quartier ? `${(viewingOrder as any).shipping_quartier}, ${(viewingOrder as any).shipping_commune}` : ((viewingOrder as any).shipping_address || 'Adresse non renseignée')}</span>
                   </div>
                 </div>
               </div>
@@ -475,33 +468,42 @@ const OrdersPage: React.FC = () => {
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
                   <Package size={18} />
-                  Articles commandés ({viewingOrder.items?.length || 0})
+                  Articles commandés ({((viewingOrder as any).order_items || viewingOrder.items)?.length || 0})
                 </h3>
                 <div className="space-y-3">
-                  {(viewingOrder.items || []).map((item) => (
-                    <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                  {((viewingOrder as any).order_items || viewingOrder.items || []).map((item: any) => (
+                    <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors">
+                      <button
+                        onClick={() => handleProductClick(item.product_id || item.product?.id)}
+                        className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-emerald-500 transition-all cursor-pointer"
+                        title="Voir le produit"
+                      >
                         {getImageUrl(item) ? (
                           <img
                             src={getImageUrl(item)!}
-                            alt={item.product?.name || 'Produit'}
+                            alt={item.product_name || item.product?.name || 'Produit'}
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <div className="h-full w-full flex items-center justify-center">
+                          <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                             <Package className="text-gray-400" size={24} />
                           </div>
                         )}
-                      </div>
+                      </button>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{item.product?.name || 'Produit'}</div>
+                        <button
+                          onClick={() => handleProductClick(item.product_id || item.product?.id)}
+                          className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors text-left truncate block w-full"
+                        >
+                          {item.product_name || item.product?.name || 'Produit'}
+                        </button>
                         <div className="text-sm text-gray-500">
-                          {item.variant ? `Variante: ${item.variant}` : ''}
+                          Quantité: {item.quantity}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm text-gray-500">x{item.quantity}</div>
-                        <div className="font-medium text-gray-900">{formatPrice(item.unit_price)}</div>
+                        <div className="text-sm text-gray-500">{formatPrice(item.unit_price)}</div>
+                        <div className="font-semibold text-gray-900">{formatPrice(parseFloat(item.total_price || item.unit_price) * (item.quantity || 1))}</div>
                       </div>
                     </div>
                   ))}
@@ -513,11 +515,13 @@ const OrdersPage: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Sous-total</span>
-                    <span>{formatPrice(viewingOrder.total_amount)}</span>
+                    <span>{formatPrice((viewingOrder as any).subtotal || parseFloat(viewingOrder.total_amount) - parseFloat((viewingOrder as any).delivery_fee || 0))}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Livraison</span>
-                    <span>{formatPrice((viewingOrder as any).shipping_cost || 0)}</span>
+                    <span className={parseFloat((viewingOrder as any).delivery_fee || 0) === 0 ? "text-green-600 font-medium" : ""}>
+                      {parseFloat((viewingOrder as any).delivery_fee || 0) === 0 ? 'Gratuite' : formatPrice((viewingOrder as any).delivery_fee || 1000)}
+                    </span>
                   </div>
                   <div className="flex justify-between font-bold text-lg pt-2 border-t">
                     <span>Total</span>
@@ -612,25 +616,26 @@ const OrdersPage: React.FC = () => {
               </div>
 
               {getNextStatuses(orderToUpdate.status).length > 0 && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Note (optionnel)
-                  </label>
-                  <textarea
-                    value={statusNote}
-                    onChange={(e) => setStatusNote(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="Ajouter une note pour le client..."
-                  />
-                </div>
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Note pour le client (optionnel)
+                    </label>
+                    <textarea
+                      value={statusNote}
+                      onChange={(e) => setStatusNote(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="Ajouter une note..."
+                    />
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> Le client sera notifié par email et SMS du changement de statut.
+                    </p>
+                  </div>
+                </>
               )}
-
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Le client sera notifié par email et SMS du changement de statut.
-                </p>
-              </div>
             </div>
 
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">

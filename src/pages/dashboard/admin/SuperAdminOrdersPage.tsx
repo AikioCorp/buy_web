@@ -301,63 +301,31 @@ const SuperAdminOrdersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Clickable to filter */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-sm font-medium">Total</p>
-              <p className="text-3xl font-bold mt-1">{totalCount}</p>
+        {([
+          { key: '' as const, label: 'Total', value: totalCount, gradient: 'from-blue-500 to-blue-600', light: 'text-blue-100', ring: 'ring-blue-300', icon: <ShoppingBag size={24} /> },
+          { key: 'pending' as const, label: 'En attente', value: (orders || []).filter(o => o.status === 'pending').length, gradient: 'from-yellow-500 to-orange-500', light: 'text-yellow-100', ring: 'ring-yellow-300', icon: <Clock size={24} /> },
+          { key: 'processing' as const, label: 'Préparation', value: (orders || []).filter(o => o.status === 'processing').length, gradient: 'from-purple-500 to-purple-600', light: 'text-purple-100', ring: 'ring-purple-300', icon: <Package size={24} /> },
+          { key: 'shipped' as const, label: 'Expédiées', value: (orders || []).filter(o => o.status === 'shipped').length, gradient: 'from-indigo-500 to-indigo-600', light: 'text-indigo-100', ring: 'ring-indigo-300', icon: <Truck size={24} /> },
+          { key: 'delivered' as const, label: 'Livrées', value: (orders || []).filter(o => o.status === 'delivered').length, gradient: 'from-green-500 to-emerald-600', light: 'text-green-100', ring: 'ring-green-300', icon: <CheckCircle size={24} /> },
+        ]).map(card => (
+          <button
+            key={card.key}
+            onClick={() => { setSelectedStatus(card.key as OrderStatus | ''); setCurrentPage(1) }}
+            className={`bg-gradient-to-br ${card.gradient} rounded-2xl p-5 text-white shadow-lg text-left transition-all hover:scale-105 hover:shadow-xl ${selectedStatus === card.key ? `ring-4 ${card.ring} scale-105` : ''}`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`${card.light} text-sm font-medium`}>{card.label}</p>
+                <p className="text-3xl font-bold mt-1">{card.value}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                {card.icon}
+              </div>
             </div>
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <ShoppingBag size={24} />
-            </div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-yellow-100 text-sm font-medium">En attente</p>
-              <p className="text-3xl font-bold mt-1">{(orders || []).filter(o => o.status === 'pending').length}</p>
-            </div>
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <Clock size={24} />
-            </div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-sm font-medium">Préparation</p>
-              <p className="text-3xl font-bold mt-1">{(orders || []).filter(o => o.status === 'processing').length}</p>
-            </div>
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <Package size={24} />
-            </div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-indigo-100 text-sm font-medium">Expédiées</p>
-              <p className="text-3xl font-bold mt-1">{(orders || []).filter(o => o.status === 'shipped').length}</p>
-            </div>
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <Truck size={24} />
-            </div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-sm font-medium">Livrées</p>
-              <p className="text-3xl font-bold mt-1">{(orders || []).filter(o => o.status === 'delivered').length}</p>
-            </div>
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <CheckCircle size={24} />
-            </div>
-          </div>
-        </div>
+          </button>
+        ))}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
@@ -624,10 +592,21 @@ const SuperAdminOrdersPage: React.FC = () => {
               </div>
 
               <div className="border-t border-gray-200 pt-6">
+                {/* Show stores involved */}
+                {(viewingOrder as any).stores && (viewingOrder as any).stores.length > 1 && (
+                  <div className="mb-4 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                    <p className="text-sm font-medium text-indigo-800 flex items-center gap-2">
+                      <Store size={16} />
+                      Commande multi-boutiques: {(viewingOrder as any).stores.map((s: any) => s.name).join(', ')}
+                    </p>
+                  </div>
+                )}
                 <h3 className="font-medium text-gray-900 mb-4">Articles commandés ({((viewingOrder as any).order_items || viewingOrder.items || []).length})</h3>
                 <div className="space-y-3">
                   {((viewingOrder as any).order_items || []).length > 0 ? (
-                    (viewingOrder as any).order_items.map((item: any) => (
+                    (viewingOrder as any).order_items.map((item: any) => {
+                      const storeName = (viewingOrder as any).stores?.find((s: any) => s.id === item.store_id)?.name;
+                      return (
                       <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
                         <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                           {getImageUrl(item) ? (
@@ -644,14 +623,17 @@ const SuperAdminOrdersPage: React.FC = () => {
                         </div>
                         <div className="flex-1">
                           <div className="font-semibold text-gray-900">{item.product_name || 'Produit'}</div>
-                          <div className="text-sm text-gray-500">Quantité: {item.quantity}</div>
+                          <div className="text-sm text-gray-500">
+                            Quantité: {item.quantity}
+                            {storeName && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">{storeName}</span>}
+                          </div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-gray-500">{formatPrice(item.unit_price)} × {item.quantity}</div>
                           <div className="font-bold text-green-600">{formatPrice(item.total_price)}</div>
                         </div>
                       </div>
-                    ))
+                    )})
                   ) : (viewingOrder.items || []).length > 0 ? (
                     viewingOrder.items.map((item) => (
                       <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">

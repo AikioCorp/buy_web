@@ -124,7 +124,9 @@ class ApiClient {
           localStorage.removeItem('auth-storage'); // Clear zustand persisted auth
           // Redirect to login if not already there
           if (!window.location.pathname.includes('/login')) {
-            window.location.href = '/login?session_expired=true';
+            // Build full URL with current origin to ensure proper redirect
+            const loginUrl = `${window.location.origin}/login?session_expired=true`;
+            window.location.replace(loginUrl);
           }
         }
         

@@ -1,7 +1,7 @@
 import React from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { 
-  LayoutDashboard, Users, Flag, BarChart, AlertCircle,
+  LayoutDashboard, Users, Flag, BarChart, AlertCircle, Wallet,
   LogOut, ChevronRight, ShieldCheck, ExternalLink, Globe,
   Store, Package, ShoppingCart, MessageSquare, Star, User, FolderTree, Bell, LayoutGrid, Zap
 } from 'lucide-react'
@@ -181,6 +181,7 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
           <SidebarLink to="/admin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/admin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/admin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/revenue" icon={<Wallet size={20} />} label="Revenus & Retraits" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (

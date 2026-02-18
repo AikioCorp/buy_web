@@ -7,9 +7,7 @@ import {
   ShoppingCart, Star, ArrowUpRight
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
-import { shopsService, Shop } from '../../lib/api/shopsService'
-import { productsService } from '../../lib/api/productsService'
-import { ordersService } from '../../lib/api/ordersService'
+import { vendorService } from '../../lib/api/vendorService'
 import OnboardingTour from '../../components/dashboard/OnboardingTour'
 
 // Stat Card moderne
@@ -271,7 +269,7 @@ const TipsCard = () => {
 const VendorDashboardPage: React.FC = () => {
   const { user } = useAuthStore()
   const [loading, setLoading] = useState(true)
-  const [store, setStore] = useState<Shop | null>(null)
+  const [hasStore, setHasStore] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [stats, setStats] = useState({
     products: 0,
@@ -283,7 +281,6 @@ const VendorDashboardPage: React.FC = () => {
   useEffect(() => {
     loadDashboardData()
     
-    // Vérifier si l'onboarding a déjà été fait
     const onboardingCompleted = localStorage.getItem('onboarding_completed')
     if (!onboardingCompleted) {
       setShowOnboarding(true)
@@ -294,26 +291,18 @@ const VendorDashboardPage: React.FC = () => {
     try {
       setLoading(true)
       
-      // Charger la boutique du vendeur
-      const storeResponse = await shopsService.getMyShop()
-      if (storeResponse.data) {
-        setStore(storeResponse.data)
+      // Single lightweight API call instead of 3 heavy ones
+      const res = await vendorService.getStats()
+      if (res.data) {
+        const d = (res.data as any).data || res.data
+        setHasStore(d.has_shop || false)
+        setStats({
+          products: d.products_count || 0,
+          orders: d.orders_count || 0,
+          revenue: d.revenue_total || 0,
+          views: 0,
+        })
       }
-
-      // Charger les produits
-      const productsResponse = await productsService.getMyProducts()
-      if (productsResponse.data) {
-        const products = Array.isArray(productsResponse.data) ? productsResponse.data : []
-        setStats(prev => ({ ...prev, products: products.length }))
-      }
-
-      // Charger les commandes
-      const ordersResponse = await ordersService.getOrders()
-      if (ordersResponse.data) {
-        const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
-        setStats(prev => ({ ...prev, orders: orders.length }))
-      }
-
     } catch (error) {
       console.error('Erreur chargement dashboard:', error)
     } finally {
@@ -322,7 +311,6 @@ const VendorDashboardPage: React.FC = () => {
   }
 
   const displayName = user?.first_name || user?.username || 'Vendeur'
-  const hasStore = !!store
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false)

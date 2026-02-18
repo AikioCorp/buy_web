@@ -57,7 +57,7 @@ const AdminProductsPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Product>>({})
   const [actionLoading, setActionLoading] = useState(false)
 
-  const pageSize = 50
+  const pageSize = 100
 
   // Stats
   const stats = {
