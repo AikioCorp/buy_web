@@ -1,5 +1,5 @@
-import React from 'react'
-import { X, Store, Mail, Phone, Calendar, Shield, ShieldCheck, User as UserIcon } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { X, Store, Mail, Phone, Calendar, Shield, ShieldCheck, User as UserIcon, Edit2, Save, Bell, MessageSquare, Key, Ban, CheckCircle, Trash2 } from 'lucide-react'
 import { UserData } from '../../../lib/api/usersService'
 
 interface UserInfoModalProps {
@@ -8,10 +8,69 @@ interface UserInfoModalProps {
   user: UserData | null
   userShop: any
   loadingShop: boolean
+  onSave: (userId: string, data: Partial<UserData>) => Promise<void>
+  onToggleActive: (user: UserData) => void
+  onToggleSeller: (user: UserData) => void
+  onResetPassword: (user: UserData) => void
+  onSendNotification: (user: UserData) => void
+  onSendMessage: (user: UserData) => void
+  onDelete: (user: UserData) => void
 }
 
-export const UserInfoModal: React.FC<UserInfoModalProps> = ({ isOpen, onClose, user, userShop, loadingShop }) => {
+export const UserInfoModal: React.FC<UserInfoModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  user, 
+  userShop, 
+  loadingShop,
+  onSave,
+  onToggleActive,
+  onToggleSeller,
+  onResetPassword,
+  onSendNotification,
+  onSendMessage,
+  onDelete
+}) => {
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    username: ''
+  })
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        username: user.username || ''
+      })
+    }
+  }, [user])
+
   if (!isOpen || !user) return null
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      await onSave(user.id, formData)
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Error saving:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAction = (action: () => void) => {
+    action()
+    onClose()
+  }
 
   const getRoleBadge = () => {
     if (user.is_superuser) {
@@ -77,26 +136,145 @@ export const UserInfoModal: React.FC<UserInfoModalProps> = ({ isOpen, onClose, u
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Quick Actions */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <button
+                onClick={() => handleAction(() => onToggleActive(user))}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-xl transition-all"
+              >
+                {user.is_active ? <Ban size={24} className="text-indigo-600" /> : <CheckCircle size={24} className="text-indigo-600" />}
+                <span className="text-xs font-medium text-indigo-900">{user.is_active ? 'Désactiver' : 'Activer'}</span>
+              </button>
+              <button
+                onClick={() => handleAction(() => onToggleSeller(user))}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl transition-all"
+              >
+                <Store size={24} className="text-green-600" />
+                <span className="text-xs font-medium text-green-900">{user.is_seller ? 'Retirer vendeur' : 'Rendre vendeur'}</span>
+              </button>
+              <button
+                onClick={() => handleAction(() => onResetPassword(user))}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 rounded-xl transition-all"
+              >
+                <Key size={24} className="text-orange-600" />
+                <span className="text-xs font-medium text-orange-900">Mot de passe</span>
+              </button>
+              <button
+                onClick={() => handleAction(() => onSendNotification(user))}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-xl transition-all"
+              >
+                <Bell size={24} className="text-purple-600" />
+                <span className="text-xs font-medium text-purple-900">Notification</span>
+              </button>
+              <button
+                onClick={() => handleAction(() => onSendMessage(user))}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 hover:from-cyan-100 hover:to-cyan-200 rounded-xl transition-all"
+              >
+                <MessageSquare size={24} className="text-cyan-600" />
+                <span className="text-xs font-medium text-cyan-900">Message</span>
+              </button>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl transition-all"
+              >
+                <Edit2 size={24} className="text-blue-600" />
+                <span className="text-xs font-medium text-blue-900">Modifier</span>
+              </button>
+              <button
+                onClick={() => handleAction(() => onDelete(user))}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 rounded-xl transition-all"
+              >
+                <Trash2 size={24} className="text-red-600" />
+                <span className="text-xs font-medium text-red-900">Supprimer</span>
+              </button>
+            </div>
+          </div>
           {/* Basic Info */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Informations générales</h3>
+              {isEditing && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* First Name */}
               <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
-                <Mail className="text-gray-400 mt-1" size={20} />
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Email</p>
-                  <p className="text-sm text-gray-900 font-medium">{user.email}</p>
+                <UserIcon className="text-gray-400 mt-1" size={20} />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 font-medium mb-1">Prénom</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900 font-medium">{user.first_name || 'Non défini'}</p>
+                  )}
                 </div>
               </div>
-              {user.phone && (
-                <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
-                  <Phone className="text-gray-400 mt-1" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Téléphone</p>
-                    <p className="text-sm text-gray-900 font-medium">{user.phone}</p>
-                  </div>
+              {/* Last Name */}
+              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
+                <UserIcon className="text-gray-400 mt-1" size={20} />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 font-medium mb-1">Nom</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900 font-medium">{user.last_name || 'Non défini'}</p>
+                  )}
                 </div>
-              )}
+              </div>
+              {/* Email */}
+              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
+                <Mail className="text-gray-400 mt-1" size={20} />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 font-medium mb-1">Email</p>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900 font-medium">{user.email || 'Non défini'}</p>
+                  )}
+                </div>
+              </div>
+              {/* Phone */}
+              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
+                <Phone className="text-gray-400 mt-1" size={20} />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 font-medium mb-1">Téléphone</p>
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900 font-medium">{user.phone || 'Non défini'}</p>
+                  )}
+                </div>
+              </div>
               <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
                 <Calendar className="text-gray-400 mt-1" size={20} />
                 <div>

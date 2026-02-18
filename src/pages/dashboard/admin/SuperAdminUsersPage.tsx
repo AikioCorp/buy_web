@@ -351,7 +351,22 @@ const SuperAdminUsersPage: React.FC = () => {
         const response = await shopsService.getAllShops(1, 200)
         if (response.data) {
           const shops = Array.isArray(response.data) ? response.data : response.data.results || []
-          const vendorShop = shops.find((shop: any) => shop.owner_id === user.id)
+          console.log('🔍 Looking for shop for user:', user.id, user.username)
+          console.log('📦 Total shops loaded:', shops.length)
+          console.log('🏪 First shop example:', shops[0])
+          
+          // Try multiple matching strategies
+          let vendorShop = shops.find((shop: any) => shop.owner_id === user.id)
+          if (!vendorShop) {
+            // Fallback: try matching by user_id field
+            vendorShop = shops.find((shop: any) => shop.user_id === user.id)
+          }
+          if (!vendorShop) {
+            // Fallback: try matching by owner field
+            vendorShop = shops.find((shop: any) => shop.owner === user.id)
+          }
+          
+          console.log('✅ Shop found:', vendorShop ? vendorShop.name : 'None')
           setUserShop(vendorShop || null)
         }
       } catch (err) {
@@ -635,35 +650,16 @@ const SuperAdminUsersPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions Overlay (Glassmorphism) */}
+                  {/* Actions Overlay - Single Eye Icon */}
                   <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10">
-                    <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg border border-gray-200/50 p-2 flex justify-around items-center">
-                      <button onClick={() => handleToggleActive(user)} className="p-2.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Statut">
-                        {user.is_active ? <X size={20} /> : <ShieldCheck size={20} />}
-                      </button>
-                      <button onClick={() => handleToggleSeller(user)} className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Vendeur">
-                        <Store size={20} />
-                      </button>
-                      <button onClick={() => handleOpenResetPassword(user)} className="p-2.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-colors" title="Password">
-                        <Key size={20} />
-                      </button>
-                      <button onClick={() => handleOpenNotifModal(user)} className="p-2.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors" title="Envoyer notification">
-                        <Bell size={20} />
-                      </button>
-                      <button onClick={() => handleOpenMsgModal(user)} className="p-2.5 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Envoyer message">
-                        <MessageSquare size={20} />
-                      </button>
-                      <div className="w-px h-6 bg-gray-200"></div>
-                      <button onClick={() => handleOpenInfoModal(user)} className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Voir détails">
-                        <Info size={20} />
-                      </button>
-                      <button onClick={() => handleEditUser(user)} className="p-2.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Editer">
-                        <Edit2 size={20} />
-                      </button>
-                      <button onClick={() => handleDeleteClick(user)} className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Supprimer">
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => handleOpenInfoModal(user)}
+                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl shadow-lg p-4 flex items-center justify-center gap-3 transition-all transform hover:scale-105"
+                      title="Voir tous les détails et actions"
+                    >
+                      <Eye size={24} />
+                      <span className="font-semibold">Voir les détails</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -714,23 +710,14 @@ const SuperAdminUsersPage: React.FC = () => {
                       {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Jamais'}
                     </td>
                     <td className="px-8 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleOpenNotifModal(user)} className="p-2 hover:bg-purple-50 text-gray-400 hover:text-purple-600 rounded-lg" title="Notification">
-                          <Bell size={18} />
-                        </button>
-                        <button onClick={() => handleOpenMsgModal(user)} className="p-2 hover:bg-cyan-50 text-gray-400 hover:text-cyan-600 rounded-lg" title="Message">
-                          <MessageSquare size={18} />
-                        </button>
-                        <button onClick={() => handleOpenInfoModal(user)} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg" title="Voir détails">
-                          <Info size={18} />
-                        </button>
-                        <button onClick={() => handleEditUser(user)} className="p-2 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-lg">
-                          <Edit2 size={18} />
-                        </button>
-                        <button onClick={() => handleDeleteClick(user)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                      <button 
+                        onClick={() => handleOpenInfoModal(user)} 
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all transform hover:scale-105"
+                        title="Voir tous les détails et actions"
+                      >
+                        <Eye size={18} />
+                        <span className="text-sm font-medium">Détails</span>
+                      </button>
                     </td>
                   </tr>
                 )
@@ -1382,6 +1369,17 @@ const SuperAdminUsersPage: React.FC = () => {
         user={userToView}
         userShop={userShop}
         loadingShop={loadingShop}
+        onSave={async (userId, data) => {
+          await usersService.updateUser(userId, data)
+          await loadUsers()
+          showToast('Utilisateur mis à jour avec succès!', 'success')
+        }}
+        onToggleActive={handleToggleActive}
+        onToggleSeller={handleToggleSeller}
+        onResetPassword={handleOpenResetPassword}
+        onSendNotification={handleOpenNotifModal}
+        onSendMessage={handleOpenMsgModal}
+        onDelete={handleDeleteClick}
       />
     </div >
   )

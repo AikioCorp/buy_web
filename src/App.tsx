@@ -98,6 +98,7 @@ import AdminNotificationsPage from './pages/dashboard/admin/AdminNotificationsPa
 import SuperAdminShopRequestsPage from './pages/dashboard/admin/SuperAdminShopRequestsPage'
 import AdminCategoriesPage from './pages/dashboard/admin/AdminCategoriesPage'
 import AdminRevenuePage from './pages/dashboard/admin/AdminRevenuePage'
+import NotFoundPage from './pages/NotFoundPage'
 import { useAuthStore } from './stores/authStore'
 
 function App() {
@@ -230,6 +231,9 @@ function App() {
           <Route path="flash-sales" element={<FlashSalesManagementPage />} />
           <Route path="revenue" element={<AdminRevenuePage />} />
         </Route>
+
+        {/* 404 - Catch all unmatched routes */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
     </div>
