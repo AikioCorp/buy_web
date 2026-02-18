@@ -22,9 +22,12 @@ interface DashboardStats {
   newUsersToday: number
 }
 
-// Default permissions for admin (can be overridden by user.permissions from API)
+// All admins (is_staff) get these permissions by default
+// SuperAdmin gets everything, regular admins get these + any custom permissions from DB
 const DEFAULT_ADMIN_PERMISSIONS = [
-  'users_view', 'shops_view', 'products_view', 'orders_view'
+  'users_view', 'shops_view', 'products_view', 'orders_view',
+  'moderation_view', 'reviews_view', 'reports_view', 'analytics_view',
+  'notifications_view', 'messages_view', 'categories_view'
 ]
 
 const AdminDashboardPage: React.FC = () => {
@@ -43,8 +46,9 @@ const AdminDashboardPage: React.FC = () => {
         'settings_view', 'settings_edit'
       ]
     }
-    // Admin uses their specific permissions or defaults
-    return user?.permissions || DEFAULT_ADMIN_PERMISSIONS
+    // Admin gets defaults + any custom permissions from DB
+    const customPerms = (user as any)?.permissions || []
+    return [...new Set([...DEFAULT_ADMIN_PERMISSIONS, ...customPerms])]
   }, [isSuperAdmin, user?.permissions])
 
   // Permission check helper
@@ -456,15 +460,13 @@ const AdminDashboardPage: React.FC = () => {
                   <span className="text-xs font-medium text-blue-700">Utilisateurs</span>
                 </Link>
               )}
-              {hasPermission('products_moderate') && (
-                <Link 
-                  to="/admin/moderation"
-                  className="p-3 bg-orange-50 hover:bg-orange-100 rounded-xl text-center transition-colors"
-                >
-                  <Flag size={24} className="mx-auto text-orange-600 mb-1" />
-                  <span className="text-xs font-medium text-orange-700">Modération</span>
-                </Link>
-              )}
+              <Link 
+                to="/admin/moderation"
+                className="p-3 bg-orange-50 hover:bg-orange-100 rounded-xl text-center transition-colors"
+              >
+                <Flag size={24} className="mx-auto text-orange-600 mb-1" />
+                <span className="text-xs font-medium text-orange-700">Modération</span>
+              </Link>
               <Link 
                 to="/admin/reports"
                 className="p-3 bg-purple-50 hover:bg-purple-100 rounded-xl text-center transition-colors"

@@ -80,14 +80,29 @@ export const ALL_PERMISSIONS = {
 
 export type PermissionId = typeof ALL_PERMISSIONS[keyof typeof ALL_PERMISSIONS]
 
+// Permissions par défaut pour tous les admins (is_staff)
+// Ces pages sont toujours visibles sans configuration spécifique
+const DEFAULT_ADMIN_PERMISSIONS: string[] = [
+  'users_view', 'shops_view', 'products_view', 'orders_view',
+  'orders_manage', 'orders_cancel',
+  'categories_view', 'moderation_view', 'reviews_view',
+  'reports_view', 'analytics_view', 'statistics_view',
+  'notifications_view', 'messages_view', 'settings_view',
+]
+
 export function usePermissions() {
   const { user, role } = useAuthStore()
   
   // Super admins ont toutes les permissions
   const isSuperAdmin = role === 'super_admin'
+  const isAdmin = role === 'admin' || role === 'super_admin'
   
   // Récupérer les permissions de l'utilisateur
-  const userPermissions: string[] = (user as any)?.permissions || []
+  // Admins obtiennent les permissions par défaut + celles de la DB
+  const customPermissions: string[] = (user as any)?.permissions || []
+  const userPermissions: string[] = isAdmin 
+    ? [...new Set([...DEFAULT_ADMIN_PERMISSIONS, ...customPermissions])]
+    : customPermissions
   
   /**
    * Vérifie si l'utilisateur a une permission spécifique

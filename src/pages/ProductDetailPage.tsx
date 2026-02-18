@@ -147,10 +147,29 @@ export function ProductDetailPage() {
     navigate('/checkout')
   }
 
-  const handleWhatsAppOrder = () => {
+  const handleWhatsAppOrder = async () => {
     if (product) {
       const productUrl = `${window.location.origin}/products/${product.slug || product.id}`
-      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Montant total:* ${formatPrice(getPrice() * quantity)} FCFA\n\n*Lien du produit:* ${productUrl}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
+      let orderRef = ''
+
+      // Try to create order in DB if user is logged in
+      if (user) {
+        try {
+          const { ordersService } = await import('@/lib/api/ordersService')
+          const response = await ordersService.createWhatsAppOrder({
+            items: [{ product_id: product.id, quantity }],
+            delivery_fee: 1000,
+          })
+          if (response.data && !response.error) {
+            const orderData = (response.data as any).data || response.data
+            orderRef = `\n\n*Réf. commande:* #${orderData.order_number || orderData.id}`
+          }
+        } catch (err) {
+          console.error('WhatsApp order creation failed, continuing with redirect:', err)
+        }
+      }
+
+      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Montant total:* ${formatPrice(getPrice() * quantity)} FCFA\n\n*Lien du produit:* ${productUrl}${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
       const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
       window.open(whatsappUrl, '_blank')
     }

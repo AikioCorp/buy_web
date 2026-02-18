@@ -69,7 +69,7 @@ const OrdersPage: React.FC = () => {
 
   useEffect(() => {
     loadOrders()
-  }, [currentPage])
+  }, [currentPage, selectedStatus])
 
   const loadOrders = async () => {
     try {

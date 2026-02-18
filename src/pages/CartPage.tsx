@@ -71,13 +71,36 @@ export function CartPage() {
     navigate('/checkout')
   }
 
-  const handleWhatsAppOrder = () => {
+  const handleWhatsAppOrder = async () => {
     const itemsList = items.map(item => {
       const productUrl = `${window.location.origin}/products/${item.product.slug || item.product.id}`
       return `• *${item.product.name}*\n  Quantité: ${item.quantity}\n  Prix unitaire: ${formatPrice(parseFloat(item.product.base_price), 'XOF')}\n  Sous-total: ${formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}\n  Lien: ${productUrl}`
     }).join('\n\n')
     
-    const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Montant total: ${formatPrice(getTotal(), 'XOF')}*\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
+    let orderRef = ''
+    
+    // Try to create order in DB if user is logged in
+    if (user) {
+      try {
+        const { ordersService } = await import('@/lib/api/ordersService')
+        const response = await ordersService.createWhatsAppOrder({
+          items: items.map(item => ({
+            product_id: item.product.id,
+            quantity: item.quantity
+          })),
+          delivery_fee: 1000,
+        })
+        if (response.data && !response.error) {
+          const orderData = (response.data as any).data || response.data
+          orderRef = `\n\n*Réf. commande:* #${orderData.order_number || orderData.id}`
+          clearCart()
+        }
+      } catch (err) {
+        console.error('WhatsApp order creation failed, continuing with redirect:', err)
+      }
+    }
+    
+    const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Montant total: ${formatPrice(getTotal(), 'XOF')}*${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
     const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
   }

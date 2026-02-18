@@ -298,8 +298,8 @@ const VendorDashboardPage: React.FC = () => {
         setHasStore(d.has_shop || false)
         setStats({
           products: d.products_count || 0,
-          orders: d.orders_count || 0,
-          revenue: d.revenue_total || 0,
+          orders: d.pending_orders || 0,
+          revenue: d.revenue_month || 0,
           views: 0,
         })
       }
@@ -355,7 +355,7 @@ const VendorDashboardPage: React.FC = () => {
           value={stats.orders}
           icon={<ShoppingCart size={24} className="text-white" />}
           gradient="bg-gradient-to-br from-emerald-500 to-green-600"
-          subtitle={stats.orders === 0 ? "En attente de commandes" : "Ce mois"}
+          subtitle={stats.orders === 0 ? "Aucune commande en attente" : "Non traitées"}
           link="/dashboard/orders"
         />
         <StatCard

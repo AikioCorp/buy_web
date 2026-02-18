@@ -156,6 +156,7 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
           <SidebarLink to="/admin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
+        {/* GESTION - Pages sensibles avec permissions */}
         {isOpen && (
           <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Gestion
@@ -177,31 +178,51 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
           {canViewOrders() && (
             <SidebarLink to="/admin/orders" icon={<ShoppingCart size={20} />} label="Commandes" onClick={handleLinkClick} isCollapsed={!isOpen} />
           )}
-          <SidebarLink to="/admin/reports" icon={<Flag size={20} />} label="Rapports" onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/revenue" icon={<Wallet size={20} />} label="Revenus & Retraits" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
+        {/* CONTENU - Toujours visible pour tous les admins */}
+        {isOpen && (
+          <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Contenu & Marketing
+          </p>
+        )}
+        <div className="space-y-1">
+          <SidebarLink to="/admin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={handleLinkClick} isCollapsed={!isOpen} />
+        </div>
+
+        {/* MODERATION - Toujours visible pour tous les admins */}
         {isOpen && (
           <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Modération
           </p>
         )}
         <div className="space-y-1">
+          <SidebarLink to="/admin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/admin/reviews" icon={<Star size={20} />} label="Avis" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/admin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/admin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
+        {/* FINANCE - Toujours visible pour tous les admins */}
+        {isOpen && (
+          <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Finance & Rapports
+          </p>
+        )}
+        <div className="space-y-1">
+          <SidebarLink to="/admin/revenue" icon={<Wallet size={20} />} label="Revenus & Retraits" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/reports" icon={<Flag size={20} />} label="Rapports" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/analytics" icon={<BarChart size={20} />} label="Statistiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
+        </div>
+
+        {/* MON COMPTE - Toujours visible */}
         {isOpen && (
           <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Mon compte
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/admin/analytics" icon={<BarChart size={20} />} label="Statistiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/admin/profile" icon={<User size={20} />} label="Mon profil" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
       </nav>

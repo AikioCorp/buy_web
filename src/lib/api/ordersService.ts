@@ -105,6 +105,23 @@ export const ordersService = {
   },
 
   /**
+   * Récupérer les commandes du vendeur (pour sa boutique)
+   */
+  async getVendorOrders(params?: {
+    page?: number;
+    status?: OrderStatus;
+    search?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+
+    const endpoint = `/api/vendor/orders${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return apiClient.get<Order[] | OrdersListResponse>(endpoint);
+  },
+
+  /**
    * Créer une nouvelle commande (checkout)
    * Si shipping_address est fourni, on crée d'abord l'adresse puis la commande
    */
@@ -149,6 +166,26 @@ export const ordersService = {
     };
 
     return apiClient.post<Order>('/api/orders', orderData);
+  },
+
+  /**
+   * Créer une commande via WhatsApp (sans adresse de livraison obligatoire)
+   * L'admin pourra mettre à jour les détails plus tard
+   */
+  async createWhatsAppOrder(data: {
+    items: Array<{ product_id: number; quantity: number }>;
+    delivery_fee?: number;
+    notes?: string;
+  }) {
+    const orderData: any = {
+      items: data.items,
+      payment_method: 'cash_on_delivery',
+      delivery_fee: data.delivery_fee || 1000,
+      notes: data.notes || 'Commande passée via WhatsApp',
+      order_source: 'whatsapp',
+    };
+
+    return apiClient.post<Order>('/api/orders/whatsapp', orderData);
   },
 
   // ========== ADMIN ENDPOINTS ==========
