@@ -61,8 +61,12 @@ const OrdersPage: React.FC = () => {
   const [statusNote, setStatusNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const handleProductClick = (productId: number) => {
-    if (productId) {
+  const handleProductClick = (productId: number, productSlug?: string) => {
+    if (productSlug) {
+      const productUrl = `${window.location.origin}/products/${productSlug}`
+      window.open(productUrl, '_blank')
+    } else if (productId) {
+      // Fallback to ID if slug is not available
       const productUrl = `${window.location.origin}/products/${productId}`
       window.open(productUrl, '_blank')
     }
@@ -538,7 +542,7 @@ const OrdersPage: React.FC = () => {
                   {((viewingOrder as any).order_items || viewingOrder.items || []).map((item: any) => (
                     <div 
                       key={item.id} 
-                      onClick={() => handleProductClick(item.product_id || item.product?.id)}
+                      onClick={() => handleProductClick(item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
                       className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors cursor-pointer"
                     >
                       <div
