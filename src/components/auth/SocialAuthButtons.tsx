@@ -33,11 +33,16 @@ export const SocialAuthButtons: React.FC<SocialAuthButtonsProps> = ({ mode = 'lo
           {error}
         </div>
       )}
+      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+        Connexion et inscription avec Google et Facebook sont temporairement désactivées.
+        <br />
+        Fonctionnalité en cours de correction.
+      </div>
 
       {/* Google Button */}
       <button
-        onClick={handleGoogleAuth}
-        disabled={loading !== null}
+        onClick={undefined}
+        disabled={true}
         className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading === 'google' ? (
@@ -69,8 +74,8 @@ export const SocialAuthButtons: React.FC<SocialAuthButtonsProps> = ({ mode = 'lo
 
       {/* Facebook Button */}
       <button
-        onClick={handleFacebookAuth}
-        disabled={loading !== null}
+        onClick={undefined}
+        disabled={true}
         className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#1877F2] text-white rounded-lg hover:bg-[#166FE5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading === 'facebook' ? (

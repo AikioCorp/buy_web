@@ -187,29 +187,31 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
           <SocialAuthButtons mode={isRegister ? 'register' : 'login'} />
 
           {/* Méthode de connexion/inscription */}
-          <div className="flex gap-2 mb-2">
-            <button
-              type="button"
-              onClick={() => setLoginMethod('email')}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                loginMethod === 'email'
-                  ? 'bg-[#0f4c2b] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <Mail className="inline w-4 h-4 mr-1" /> Email
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoginMethod('phone')}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                loginMethod === 'phone'
-                  ? 'bg-[#0f4c2b] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <Phone className="inline w-4 h-4 mr-1" /> Téléphone
-            </button>
+          <div className="flex flex-col gap-2 mb-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLoginMethod('email')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  loginMethod === 'email'
+                    ? 'bg-[#0f4c2b] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Mail className="inline w-4 h-4 mr-1" /> Email
+              </button>
+              <button
+                type="button"
+                disabled
+                className="flex-1 py-2 px-3 rounded-lg text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed"
+              >
+                <Phone className="inline w-4 h-4 mr-1" /> Téléphone (bientôt disponible)
+              </button>
+            </div>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              La connexion par téléphone est temporairement désactivée.
+              Fonctionnalité en cours de correction.
+            </p>
           </div>
 
           {/* Champs pour l'inscription */}
@@ -250,7 +252,7 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
             </div>
           )}
 
-          {/* Email ou Téléphone */}
+          {/* Email ou Téléphone (téléphone désactivé, on force email) */}
           {loginMethod === 'email' ? (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -269,17 +271,7 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
               </div>
             </div>
           ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Numéro de téléphone
-              </label>
-              <PhoneInput
-                value={phoneNumber}
-                onChange={setPhoneNumber}
-                required
-                className="text-sm"
-              />
-            </div>
+            <></>
           )}
 
           <div>
