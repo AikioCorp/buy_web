@@ -233,6 +233,16 @@ const SuperAdminOrdersPage: React.FC = () => {
     }
   }
 
+  const handleProductClick = (productId: number, productSlug?: string) => {
+    if (productSlug) {
+      const productUrl = `${window.location.origin}/products/${productSlug}`
+      window.open(productUrl, '_blank')
+    } else if (productId) {
+      const productUrl = `${window.location.origin}/products/${productId}`
+      window.open(productUrl, '_blank')
+    }
+  }
+
   const formatPrice = (price: string) => {
     return new Intl.NumberFormat('fr-FR').format(Number(price)) + ' FCFA'
   }
@@ -607,7 +617,11 @@ const SuperAdminOrdersPage: React.FC = () => {
                     (viewingOrder as any).order_items.map((item: any) => {
                       const storeName = (viewingOrder as any).stores?.find((s: any) => s.id === item.store_id)?.name;
                       return (
-                      <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div
+                        key={item.id}
+                        onClick={() => handleProductClick(item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
+                        className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
                         <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                           {getImageUrl(item) ? (
                             <img
@@ -622,7 +636,7 @@ const SuperAdminOrdersPage: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="font-semibold text-gray-900">{item.product_name || 'Produit'}</div>
+                          <div className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors">{item.product_name || 'Produit'}</div>
                           <div className="text-sm text-gray-500">
                             Quantité: {item.quantity}
                             {storeName && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">{storeName}</span>}
@@ -636,7 +650,11 @@ const SuperAdminOrdersPage: React.FC = () => {
                     )})
                   ) : (viewingOrder.items || []).length > 0 ? (
                     viewingOrder.items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div
+                        key={item.id}
+                        onClick={() => handleProductClick((item as any).product_id || item.product?.id, (item as any).product_slug || item.product?.slug)}
+                        className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
                         <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                           {getImageUrl(item) ? (
                             <img
@@ -651,7 +669,7 @@ const SuperAdminOrdersPage: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="font-semibold text-gray-900">{item.product?.name || 'Produit'}</div>
+                          <div className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors">{item.product?.name || 'Produit'}</div>
                           <div className="text-sm text-gray-500">
                             Boutique: {item.product?.store?.name || '-'}
                           </div>
