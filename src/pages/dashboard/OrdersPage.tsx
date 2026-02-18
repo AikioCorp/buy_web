@@ -62,12 +62,15 @@ const OrdersPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false)
 
   const handleProductClick = (productId: number, productSlug?: string) => {
+    console.log('🔗 Product click:', { productId, productSlug })
     if (productSlug) {
       const productUrl = `${window.location.origin}/products/${productSlug}`
+      console.log('✅ Using slug URL:', productUrl)
       window.open(productUrl, '_blank')
     } else if (productId) {
       // Fallback to ID if slug is not available
       const productUrl = `${window.location.origin}/products/${productId}`
+      console.log('⚠️ Using ID URL (no slug):', productUrl)
       window.open(productUrl, '_blank')
     }
   }
@@ -539,7 +542,16 @@ const OrdersPage: React.FC = () => {
                   Articles commandés ({((viewingOrder as any).order_items || viewingOrder.items)?.length || 0})
                 </h3>
                 <div className="space-y-3">
-                  {((viewingOrder as any).order_items || viewingOrder.items || []).map((item: any) => (
+                  {((viewingOrder as any).order_items || viewingOrder.items || []).map((item: any, idx: number) => {
+                    // Debug: log first item data
+                    if (idx === 0) {
+                      console.log('📦 Order item data:', { 
+                        product_id: item.product_id, 
+                        product_slug: item.product_slug,
+                        product_name: item.product_name?.substring(0, 50)
+                      })
+                    }
+                    return (
                     <div 
                       key={item.id} 
                       onClick={() => handleProductClick(item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
@@ -574,7 +586,8 @@ const OrdersPage: React.FC = () => {
                         <div className="font-semibold text-gray-900">{formatPrice(parseFloat(item.total_price || item.unit_price) * (item.quantity || 1))}</div>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
