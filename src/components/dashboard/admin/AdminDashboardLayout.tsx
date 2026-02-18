@@ -8,41 +8,27 @@ type AdminDashboardLayoutProps = {
 }
 
 const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({ children }) => {
-  // Load sidebar state from localStorage or default based on screen size
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('admin-sidebar-open')
-      if (saved !== null) {
-        return saved === 'true'
+      // On desktop, always default to open
+      if (window.innerWidth >= 1024) {
+        return true
       }
-      return window.innerWidth >= 1024 // lg breakpoint
+      return false
     }
-    return false
+    return true
   })
   
-  // Save sidebar state to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('admin-sidebar-open', String(sidebarOpen))
-  }, [sidebarOpen])
-  
-  // Update sidebar state on window resize only if not manually set
+  // Auto-open sidebar on desktop when resizing from mobile
   useEffect(() => {
     const handleResize = () => {
-      // Only auto-adjust on mobile/desktop transition
-      if (window.innerWidth < 1024 && sidebarOpen) {
-        // Don't force close on mobile, let user control it
-      } else if (window.innerWidth >= 1024) {
-        // On desktop, respect saved preference
-        const saved = localStorage.getItem('admin-sidebar-open')
-        if (saved === null) {
-          setSidebarOpen(true)
-        }
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true)
       }
     }
-    
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [sidebarOpen])
+  }, [])
   
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev)

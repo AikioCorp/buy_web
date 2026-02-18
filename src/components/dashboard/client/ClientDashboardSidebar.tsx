@@ -45,6 +45,13 @@ type ClientDashboardSidebarProps = {
 
 const ClientDashboardSidebar: React.FC<ClientDashboardSidebarProps> = ({ isOpen, onClose }) => {
   const { user, role } = useAuthStore()
+
+  // Only close sidebar on mobile when clicking a link
+  const handleLinkClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      onClose?.()
+    }
+  }
   
   return (
     <aside 
@@ -66,15 +73,15 @@ const ClientDashboardSidebar: React.FC<ClientDashboardSidebarProps> = ({ isOpen,
       
       <nav className="mt-4 px-2 flex-1 overflow-y-auto">
         <div className="space-y-1">
-          <SidebarLink to="/client" icon={<Home />} label="Tableau de bord" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/orders" icon={<ShoppingBag />} label="Mes commandes" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/favorites" icon={<Heart />} label="Favoris" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/profile" icon={<User />} label="Profil" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/addresses" icon={<MapPin />} label="Adresses" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/payments" icon={<CreditCard />} label="Paiements" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/messages" icon={<MessageSquare />} label="Messages" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/notifications" icon={<Bell />} label="Notifications" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/client/settings" icon={<Settings />} label="Paramètres" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/client" icon={<Home />} label="Tableau de bord" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/orders" icon={<ShoppingBag />} label="Mes commandes" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/favorites" icon={<Heart />} label="Favoris" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/profile" icon={<User />} label="Profil" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/addresses" icon={<MapPin />} label="Adresses" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/payments" icon={<CreditCard />} label="Paiements" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/messages" icon={<MessageSquare />} label="Messages" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/notifications" icon={<Bell />} label="Notifications" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/settings" icon={<Settings />} label="Paramètres" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
       </nav>
       

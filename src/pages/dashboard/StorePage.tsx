@@ -66,8 +66,9 @@ const StorePage: React.FC = () => {
         console.log('✅ Store found:', response.data.name, 'is_active:', response.data.is_active)
         setStore(response.data)
         
-        // Check if shop is pending approval (is_active = false)
-        if (!response.data.is_active) {
+        // Check if shop is pending approval
+        const isShopApproved = response.data.is_active || response.data.status === 'approved' || response.data.is_verified
+        if (!isShopApproved) {
           console.log('⏳ Shop is pending approval')
           setPendingApproval(true)
         } else {
@@ -319,7 +320,7 @@ const StorePage: React.FC = () => {
       </div>
 
       {/* Shop Approval Warning */}
-      {store && !store.is_active && (
+      {store && !store.is_active && store.status !== 'approved' && !store.is_verified && (
         <div className="mb-6 p-4 rounded-xl flex items-start gap-3 bg-yellow-50 text-yellow-800 border border-yellow-200">
           <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
           <div>

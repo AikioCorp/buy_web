@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { productsService, Product } from '../../lib/api/productsService'
 import { shopsService, Shop } from '../../lib/api/shopsService'
+import { useAuthStore } from '../../stores/authStore'
 import ProductFormModal from '../../components/dashboard/ProductFormModal'
 import ProductPreviewModal from '../../components/dashboard/ProductPreviewModal'
 
@@ -277,6 +278,7 @@ const DeleteConfirmModal = ({
 )
 
 const ProductsPage: React.FC = () => {
+  const { user } = useAuthStore()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [store, setStore] = useState<Shop | null>(null)
@@ -307,12 +309,13 @@ const ProductsPage: React.FC = () => {
       setLoading(true)
 
       // Charger la boutique
-      const storeResponse = await shopsService.getMyShop()
+      const storeResponse = await shopsService.getMyShop(user?.id?.toString())
       if (storeResponse.data) {
         setStore(storeResponse.data)
 
         // Show warning if shop is not approved
-        if (!storeResponse.data.is_active) {
+        const isShopApproved = storeResponse.data.is_active || storeResponse.data.status === 'approved' || storeResponse.data.is_verified
+        if (!isShopApproved) {
           setMessage({
             type: 'error',
             text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.'
@@ -344,7 +347,8 @@ const ProductsPage: React.FC = () => {
 
   const handleAddProduct = () => {
     // Check if shop is approved
-    if (!store?.is_active) {
+    const isShopApproved = store?.is_active || store?.status === 'approved' || store?.is_verified
+    if (!isShopApproved) {
       setMessage({
         type: 'error',
         text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.'

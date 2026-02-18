@@ -64,6 +64,13 @@ type SuperAdminDashboardSidebarProps = {
 const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuthStore()
 
+  // Only close sidebar on mobile when clicking a link
+  const handleLinkClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      onClose?.()
+    }
+  }
+
   const handleLogout = async () => {
     await logout()
     window.location.href = '/'
@@ -145,7 +152,7 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -154,12 +161,12 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/users" icon={<Users size={20} />} label="Utilisateurs" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/businesses" icon={<Briefcase size={20} />} label="Boutiques" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/restaurants" icon={<UtensilsCrossed size={20} />} label="Restaurants" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/products" icon={<Package size={20} />} label="Produits" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/orders" icon={<ShoppingBag size={20} />} label="Commandes" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/users" icon={<Users size={20} />} label="Utilisateurs" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/businesses" icon={<Briefcase size={20} />} label="Boutiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/restaurants" icon={<UtensilsCrossed size={20} />} label="Restaurants" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/products" icon={<Package size={20} />} label="Produits" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/orders" icon={<ShoppingBag size={20} />} label="Commandes" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -168,13 +175,13 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/shop-requests" icon={<Store size={20} />} label="Demandes boutiques" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/shop-requests" icon={<Store size={20} />} label="Demandes boutiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -183,10 +190,10 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/reports" icon={<FileText size={20} />} label="Rapports" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/analytics" icon={<TrendingUp size={20} />} label="Statistiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/reports" icon={<FileText size={20} />} label="Rapports" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/permissions" icon={<Shield size={20} />} label="Permissions" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/profile" icon={<User size={20} />} label="Mon profil" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
       </nav>
 

@@ -11,38 +11,38 @@ const SuperAdminDashboardLayout: React.FC<SuperAdminDashboardLayoutProps> = ({ c
   // Load sidebar state from localStorage or default based on screen size
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
+      // On desktop, always default to open
+      if (window.innerWidth >= 1024) {
+        return true
+      }
+      // On mobile, check saved preference
       const saved = localStorage.getItem('superadmin-sidebar-open')
       if (saved !== null) {
         return saved === 'true'
       }
-      return window.innerWidth >= 1024 // lg breakpoint
+      return false
     }
-    return false
+    return true
   })
   
-  // Save sidebar state to localStorage whenever it changes
+  // Save sidebar state to localStorage only on mobile
   useEffect(() => {
-    localStorage.setItem('superadmin-sidebar-open', String(sidebarOpen))
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      localStorage.setItem('superadmin-sidebar-open', String(sidebarOpen))
+    }
   }, [sidebarOpen])
   
-  // Update sidebar state on window resize only if not manually set
+  // Auto-open sidebar on desktop when resizing from mobile
   useEffect(() => {
     const handleResize = () => {
-      // Only auto-adjust on mobile/desktop transition
-      if (window.innerWidth < 1024 && sidebarOpen) {
-        // Don't force close on mobile, let user control it
-      } else if (window.innerWidth >= 1024) {
-        // On desktop, respect saved preference
-        const saved = localStorage.getItem('superadmin-sidebar-open')
-        if (saved === null) {
-          setSidebarOpen(true)
-        }
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true)
       }
     }
     
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [sidebarOpen])
+  }, [])
   
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev)

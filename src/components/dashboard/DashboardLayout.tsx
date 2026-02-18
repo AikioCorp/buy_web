@@ -11,7 +11,16 @@ type DashboardLayoutProps = {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      // On desktop, always default to open
+      if (window.innerWidth >= 1024) {
+        return true
+      }
+      return false
+    }
+    return true
+  })
   const [shop, setShop] = useState<Shop | null>(null)
   const { user } = useAuthStore()
   
@@ -20,6 +29,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       loadShop()
     }
   }, [user?.id])
+
+  // Auto-open sidebar on desktop when resizing from mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const loadShop = async () => {
     try {
@@ -33,7 +53,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   }
   
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen)
+    setSidebarOpen(prev => !prev)
   }
 
   const closeSidebar = () => {

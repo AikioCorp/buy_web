@@ -65,6 +65,13 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
   const { user, logout } = useAuthStore()
   const { canViewUsers, canViewShops, canViewProducts, canViewOrders } = usePermissions()
 
+  // Only close sidebar on mobile when clicking a link
+  const handleLinkClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      onClose?.()
+    }
+  }
+
   const handleLogout = async () => {
     await logout()
     window.location.href = '/'
@@ -146,7 +153,7 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/admin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -156,24 +163,24 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
         )}
         <div className="space-y-1">
           {canViewUsers() && (
-            <SidebarLink to="/admin/users" icon={<Users size={20} />} label="Utilisateurs" onClick={onClose} isCollapsed={!isOpen} />
+            <SidebarLink to="/admin/users" icon={<Users size={20} />} label="Utilisateurs" onClick={handleLinkClick} isCollapsed={!isOpen} />
           )}
           {canViewShops() && (
-            <SidebarLink to="/admin/shops" icon={<Store size={20} />} label="Boutiques" onClick={onClose} isCollapsed={!isOpen} />
+            <SidebarLink to="/admin/shops" icon={<Store size={20} />} label="Boutiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
           )}
           {canViewProducts() && (
-            <SidebarLink to="/admin/products" icon={<Package size={20} />} label="Produits" onClick={onClose} isCollapsed={!isOpen} />
+            <SidebarLink to="/admin/products" icon={<Package size={20} />} label="Produits" onClick={handleLinkClick} isCollapsed={!isOpen} />
           )}
           {canViewProducts() && (
-            <SidebarLink to="/admin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={onClose} isCollapsed={!isOpen} />
+            <SidebarLink to="/admin/categories" icon={<FolderTree size={20} />} label="Catégories" onClick={handleLinkClick} isCollapsed={!isOpen} />
           )}
           {canViewOrders() && (
-            <SidebarLink to="/admin/orders" icon={<ShoppingCart size={20} />} label="Commandes" onClick={onClose} isCollapsed={!isOpen} />
+            <SidebarLink to="/admin/orders" icon={<ShoppingCart size={20} />} label="Commandes" onClick={handleLinkClick} isCollapsed={!isOpen} />
           )}
-          <SidebarLink to="/admin/reports" icon={<Flag size={20} />} label="Rapports" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/reports" icon={<Flag size={20} />} label="Rapports" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -182,9 +189,9 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/admin/reviews" icon={<Star size={20} />} label="Avis" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/reviews" icon={<Star size={20} />} label="Avis" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -193,8 +200,8 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/admin/analytics" icon={<BarChart size={20} />} label="Statistiques" onClick={onClose} isCollapsed={!isOpen} />
-          <SidebarLink to="/admin/profile" icon={<User size={20} />} label="Mon profil" onClick={onClose} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/analytics" icon={<BarChart size={20} />} label="Statistiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/profile" icon={<User size={20} />} label="Mon profil" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
       </nav>
 

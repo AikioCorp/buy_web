@@ -165,8 +165,8 @@ export const useAuthStore = create<AuthState>()(
             // 2. Traiter l'utilisateur
             let user = responseData.user;
 
-            // Si user incomplet, tenter de récupérer via /me
-            if (!user || (!user.role && !user.is_superuser)) {
+            // Si user complètement absent, tenter de récupérer via /me
+            if (!user || !user.id) {
               try {
                 const meResponse = await authService.getCurrentUser();
                 if (meResponse.data) user = meResponse.data;
@@ -284,6 +284,15 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
+        // Si l'utilisateur est déjà authentifié avec un rôle (login vient de se terminer),
+        // ne pas écraser le rôle avec un second appel /auth/me
+        const currentState = get();
+        if (currentState.isAuthenticated && currentState.user && currentState.role) {
+          console.log('loadUser: User already authenticated with role:', currentState.role, '- skipping /auth/me');
+          set({ isLoading: false });
+          return;
+        }
+
         set({ isLoading: true });
 
         try {
@@ -297,14 +306,18 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (response.data) {
-            // Si l'API ne retourne pas explicitement le rôle/flags, conserver ceux déjà stockés
+            // Fusionner les données: préserver les flags booléens existants s'ils sont true
+            // car false peut écraser un true légitime (ex: is_staff=true écrasé par false)
+            const existingUser = get().user as any;
+            const newData = response.data as any;
+            
             const mergedUser: any = {
-              ...response.data,
-              is_superuser: (response.data as any).is_superuser ?? (get().user as any)?.is_superuser,
-              is_staff: (response.data as any).is_staff ?? (get().user as any)?.is_staff,
-              is_seller: (response.data as any).is_seller ?? (get().user as any)?.is_seller,
-              permissions: (response.data as any).permissions ?? (get().user as any)?.permissions ?? [],
-              role: (response.data as any).role ?? get().role,
+              ...newData,
+              // Préserver le flag s'il est true dans l'état existant OU dans la nouvelle réponse
+              is_superuser: newData.is_superuser === true || existingUser?.is_superuser === true,
+              is_staff: newData.is_staff === true || existingUser?.is_staff === true,
+              is_seller: newData.is_seller === true || existingUser?.is_seller === true,
+              permissions: newData.permissions?.length > 0 ? newData.permissions : (existingUser?.permissions ?? []),
             }
             const role = determineRole(mergedUser)
             console.log('User permissions loaded:', mergedUser.permissions)
