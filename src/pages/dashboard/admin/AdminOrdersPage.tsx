@@ -145,7 +145,8 @@ const AdminOrdersPage: React.FC = () => {
 
   const handleProductClick = (productId: number) => {
     if (productId) {
-      window.open(`/products/${productId}`, '_blank')
+      const productUrl = `${window.location.origin}/products/${productId}`
+      window.open(productUrl, '_blank')
     }
   }
 

@@ -5,6 +5,7 @@ import {
   User, Calendar, CreditCard, MessageSquare, Printer, Download, Edit
 } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../lib/api/ordersService'
+import { vendorService } from '../../lib/api/vendorService'
 import { useToast } from '../../components/Toast'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
@@ -49,6 +50,7 @@ const OrdersPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('')
+  const [vendorShopId, setVendorShopId] = useState<number | null>(null)
 
   // Modals
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
@@ -61,15 +63,73 @@ const OrdersPage: React.FC = () => {
 
   const handleProductClick = (productId: number) => {
     if (productId) {
-      window.open(`/products/${productId}`, '_blank')
+      const productUrl = `${window.location.origin}/products/${productId}`
+      window.open(productUrl, '_blank')
     }
+  }
+
+  // Calculer le total de la boutique du vendeur pour une commande
+  const getVendorOrderTotal = (order: Order) => {
+    const orderData = order as any
+    const items = orderData.order_items || order.items || []
+    
+    // Si on a le shop_id du vendeur, filtrer uniquement ses produits
+    if (vendorShopId) {
+      const vendorItems = items.filter((item: any) => {
+        return item.store_id === vendorShopId
+      })
+      
+      console.log('🏪 Vendor shop_id:', vendorShopId)
+      console.log('📦 Total items:', items.length, '| Vendor items:', vendorItems.length)
+      console.log('🔍 Items store_ids:', items.map((i: any) => ({ name: i.product_name?.substring(0, 30), store_id: i.store_id })))
+      
+      const vendorTotal = vendorItems.reduce((sum: number, item: any) => {
+        return sum + (parseFloat(item.total_price || 0) || (parseFloat(item.unit_price || 0) * (item.quantity || 0)))
+      }, 0)
+      
+      console.log('💰 Vendor total:', vendorTotal)
+      return vendorTotal
+    }
+    
+    // Si la commande a un store_id, c'est une sous-commande d'une commande multi-boutiques
+    if (orderData.store_id) {
+      const itemsTotal = items.reduce((sum: number, item: any) => {
+        return sum + (parseFloat(item.total_price || 0) || (parseFloat(item.unit_price || 0) * (item.quantity || 0)))
+      }, 0)
+      return itemsTotal
+    }
+    
+    // Pour les commandes normales, retourner le total sans les frais de livraison
+    const subtotal = parseFloat(orderData.subtotal || 0)
+    if (subtotal > 0) return subtotal
+    
+    // Fallback: calculer depuis les items
+    return items.reduce((sum: number, item: any) => {
+      return sum + (parseFloat(item.total_price || 0) || (parseFloat(item.unit_price || 0) * (item.quantity || 0)))
+    }, 0)
   }
 
   const pageSize = 20
 
   useEffect(() => {
+    loadVendorShop()
     loadOrders()
   }, [currentPage, selectedStatus])
+
+  const loadVendorShop = async () => {
+    try {
+      const response = await vendorService.getStats()
+      if (response.data) {
+        const data = (response.data as any).data || response.data
+        if (data.shop_id) {
+          setVendorShopId(data.shop_id)
+          console.log('✅ Vendor shop_id loaded:', data.shop_id)
+        }
+      }
+    } catch (err) {
+      console.error('Erreur chargement shop_id:', err)
+    }
+  }
 
   const loadOrders = async () => {
     try {
@@ -331,7 +391,11 @@ const OrdersPage: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {searchFilteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
+                    <tr 
+                      key={order.id} 
+                      onClick={() => handleViewOrder(order)}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -352,7 +416,7 @@ const OrdersPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-gray-900">
-                          {formatPrice(order.total_amount)}
+                          {formatPrice(getVendorOrderTotal(order))}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -369,7 +433,7 @@ const OrdersPage: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleViewOrder(order)}
+                            onClick={(e) => { e.stopPropagation(); handleViewOrder(order); }}
                             className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                             title="Voir les détails"
                           >
@@ -435,9 +499,9 @@ const OrdersPage: React.FC = () => {
                   <div className="mt-1">{getStatusBadge(viewingOrder.status)}</div>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm text-gray-500">Total de la commande</span>
+                  <span className="text-sm text-gray-500">Total de votre commande</span>
                   <div className="text-2xl font-bold text-emerald-600">
-                    {formatPrice(viewingOrder.total_amount)}
+                    {formatPrice(getVendorOrderTotal(viewingOrder))}
                   </div>
                 </div>
               </div>
@@ -472,10 +536,13 @@ const OrdersPage: React.FC = () => {
                 </h3>
                 <div className="space-y-3">
                   {((viewingOrder as any).order_items || viewingOrder.items || []).map((item: any) => (
-                    <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors">
-                      <button
-                        onClick={() => handleProductClick(item.product_id || item.product?.id)}
-                        className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-emerald-500 transition-all cursor-pointer"
+                    <div 
+                      key={item.id} 
+                      onClick={() => handleProductClick(item.product_id || item.product?.id)}
+                      className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors cursor-pointer"
+                    >
+                      <div
+                        className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-emerald-500 transition-all"
                         title="Voir le produit"
                       >
                         {getImageUrl(item) ? (
@@ -489,14 +556,11 @@ const OrdersPage: React.FC = () => {
                             <Package className="text-gray-400" size={24} />
                           </div>
                         )}
-                      </button>
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <button
-                          onClick={() => handleProductClick(item.product_id || item.product?.id)}
-                          className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors text-left truncate block w-full"
-                        >
+                        <div className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors text-left truncate">
                           {item.product_name || item.product?.name || 'Produit'}
-                        </button>
+                        </div>
                         <div className="text-sm text-gray-500">
                           Quantité: {item.quantity}
                         </div>
@@ -513,20 +577,13 @@ const OrdersPage: React.FC = () => {
               {/* Récapitulatif */}
               <div className="border-t border-gray-200 mt-6 pt-6">
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Sous-total</span>
-                    <span>{formatPrice((viewingOrder as any).subtotal || parseFloat(viewingOrder.total_amount) - parseFloat((viewingOrder as any).delivery_fee || 0))}</span>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total de votre commande</span>
+                    <span className="text-emerald-600">{formatPrice(getVendorOrderTotal(viewingOrder))}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Livraison</span>
-                    <span className={parseFloat((viewingOrder as any).delivery_fee || 0) === 0 ? "text-green-600 font-medium" : ""}>
-                      {parseFloat((viewingOrder as any).delivery_fee || 0) === 0 ? 'Gratuite' : formatPrice((viewingOrder as any).delivery_fee || 1000)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                    <span>Total</span>
-                    <span className="text-emerald-600">{formatPrice(viewingOrder.total_amount)}</span>
-                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Note: Les frais de livraison sont gérés par l'administration et ne sont pas inclus dans votre total.
+                  </p>
                 </div>
               </div>
             </div>
