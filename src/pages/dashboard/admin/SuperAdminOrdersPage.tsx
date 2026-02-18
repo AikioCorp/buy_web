@@ -4,6 +4,7 @@ import {
   ArrowRightLeft, Store, AlertTriangle, Loader2, RefreshCw, Phone, MapPin,
   CreditCard, Edit
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 import { shopsService } from '../../../lib/api/shopsService'
 import { useToast } from '../../../components/Toast'
@@ -49,6 +50,7 @@ const getImageUrl = (item: any): string | null => {
 
 const SuperAdminOrdersPage: React.FC = () => {
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const [orders, setOrders] = useState<Order[]>([])
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
@@ -235,11 +237,9 @@ const SuperAdminOrdersPage: React.FC = () => {
 
   const handleProductClick = (productId: number, productSlug?: string) => {
     if (productSlug) {
-      const productUrl = `${window.location.origin}/products/${productSlug}`
-      window.open(productUrl, '_blank')
+      navigate(`/products/${productSlug}`)
     } else if (productId) {
-      const productUrl = `${window.location.origin}/products/${productId}`
-      window.open(productUrl, '_blank')
+      navigate(`/products/${productId}`)
     }
   }
 

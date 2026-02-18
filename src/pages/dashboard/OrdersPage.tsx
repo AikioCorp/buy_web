@@ -4,6 +4,7 @@ import {
   Truck, CheckCircle, XCircle, ShoppingBag, Phone, MapPin,
   User, Calendar, CreditCard, MessageSquare, Printer, Download, Edit
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { ordersService, Order, OrderStatus } from '../../lib/api/ordersService'
 import { vendorService } from '../../lib/api/vendorService'
 import { useToast } from '../../components/Toast'
@@ -43,6 +44,7 @@ const getImageUrl = (item: any): string | null => {
 
 const OrdersPage: React.FC = () => {
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -62,16 +64,11 @@ const OrdersPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false)
 
   const handleProductClick = (productId: number, productSlug?: string) => {
-    console.log('🔗 Product click:', { productId, productSlug })
     if (productSlug) {
-      const productUrl = `${window.location.origin}/products/${productSlug}`
-      console.log('✅ Using slug URL:', productUrl)
-      window.open(productUrl, '_blank')
+      navigate(`/products/${productSlug}`)
     } else if (productId) {
       // Fallback to ID if slug is not available
-      const productUrl = `${window.location.origin}/products/${productId}`
-      console.log('⚠️ Using ID URL (no slug):', productUrl)
-      window.open(productUrl, '_blank')
+      navigate(`/products/${productId}`)
     }
   }
 

@@ -3,6 +3,7 @@ import {
   Search, ShoppingCart, Eye, X, CheckCircle, Clock, Truck, XCircle,
   AlertTriangle, Ban, Loader2, RefreshCw, Package, MapPin, Phone, CreditCard, Edit, User
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { useAuthStore } from '../../../store/authStore'
@@ -112,6 +113,7 @@ const getProductImageUrl = (item: any): string | null => {
 
 const AdminOrdersPage: React.FC = () => {
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const role = useAuthStore((state) => state.role)
   const {
     canViewOrders,
@@ -145,12 +147,10 @@ const AdminOrdersPage: React.FC = () => {
 
   const handleProductClick = (productId: number, productSlug?: string) => {
     if (productSlug) {
-      const productUrl = `${window.location.origin}/products/${productSlug}`
-      window.open(productUrl, '_blank')
+      navigate(`/products/${productSlug}`)
     } else if (productId) {
       // Fallback to ID if slug is not available
-      const productUrl = `${window.location.origin}/products/${productId}`
-      window.open(productUrl, '_blank')
+      navigate(`/products/${productId}`)
     }
   }
 
