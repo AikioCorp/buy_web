@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Phone } from 'lucide-react'
 import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
+import { PhoneRegisterForm } from '../components/auth/PhoneRegisterForm'
 
 export function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -54,6 +55,9 @@ export function RegisterPage() {
     e.preventDefault()
     clearError()
 
+    // Only handle email registration here, phone is handled by PhoneRegisterForm
+    if (registerMethod !== 'email') return
+
     // Séparer le nom complet en prénom et nom
     const nameParts = fullName.trim().split(' ')
     const firstName = nameParts[0] || ''
@@ -64,28 +68,19 @@ export function RegisterPage() {
     const uniqueSuffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(-2)
     const username = `${baseUsername}_${uniqueSuffix}`
 
-    // Formater le numéro de téléphone utilisateur
-    const formattedPhone = registerMethod === 'phone' ? formatMaliPhone(phoneNumber) : ''
-
     // Déterminer le téléphone de la boutique
     let finalShopPhone = ''
-    if (role === 'vendor') {
-      if (registerMethod === 'phone' && useRegistrationPhone) {
-        // Utiliser le numéro d'inscription
-        finalShopPhone = formattedPhone
-      } else if (shopPhone) {
-        // Utiliser le numéro de boutique saisi
-        finalShopPhone = formatMaliPhone(shopPhone)
-      }
+    if (role === 'vendor' && shopPhone) {
+      finalShopPhone = formatMaliPhone(shopPhone)
     }
 
     const registerData = {
       username,
-      email: registerMethod === 'email' ? email : '',
+      email: email,
       password,
       first_name: firstName,
       last_name: lastName,
-      phone: formattedPhone,
+      phone: '',
       is_seller: role === 'vendor',
       store_name: role === 'vendor' ? shopName : undefined,
       store_description: role === 'vendor' ? shopDescription : undefined,
@@ -175,26 +170,6 @@ export function RegisterPage() {
             )}
 
             <div className="space-y-4 sm:space-y-5">
-              {/* Nom complet */}
-              <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Nom complet
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
-                  </div>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                    placeholder="Votre nom complet ici"
-                  />
-                </div>
-              </div>
-
               {/* Méthode d'inscription */}
               <div className="flex gap-2 mb-2">
                 <button
@@ -221,52 +196,50 @@ export function RegisterPage() {
                 </button>
               </div>
 
-              {/* Email ou Téléphone */}
-              {registerMethod === 'email' ? (
-                <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Adresse email
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
-                    </div>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                      placeholder="votre@email.com"
-                    />
-                  </div>
-                </div>
+              {/* Inscription par téléphone avec OTP */}
+              {registerMethod === 'phone' ? (
+                <PhoneRegisterForm />
               ) : (
-                <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Numéro de téléphone
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-500 font-medium text-sm">+223</span>
+                <>
+                  {/* Nom complet */}
+                  <div className="group">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Nom complet
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <User className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                      </div>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                        placeholder="Votre nom complet ici"
+                      />
                     </div>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => {
-                        // Only allow digits, max 8 characters
-                        const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
-                        setPhoneNumber(value)
-                      }}
-                      required
-                      maxLength={8}
-                      className="block w-full pl-16 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                      placeholder="70 00 00 00"
-                    />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Format: 70 00 00 00 (8 chiffres)</p>
-                </div>
-              )}
+
+                  {/* Email */}
+                  <div className="group">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Adresse email
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                      </div>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                        placeholder="votre@email.com"
+                      />
+                    </div>
+                  </div>
 
               {/* Mot de passe */}
               <div className="group">
@@ -404,45 +377,28 @@ export function RegisterPage() {
                   </div>
 
                   {/* Téléphone boutique */}
-                  {registerMethod === 'phone' && (
-                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
-                      <input
-                        type="checkbox"
-                        id="useRegistrationPhone"
-                        checked={useRegistrationPhone}
-                        onChange={(e) => setUseRegistrationPhone(e.target.checked)}
-                        className="w-5 h-5 text-[#0f4c2b] border-gray-300 rounded focus:ring-[#0f4c2b]"
-                      />
-                      <label htmlFor="useRegistrationPhone" className="text-sm text-gray-700">
-                        Utiliser <strong>+223 {phoneNumber}</strong> pour ma boutique
-                      </label>
-                    </div>
-                  )}
-
-                  {/* Champ téléphone boutique (si pas de checkbox ou inscription par email) */}
-                  {(registerMethod === 'email' || !useRegistrationPhone) && (
-                    <div className="group">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Téléphone boutique <span className="text-gray-400 font-normal">(optionnel)</span>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <span className="text-gray-500 font-medium text-sm">+223</span>
-                        </div>
-                        <input
-                          type="tel"
-                          value={shopPhone}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
-                            setShopPhone(value)
-                          }}
-                          maxLength={8}
-                          className="block w-full pl-16 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                          placeholder="70 00 00 00"
-                        />
+                  {/* Champ téléphone boutique */}
+                  <div className="group">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Téléphone boutique <span className="text-gray-400 font-normal">(optionnel)</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span className="text-gray-500 font-medium text-sm">+223</span>
                       </div>
+                      <input
+                        type="tel"
+                        value={shopPhone}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
+                          setShopPhone(value)
+                        }}
+                        maxLength={8}
+                        className="block w-full pl-16 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                        placeholder="70 00 00 00"
+                      />
                     </div>
-                  )}
+                  </div>
 
                   {/* Email boutique (optionnel) */}
                   <div className="group">
@@ -472,10 +428,13 @@ export function RegisterPage() {
                   </div>
                 </div>
               )}
+                </>
+              )}
             </div>
 
             {/* Bouton d'inscription */}
-            <button
+            {registerMethod === 'email' && (
+              <button
               type="submit"
               disabled={isLoading}
               className="group relative w-full flex justify-center items-center py-3 sm:py-4 px-4 border border-transparent text-sm sm:text-base font-semibold rounded-xl text-white bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] hover:from-[#1a5f3a] hover:to-[#0f4c2b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0f4c2b] disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
@@ -495,6 +454,7 @@ export function RegisterPage() {
                 </>
               )}
             </button>
+            )}
 
             {/* Lien connexion */}
             <div className="text-center">
