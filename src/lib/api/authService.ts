@@ -16,10 +16,58 @@ export interface RegisterData {
   password: string;
   first_name: string;
   last_name: string;
-  phone: string;
+  phone?: string;
   is_seller?: boolean;
   store_name?: string;
   store_description?: string;
+  store_phone?: string;
+  store_email?: string;
+}
+
+export interface RegisterResponse {
+  requires_otp: boolean;
+  message?: string;
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    is_seller: boolean;
+    shop_id?: number | null;
+  };
+  token?: string;
+  refresh_token?: string;
+}
+
+export interface PhoneOtpSendResponse {
+  message: string;
+  phone: string;
+}
+
+export interface PhoneOtpVerifyParams {
+  phone: string;
+  otp: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+export interface PhoneOtpVerifyResponse {
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    is_seller: boolean;
+    is_staff: boolean;
+    is_superuser: boolean;
+  };
+  token: string;
+  refresh_token: string;
+  is_new_user: boolean;
 }
 
 export interface AuthResponse {
@@ -88,28 +136,38 @@ export const authService = {
    * Inscription
    */
   async register(data: RegisterData) {
-    const response = await apiClient.post<any>('/api/auth/register', data);
+    const response = await apiClient.post<any>('/api/auth/register/', data);
 
-    // Support des deux formats de token (Node.js API vs Standard)
-    const token = response.data?.access_token || response.data?.token;
-
-    if (token) {
-      apiClient.setToken(token);
-    }
-
-    // Normaliser la réponse pour assurer la compatibilité
     if (response.data) {
-      // Si la réponse contient un objet 'user' imbriqué, on normalise
+      // ⚠️ Vérifier si l'OTP est requis (inscription avec téléphone)
+      // Dans ce cas, PAS DE TOKEN — l'utilisateur doit d'abord vérifier son OTP
+      if (response.data.requires_otp === true) {
+        // Retourner la réponse telle quelle, sans toucher au token
+        return response;
+      }
+
+      // Cas standard : inscription sans téléphone → token direct
+      const token = response.data.access_token || response.data.token;
+
+      if (token) {
+        apiClient.setToken(token);
+      }
+
+      // Stocker le refresh_token s'il existe
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+      }
+
+      // Normaliser la réponse pour assurer la compatibilité
       if (response.data.user) {
         response.data = {
           ...response.data,
           ...response.data.user,
           access_token: token,
-          token: token, // Garder aussi le champ token pour compatibilité
+          token: token,
           user_id: response.data.user.id,
         };
       } else {
-        // Si user n'est pas imbriqué, ajouter juste le token normalisé
         response.data = {
           ...response.data,
           access_token: token,
@@ -207,5 +265,32 @@ export const authService = {
       current_password: currentPassword,
       new_password: newPassword
     });
+  },
+
+  /**
+   * Envoyer un code OTP par SMS
+   */
+  async sendPhoneOtp(phone: string) {
+    return await apiClient.post<PhoneOtpSendResponse>('/api/auth/phone/send-otp/', { phone });
+  },
+
+  /**
+   * Vérifier le code OTP et obtenir le token d'authentification
+   */
+  async verifyPhoneOtp(params: PhoneOtpVerifyParams) {
+    const response = await apiClient.post<any>('/api/auth/phone/verify-otp/', params);
+
+    // Normaliser la réponse pour compatibilité avec le store
+    const token = response.data?.token;
+    if (token) {
+      apiClient.setToken(token);
+    }
+
+    // Stocker aussi le refresh_token
+    if (response.data?.refresh_token) {
+      localStorage.setItem('refresh_token', response.data.refresh_token);
+    }
+
+    return response;
   },
 };

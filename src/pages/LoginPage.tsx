@@ -40,11 +40,11 @@ export function LoginPage() {
     if (loginMethod !== 'email') return
 
     const success = await login(email, password, loginMethod)
-    
+
     if (success) {
       // Get the role from the store after login
       const { role, user } = useAuthStore.getState()
-      
+
       // Determine redirect based on role
       let defaultRedirect = '/'
       if (user?.is_superuser || role === 'super_admin') {
@@ -56,7 +56,7 @@ export function LoginPage() {
       } else {
         defaultRedirect = '/client'
       }
-      
+
       const from = (location.state as any)?.from?.pathname || defaultRedirect
       navigate(from, { replace: true })
     }
@@ -81,9 +81,9 @@ export function LoginPage() {
           {/* Social Auth Buttons */}
           <SocialAuthButtons mode="login" />
 
-          {/* Formulaire */}
-          <form onSubmit={handleSubmit} className="mt-6 sm:mt-8 space-y-5 sm:space-y-6">
-            {error && (
+          {/* Onglets méthode de connexion */}
+          <div className="mt-6 sm:mt-8 space-y-5 sm:space-y-6">
+            {error && loginMethod === 'email' && (
               <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg animate-shake">
                 <p className="text-red-700 text-sm font-medium">{error}</p>
               </div>
@@ -96,52 +96,51 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setLoginMethod('email')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      loginMethod === 'email'
-                        ? 'bg-[#0f4c2b] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${loginMethod === 'email'
+                      ? 'bg-[#0f4c2b] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
                   >
                     <Mail className="inline w-4 h-4 mr-1" /> Email
                   </button>
                   <button
                     type="button"
-                    disabled
-                    className="flex-1 py-2 px-3 rounded-lg text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed"
+                    onClick={() => setLoginMethod('phone')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${loginMethod === 'phone'
+                      ? 'bg-[#0f4c2b] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
                   >
-                    <Phone className="inline w-4 h-4 mr-1" /> Téléphone (bientôt disponible)
+                    <Phone className="inline w-4 h-4 mr-1" /> Téléphone
                   </button>
                 </div>
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  La connexion par téléphone est temporairement désactivée.
-                  Fonctionnalité en cours de correction.
-                </p>
               </div>
 
-              {/* Connexion par téléphone avec OTP désactivée : on force la méthode email */}
+              {/* Connexion par téléphone avec OTP — rendu EN DEHORS du form email */}
               {loginMethod === 'phone' ? (
-                <></>
+                <PhoneLoginForm />
               ) : (
-                <>
+                /* Formulaire email/password — seul form HTML de la page */
+                <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
                   {/* Email */}
                   <div className="group">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Adresse email
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
-                        </div>
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          required
-                          className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                          placeholder="exemple@buymore.ml"
-                        />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Adresse email
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
                       </div>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                        placeholder="exemple@buymore.ml"
+                      />
                     </div>
+                  </div>
 
                   {/* Mot de passe */}
                   <div className="group">
@@ -169,42 +168,38 @@ export function LoginPage() {
                       </button>
                     </div>
                   </div>
-                </>
+
+                  {/* Mot de passe oublié */}
+                  <div className="flex items-center justify-end">
+                    <Link to="/forgot-password" className="text-sm font-medium text-[#0f4c2b] hover:text-[#1a5f3a] transition-colors">
+                      Mot de passe oublié ?
+                    </Link>
+                  </div>
+
+                  {/* Bouton de connexion */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="group relative w-full flex justify-center items-center py-3 sm:py-4 px-4 border border-transparent text-sm sm:text-base font-semibold rounded-xl text-white bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] hover:from-[#1a5f3a] hover:to-[#0f4c2b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0f4c2b] disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
+                  >
+                    {isLoading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Connexion en cours...
+                      </>
+                    ) : (
+                      <>
+                        Se connecter
+                        <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                </form>
               )}
             </div>
-
-            {/* Mot de passe oublié */}
-            {loginMethod === 'email' && (
-              <div className="flex items-center justify-end">
-                <Link to="/forgot-password" className="text-sm font-medium text-[#0f4c2b] hover:text-[#1a5f3a] transition-colors">
-                  Mot de passe oublié ?
-                </Link>
-              </div>
-            )}
-
-            {/* Bouton de connexion */}
-            {loginMethod === 'email' && (
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative w-full flex justify-center items-center py-3 sm:py-4 px-4 border border-transparent text-sm sm:text-base font-semibold rounded-xl text-white bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] hover:from-[#1a5f3a] hover:to-[#0f4c2b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0f4c2b] disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
-              >
-                {isLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Connexion en cours...
-                  </>
-                ) : (
-                  <>
-                    Se connecter
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            )}
 
             {/* Lien inscription */}
             <div className="text-center">
@@ -215,7 +210,7 @@ export function LoginPage() {
                 </Link>
               </p>
             </div>
-          </form>
+          </div>
         </div>
       </div>
 

@@ -93,7 +93,14 @@ class ApiClient {
           } else if (data.message) {
             errorMessage = data.message;
           } else if (data.error) {
-            errorMessage = data.error;
+            // data.error peut être un string ou un objet {message, code, stack}
+            if (typeof data.error === 'string') {
+              errorMessage = data.error;
+            } else if (typeof data.error === 'object' && data.error.message) {
+              errorMessage = data.error.message;
+            } else {
+              errorMessage = JSON.stringify(data.error);
+            }
           } else if (data.non_field_errors) {
             errorMessage = Array.isArray(data.non_field_errors)
               ? data.non_field_errors.join(', ')
@@ -132,7 +139,7 @@ class ApiClient {
             ...options.headers,
           });
         }
-        
+
         return {
           error: errorMessage,
           status: response.status,
@@ -208,9 +215,9 @@ class ApiClient {
       if (this.token) {
         headers['Authorization'] = `Bearer ${this.token}`;
       }
-      
+
       console.log('📤 Upload request:', { url, fieldName, fileName: file.name, fileSize: file.size, hasToken: !!this.token });
-      
+
       const response = await fetch(url, {
         method: 'POST',
         headers,

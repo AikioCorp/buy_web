@@ -15,7 +15,7 @@ interface AuthState {
 
   // Actions
   login: (identifier: string, password: string, method?: 'email' | 'phone') => Promise<boolean>;
-  register: (data: any) => Promise<boolean>;
+  register: (data: any) => Promise<boolean | 'requires_otp'>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   clearError: () => void;
@@ -95,7 +95,7 @@ const determineRole = (user: User | any): UserRole => {
   if (user.role) {
     const rawRole = user.role.toString().toLowerCase();
     console.log('User has explicit role:', rawRole);
-    
+
     // Mapper les différentes valeurs possibles
     if (rawRole === 'super_admin' || rawRole === 'superuser' || rawRole === 'superadmin') {
       return 'super_admin';
@@ -134,8 +134,8 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           // Préparer les données de connexion selon la méthode
-          const loginData = method === 'phone' 
-            ? { phone: identifier, password } 
+          const loginData = method === 'phone'
+            ? { phone: identifier, password }
             : { email: identifier, password };
           const response = await authService.login(loginData);
           console.log('Login Response:', response);
@@ -230,8 +230,17 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
           if (response.data) {
-            // Au cas où le register renvoie aussi un token (auto-login)
             const responseData = response.data as any;
+
+            // ⚠️ Si l'OTP est requis (inscription avec téléphone),
+            // ne PAS auto-login, juste signaler au composant
+            if (responseData.requires_otp === true) {
+              set({ isLoading: false, error: null });
+              // Retourner 'requires_otp' pour que le composant puisse réagir
+              return 'requires_otp';
+            }
+
+            // Cas standard : auto-login avec token
             const token = responseData.token || responseData.access_token;
             if (token) apiClient.setToken(token);
 
@@ -310,7 +319,7 @@ export const useAuthStore = create<AuthState>()(
             // car false peut écraser un true légitime (ex: is_staff=true écrasé par false)
             const existingUser = get().user as any;
             const newData = response.data as any;
-            
+
             const mergedUser: any = {
               ...newData,
               // Préserver le flag s'il est true dans l'état existant OU dans la nouvelle réponse
