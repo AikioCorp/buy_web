@@ -8,7 +8,7 @@ import { useOrders } from '../../../hooks/useOrders'
 import { useFavorites } from '../../../hooks/useFavorites'
 import { useProducts } from '../../../hooks/useProducts'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 // Fonction utilitaire pour construire l'URL de l'image
 const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
@@ -316,15 +316,15 @@ const ClientDashboardPage: React.FC = () => {
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
               <h3 className="font-bold text-gray-900 mb-3">Actions rapides</h3>
               <div className="space-y-2">
-                <button className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                <a href="/client/addresses" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
                   <MapPin size={16} /> Gérer adresses
-                </button>
-                <button className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                </a>
+                <a href="/client/settings" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
                   <Bell size={16} /> Préférences
-                </button>
-                <button className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
-                  <Download size={16} /> Télécharger factures
-                </button>
+                </a>
+                <a href="/client/orders" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                  <Download size={16} /> Mes commandes
+                </a>
               </div>
             </div>
           </div>

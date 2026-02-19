@@ -32,7 +32,7 @@ const getImageUrl = (product: Product): string | undefined => {
     url = url.replace('http://', 'https://')
   }
   if (url.startsWith('https://')) return url
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
 }
 

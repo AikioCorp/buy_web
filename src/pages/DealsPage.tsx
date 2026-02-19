@@ -32,7 +32,7 @@ const getPrice = (product: Product): number => {
   return parseFloat(product.base_price) || 0
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 // Helper to get image URL
 const getImageUrl = (product: Product): string | undefined => {

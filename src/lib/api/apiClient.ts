@@ -111,15 +111,10 @@ class ApiClient {
             }
           }
         }
-        console.error('API Error:', response.status, errorMessage, data);
-        console.error('Failed endpoint:', endpoint);
-        console.error('Request headers:', {
-          ...this.getHeaders(),
-          ...options.headers,
-        });
-        
         // Auto-logout on 401 Unauthorized (token expired or invalid)
         if (response.status === 401) {
+          // Ne pas logger les 401 car ils sont gérés automatiquement
+          console.log('🔒 Session expirée, redirection vers login...');
           this.setToken(null);
           localStorage.removeItem('auth-storage'); // Clear zustand persisted auth
           // Redirect to login if not already there
@@ -128,6 +123,14 @@ class ApiClient {
             const loginUrl = `${window.location.origin}/login?session_expired=true`;
             window.location.replace(loginUrl);
           }
+        } else {
+          // Logger les autres erreurs (pas les 401)
+          console.error('API Error:', response.status, errorMessage, data);
+          console.error('Failed endpoint:', endpoint);
+          console.error('Request headers:', {
+            ...this.getHeaders(),
+            ...options.headers,
+          });
         }
         
         return {

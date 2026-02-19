@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/Card'
 import { Trash2, ShoppingBag, MessageCircle } from 'lucide-react'
 import { LoginPopup } from '@/components/LoginPopup'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 // Fonction pour obtenir l'URL de l'image du produit
 const getProductImageUrl = (product: any): string | null => {

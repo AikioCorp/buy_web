@@ -9,12 +9,29 @@ import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersServic
 import { shopsService } from '../../../lib/api/shopsService'
 import { useToast } from '../../../components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 interface Shop {
   id: number
   name: string
   is_active: boolean
+}
+
+// Cache pour les slugs des produits
+const productSlugCache = new Map<number, string | null>()
+
+const fetchProductSlug = async (productId: number): Promise<string | null> => {
+  if (productSlugCache.has(productId)) return productSlugCache.get(productId)!
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/products/${productId}`)
+    if (!response.ok) return null
+    const result = await response.json()
+    const slug = result.data?.slug || null
+    productSlugCache.set(productId, slug)
+    return slug
+  } catch {
+    return null
+  }
 }
 
 const getImageUrl = (item: any): string | null => {
@@ -235,12 +252,14 @@ const SuperAdminOrdersPage: React.FC = () => {
     }
   }
 
-  const handleProductClick = (productId: number, productSlug?: string) => {
-    if (productSlug) {
-      navigate(`/products/${productSlug}`)
-    } else if (productId) {
-      navigate(`/products/${productId}`)
+  const handleProductClick = async (e: React.MouseEvent, productId: number, productSlug?: string) => {
+    e.stopPropagation()
+    let slug = productSlug || productSlugCache.get(productId)
+    if (!slug && productId) {
+      slug = await fetchProductSlug(productId)
     }
+    const url = `/products/${slug || productId}`
+    window.open(url, '_blank')
   }
 
   const formatPrice = (price: string) => {
@@ -619,8 +638,9 @@ const SuperAdminOrdersPage: React.FC = () => {
                       return (
                       <div
                         key={item.id}
-                        onClick={() => handleProductClick(item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
+                        onClick={(e) => handleProductClick(e, item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
                         className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                        title="Ouvrir dans un nouvel onglet"
                       >
                         <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                           {getImageUrl(item) ? (
@@ -652,8 +672,9 @@ const SuperAdminOrdersPage: React.FC = () => {
                     viewingOrder.items.map((item) => (
                       <div
                         key={item.id}
-                        onClick={() => handleProductClick((item as any).product_id || item.product?.id, (item as any).product_slug || item.product?.slug)}
+                        onClick={(e) => handleProductClick(e, (item as any).product_id || item.product?.id, (item as any).product_slug || item.product?.slug)}
                         className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                        title="Ouvrir dans un nouvel onglet"
                       >
                         <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                           {getImageUrl(item) ? (

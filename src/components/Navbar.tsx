@@ -272,7 +272,7 @@ export function Navbar() {
     setShowSearchSuggestions(false)
     switch (suggestion.type) {
       case 'product':
-        navigate(`/products/${suggestion.id}`)
+        navigate(`/products/${suggestion.slug || suggestion.id}`)
         break
       case 'shop':
         navigate(`/shops/${suggestion.slug || suggestion.id}`)
@@ -401,7 +401,7 @@ export function Navbar() {
             {user ? (
               <>
                 <Link
-                  to="/dashboard"
+                  to={user.is_superuser ? '/superadmin' : user.is_staff ? '/admin' : user.is_seller ? '/dashboard' : '/client'}
                   className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -411,14 +411,44 @@ export function Navbar() {
                   Mon compte
                 </Link>
                 {user.is_seller && (
-                  <Link
-                    to="/vendor/shops"
-                    className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <Store className="w-5 h-5" />
-                    Mes boutiques
-                  </Link>
+                  <>
+                    <Link
+                      to="/dashboard/store"
+                      className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Store className="w-5 h-5" />
+                      Ma boutique
+                    </Link>
+                    <Link
+                      to="/dashboard/products"
+                      className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Package className="w-5 h-5" />
+                      Mes produits
+                    </Link>
+                  </>
+                )}
+                {!user.is_seller && !user.is_staff && !user.is_superuser && (
+                  <>
+                    <Link
+                      to="/client/orders"
+                      className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Package className="w-5 h-5" />
+                      Mes commandes
+                    </Link>
+                    <Link
+                      to="/client/favorites"
+                      className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Heart className="w-5 h-5" />
+                      Mes favoris
+                    </Link>
+                  </>
                 )}
                 <button
                   onClick={() => {
@@ -804,11 +834,17 @@ export function Navbar() {
                     </div>
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-white text-gray-900 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all border border-gray-100">
-                    <Link to="/dashboard" className="block px-4 py-2 hover:bg-gray-50 rounded-t-lg">Mon compte</Link>
+                    <Link to={user.is_superuser ? '/superadmin' : user.is_staff ? '/admin' : user.is_seller ? '/dashboard' : '/client'} className="block px-4 py-2 hover:bg-gray-50 rounded-t-lg">Mon compte</Link>
                     {user.is_seller && (
                       <>
-                        <Link to="/vendor/shops" className="block px-4 py-2 hover:bg-gray-50">Mes boutiques</Link>
-                        <Link to="/vendor/products" className="block px-4 py-2 hover:bg-gray-50">Mes produits</Link>
+                        <Link to="/dashboard/store" className="block px-4 py-2 hover:bg-gray-50">Ma boutique</Link>
+                        <Link to="/dashboard/products" className="block px-4 py-2 hover:bg-gray-50">Mes produits</Link>
+                      </>
+                    )}
+                    {!user.is_seller && !user.is_staff && !user.is_superuser && (
+                      <>
+                        <Link to="/client/orders" className="block px-4 py-2 hover:bg-gray-50">Mes commandes</Link>
+                        <Link to="/client/favorites" className="block px-4 py-2 hover:bg-gray-50">Mes favoris</Link>
                       </>
                     )}
                     <button onClick={handleSignOut} className="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-b-lg flex items-center gap-2 text-red-600">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Search, Package, CheckCircle, Clock, XCircle, Calendar, Loader2, Truck, Eye, X, AlertTriangle, Phone, MapPin, CreditCard } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 const getImageUrl = (item: any): string | null => {
   if (!item) return null;

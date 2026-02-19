@@ -9,7 +9,51 @@ import { ordersService, Order, OrderStatus } from '../../lib/api/ordersService'
 import { vendorService } from '../../lib/api/vendorService'
 import { useToast } from '../../components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+
+// Cache pour les images et slugs chargés depuis l'API
+const productImageCache = new Map<number, string | null>()
+const productSlugCache = new Map<number, string | null>()
+
+// Fonction pour charger l'image et le slug d'un produit depuis l'API
+const fetchProductImage = async (productId: number): Promise<string | null> => {
+  if (productImageCache.has(productId)) {
+    return productImageCache.get(productId)!
+  }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/products/${productId}`)
+    if (!response.ok) return null
+    const result = await response.json()
+    const product = result.data
+    // Cache le slug du produit
+    if (product.slug) {
+      productSlugCache.set(productId, product.slug)
+    }
+    let imageUrl: string | null = null
+    if (product.media && product.media.length > 0) {
+      const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
+      imageUrl = primaryImage?.image_url || primaryImage?.file
+    } else if (product.images && product.images.length > 0) {
+      const primaryImage = product.images.find((img: any) => img.is_primary) || product.images[0]
+      imageUrl = primaryImage?.image || primaryImage?.url || primaryImage?.image_url
+    } else if (product.image_url) {
+      imageUrl = product.image_url
+    } else if (product.thumbnail) {
+      imageUrl = product.thumbnail
+    }
+    if (imageUrl) {
+      if (imageUrl.startsWith('http://')) imageUrl = imageUrl.replace('http://', 'https://')
+      if (!imageUrl.startsWith('https://') && !imageUrl.startsWith('data:')) {
+        imageUrl = `${API_BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
+      }
+    }
+    productImageCache.set(productId, imageUrl)
+    return imageUrl
+  } catch {
+    productImageCache.set(productId, null)
+    return null
+  }
+}
 
 const getImageUrl = (item: any): string | null => {
   if (!item) return null;
@@ -62,14 +106,40 @@ const OrdersPage: React.FC = () => {
   const [newStatus, setNewStatus] = useState<OrderStatus>('pending')
   const [statusNote, setStatusNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [loadedImages, setLoadedImages] = useState<Map<number, string | null>>(new Map())
 
-  const handleProductClick = (productId: number, productSlug?: string) => {
-    if (productSlug) {
-      navigate(`/products/${productSlug}`)
-    } else if (productId) {
-      // Fallback to ID if slug is not available
-      navigate(`/products/${productId}`)
+  // Charger les images manquantes en arrière-plan
+  const loadMissingImages = React.useCallback(async (ordersList: any[]) => {
+    const imagesToLoad: number[] = []
+    for (const order of ordersList) {
+      const items = (order as any).order_items || order.items || []
+      for (const item of items) {
+        if (!getImageUrl(item) && item.product_id && !loadedImages.has(item.product_id)) {
+          imagesToLoad.push(item.product_id)
+        }
+      }
     }
+    if (imagesToLoad.length === 0) return
+    const newImages = new Map(loadedImages)
+    await Promise.all(
+      imagesToLoad.map(async (productId) => {
+        const imageUrl = await fetchProductImage(productId)
+        newImages.set(productId, imageUrl)
+      })
+    )
+    setLoadedImages(newImages)
+  }, [loadedImages])
+
+  const handleProductClick = async (e: React.MouseEvent, productId: number, productSlug?: string) => {
+    e.stopPropagation()
+    let slug = productSlug || productSlugCache.get(productId)
+    if (!slug && productId) {
+      // Fetch slug on-demand if not cached yet
+      await fetchProductImage(productId) // This also caches the slug
+      slug = productSlugCache.get(productId) || undefined
+    }
+    const url = `/products/${slug || productId}`
+    window.open(url, '_blank')
   }
 
   // Calculer le total de la boutique du vendeur pour une commande
@@ -83,15 +153,10 @@ const OrdersPage: React.FC = () => {
         return item.store_id === vendorShopId
       })
       
-      console.log('🏪 Vendor shop_id:', vendorShopId)
-      console.log('📦 Total items:', items.length, '| Vendor items:', vendorItems.length)
-      console.log('🔍 Items store_ids:', items.map((i: any) => ({ name: i.product_name?.substring(0, 30), store_id: i.store_id })))
-      
       const vendorTotal = vendorItems.reduce((sum: number, item: any) => {
         return sum + (parseFloat(item.total_price || 0) || (parseFloat(item.unit_price || 0) * (item.quantity || 0)))
       }, 0)
       
-      console.log('💰 Vendor total:', vendorTotal)
       return vendorTotal
     }
     
@@ -127,7 +192,6 @@ const OrdersPage: React.FC = () => {
         const data = (response.data as any).data || response.data
         if (data.shop_id) {
           setVendorShopId(data.shop_id)
-          console.log('✅ Vendor shop_id loaded:', data.shop_id)
         }
       }
     } catch (err) {
@@ -150,9 +214,11 @@ const OrdersPage: React.FC = () => {
         if (Array.isArray(ordersData)) {
           setOrders(ordersData)
           setTotalCount(ordersData.length)
+          loadMissingImages(ordersData)
         } else if (ordersData.results) {
           setOrders(ordersData.results)
           setTotalCount(ordersData.count)
+          loadMissingImages(ordersData.results)
         } else {
           setOrders([])
           setTotalCount(0)
@@ -274,75 +340,72 @@ const OrdersPage: React.FC = () => {
     : filteredOrders
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestion des Commandes</h1>
-          <p className="text-gray-600 mt-1">
-            {totalCount} commande{totalCount > 1 ? 's' : ''} au total
-          </p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5 text-white" />
+            </div>
+            Gestion des Commandes
+          </h1>
+          <p className="text-gray-500 mt-1">{totalCount} commande{totalCount > 1 ? 's' : ''} au total</p>
         </div>
-        <button
-          onClick={loadOrders}
-          className="mt-4 md:mt-0 flex items-center gap-2 px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-        >
-          <RefreshCw size={18} />
-          Actualiser
-        </button>
       </div>
 
-      {/* Stats Cards - Clickable to filter */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      {/* Stats Cards - Style Admin avec gradients */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {([
-          { key: '' as const, label: 'Toutes', value: orders.length, bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', bold: 'text-gray-900', ring: 'ring-gray-400', icon: <ShoppingBag className="text-gray-600" size={20} /> },
-          { key: 'pending' as const, label: 'En attente', value: orders.filter(o => o.status === 'pending').length, bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', bold: 'text-yellow-900', ring: 'ring-yellow-400', icon: <Clock className="text-yellow-600" size={20} /> },
-          { key: 'processing' as const, label: 'En préparation', value: orders.filter(o => o.status === 'processing').length, bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', bold: 'text-purple-900', ring: 'ring-purple-400', icon: <Package className="text-purple-600" size={20} /> },
-          { key: 'shipped' as const, label: 'Expédiées', value: orders.filter(o => o.status === 'shipped').length, bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', bold: 'text-indigo-900', ring: 'ring-indigo-400', icon: <Truck className="text-indigo-600" size={20} /> },
-          { key: 'delivered' as const, label: 'Livrées', value: orders.filter(o => o.status === 'delivered').length, bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-800', bold: 'text-green-900', ring: 'ring-green-400', icon: <CheckCircle className="text-green-600" size={20} /> },
+          { key: '' as const, label: 'Total', value: orders.length, bg: 'bg-gradient-to-br from-emerald-500 to-green-600' },
+          { key: 'pending' as const, label: 'En attente', value: orders.filter(o => o.status === 'pending').length, bg: 'bg-gradient-to-br from-yellow-500 to-amber-500' },
+          { key: 'confirmed' as const, label: 'Confirmées', value: orders.filter(o => o.status === 'confirmed').length, bg: 'bg-gradient-to-br from-blue-500 to-cyan-600' },
+          { key: 'processing' as const, label: 'En cours', value: orders.filter(o => o.status === 'processing').length, bg: 'bg-gradient-to-br from-purple-500 to-violet-600' },
+          { key: 'shipped' as const, label: 'Expédiées', value: orders.filter(o => o.status === 'shipped').length, bg: 'bg-gradient-to-br from-indigo-500 to-blue-600' },
+          { key: 'delivered' as const, label: 'Livrées', value: orders.filter(o => o.status === 'delivered').length, bg: 'bg-gradient-to-br from-green-500 to-emerald-600' },
         ]).map(card => (
           <button
             key={card.key}
             onClick={() => { setSelectedStatus(card.key as OrderStatus | ''); setCurrentPage(1) }}
-            className={`${card.bg} rounded-lg p-4 border ${card.border} text-left transition-all hover:shadow-md ${selectedStatus === card.key ? `ring-2 ${card.ring} shadow-md` : ''}`}
+            className={`${card.bg} rounded-xl p-4 text-white shadow-sm hover:shadow-md transition-all`}
           >
-            <div className="flex items-center gap-2">
-              {card.icon}
-              <span className={`text-sm font-medium ${card.text}`}>{card.label}</span>
-            </div>
-            <p className={`text-2xl font-bold ${card.bold} mt-2`}>{card.value}</p>
+            <p className="text-sm opacity-90">{card.label}</p>
+            <p className="text-3xl font-bold mt-1">{card.value}</p>
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex flex-col md:flex-row gap-4">
-            <form onSubmit={handleSearch} className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Rechercher une commande..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                />
-              </div>
-            </form>
-
-            <select
-              value={selectedStatus}
-              onChange={(e) => {
-                setSelectedStatus(e.target.value as OrderStatus | '')
-                setCurrentPage(1)
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+      {/* Onglets de filtres + Recherche - Style Admin */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="p-4 border-b border-gray-100">
+          <form onSubmit={handleSearch} className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher une commande..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-100"
+            />
+          </form>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto">
+          {statusOptions.map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => { setSelectedStatus(tab.value as OrderStatus | ''); setCurrentPage(1) }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                selectedStatus === tab.value
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+              {tab.label}
+            </button>
+          ))}
+          <button onClick={loadOrders} className="ml-auto p-2 hover:bg-gray-100 rounded-lg">
+            <RefreshCw size={18} className={`text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         {loading ? (
@@ -540,27 +603,20 @@ const OrdersPage: React.FC = () => {
                 </h3>
                 <div className="space-y-3">
                   {((viewingOrder as any).order_items || viewingOrder.items || []).map((item: any, idx: number) => {
-                    // Debug: log first item data
-                    if (idx === 0) {
-                      console.log('📦 Order item data:', { 
-                        product_id: item.product_id, 
-                        product_slug: item.product_slug,
-                        product_name: item.product_name?.substring(0, 50)
-                      })
-                    }
                     return (
                     <div 
-                      key={item.id} 
-                      onClick={() => handleProductClick(item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
+                      key={item.id || idx} 
+                      onClick={(e) => handleProductClick(e, item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
                       className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors cursor-pointer"
+                      title="Ouvrir dans un nouvel onglet"
                     >
                       <div
                         className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-emerald-500 transition-all"
                         title="Voir le produit"
                       >
-                        {getImageUrl(item) ? (
+                        {(getImageUrl(item) || loadedImages.get(item.product_id)) ? (
                           <img
-                            src={getImageUrl(item)!}
+                            src={(getImageUrl(item) || loadedImages.get(item.product_id))!}
                             alt={item.product_name || item.product?.name || 'Produit'}
                             className="h-full w-full object-cover"
                           />

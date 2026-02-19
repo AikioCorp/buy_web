@@ -12,7 +12,7 @@ interface ProductCardProps {
   dark?: boolean
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 const getImageUrl = (product: any): string | undefined => {
   const mediaArray = product?.media || product?.images || []
@@ -60,8 +60,8 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
   const handleQuickView = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    // Navigate to product page
-    window.location.href = `/products/${product.id}`
+    // Navigate to product page using slug (fallback to ID)
+    window.location.href = `/products/${product.slug || product.id}`
   }
 
   return (

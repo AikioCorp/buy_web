@@ -11,7 +11,7 @@ import { usePermissions } from '../../../hooks/usePermissions'
 import { useToast } from '../../../components/Toast'
 import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 // Fonction utilitaire pour construire l'URL de l'image
 const getProductImageUrl = (media?: ProductMedia[], images?: ProductMedia[]): string | null => {

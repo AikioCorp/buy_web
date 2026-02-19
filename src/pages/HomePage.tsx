@@ -44,7 +44,7 @@ const LazySection = ({ children, fallback, rootMargin = '200px' }: { children: R
   )
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 const getImageUrl = (product: Product): string | null => {
   // Backend returns 'images' from product_media, but interface uses 'media'
@@ -944,10 +944,10 @@ export function HomePage() {
     showToast(added ? 'Ajouté aux favoris !' : 'Retiré des favoris', 'success')
   }
 
-  const handleQuickView = (e: React.MouseEvent, productId: number) => {
+  const handleQuickView = (e: React.MouseEvent, product: any) => {
     e.preventDefault()
     e.stopPropagation()
-    navigate(`/products/${productId}`)
+    navigate(`/products/${product.slug || product.id}`)
   }
 
   const ProductCard = ({ product, index, showDiscount = false, dark = false }: { product: any, index: number, showDiscount?: boolean, dark?: boolean }) => {
@@ -1010,7 +1010,7 @@ export function HomePage() {
               <ShoppingCart className="w-4 h-4" />
             </button>
             <button
-              onClick={(e) => handleQuickView(e, product.id)}
+              onClick={(e) => handleQuickView(e, product)}
               className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
             >
               <Eye className="w-4 h-4" />

@@ -8,7 +8,7 @@ import { useFavoritesStore } from '@/store/favoritesStore'
 import { useCartStore } from '@/store/cartStore'
 import { useToast } from '@/components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 const formatPrice = (price: number | string, currency: string = 'XOF') => {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price

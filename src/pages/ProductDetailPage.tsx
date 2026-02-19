@@ -107,7 +107,7 @@ export function ProductDetailPage() {
     if (!mediaArray || mediaArray.length === 0) {
       return []
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
     return mediaArray.map((m: any) => {
       let url = m.image_url || m.file
       if (!url) return null
@@ -296,7 +296,7 @@ export function ProductDetailPage() {
   const getFirstImageUrl = () => {
     const mediaArray = product?.media || (product as any)?.images || []
     if (!mediaArray || mediaArray.length === 0) return null
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
     const firstMedia = mediaArray[0]
     let url = firstMedia?.image_url || firstMedia?.file
     if (!url) return null
@@ -890,7 +890,7 @@ export function ProductDetailPage() {
               {similarProducts.map((relProduct) => {
                 const productImages = relProduct.media || (relProduct as any).images || []
                 const imageUrl = productImages[0]?.image_url || productImages[0]?.file
-                const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+                const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
                 const fullImageUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`) : null
                 
                 return (

@@ -27,18 +27,26 @@ type SidebarLinkProps = {
   end?: boolean
   disabled?: boolean
   onClick?: () => void
+  isCollapsed?: boolean
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, disabled, onClick }) => {
+const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, disabled, onClick, isCollapsed }) => {
   if (disabled) {
     return (
-      <div className="group flex items-center gap-3 px-4 py-3 rounded-xl opacity-50 cursor-not-allowed">
+      <div 
+        className={`group flex items-center gap-3 rounded-xl opacity-50 cursor-not-allowed relative ${isCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3'}`}
+        title={isCollapsed ? label : undefined}
+      >
         <div className="w-5 h-5 flex-shrink-0">{icon}</div>
-        <span className="font-medium flex-1 text-gray-400">{label}</span>
-        {badge !== undefined && (
-          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-400">
-            {badge}
-          </span>
+        {!isCollapsed && (
+          <>
+            <span className="font-medium flex-1 text-gray-400">{label}</span>
+            {badge !== undefined && (
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-400">
+                {badge}
+              </span>
+            )}
+          </>
         )}
       </div>
     )
@@ -50,25 +58,36 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ to, icon, label, badge, end, 
       end={end}
       onClick={onClick}
       className={({ isActive }) => `
-        group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+        group flex items-center gap-3 rounded-xl transition-all duration-200 relative
+        ${isCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3'}
         ${isActive 
           ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/25' 
           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
       `}
+      title={isCollapsed ? label : undefined}
     >
       <div className="w-5 h-5 flex-shrink-0">{icon}</div>
-      <span className="font-medium flex-1">{label}</span>
-      {badge !== undefined && (
-        <span className={`
-          px-2 py-0.5 text-xs font-semibold rounded-full
-          ${typeof badge === 'number' && badge > 0 
-            ? 'bg-red-500 text-white' 
-            : 'bg-gray-200 text-gray-600'}
-        `}>
-          {badge}
+      {!isCollapsed && (
+        <>
+          <span className="font-medium flex-1">{label}</span>
+          {badge !== undefined && (
+            <span className={`
+              px-2 py-0.5 text-xs font-semibold rounded-full
+              ${typeof badge === 'number' && badge > 0 
+                ? 'bg-red-500 text-white' 
+                : 'bg-gray-200 text-gray-600'}
+            `}>
+              {badge}
+            </span>
+          )}
+          <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+        </>
+      )}
+      {isCollapsed && badge !== undefined && typeof badge === 'number' && badge > 0 && (
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+          {badge > 9 ? '9+' : badge}
         </span>
       )}
-      <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
     </NavLink>
   )
 }
@@ -192,10 +211,9 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClo
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={handleLinkClick} />
-          <SidebarLink to="/dashboard/store" icon={<Store size={20} />} label="Ma Boutique" onClick={handleLinkClick} />
-          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} disabled={!shop?.is_active} onClick={handleLinkClick} />
-          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} disabled={!shop?.is_active} onClick={handleLinkClick} />
+          <SidebarLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -204,19 +222,20 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClo
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" disabled={!shop?.is_active} onClick={handleLinkClick} />
-          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" disabled={!shop?.is_active} onClick={handleLinkClick} />
-          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" disabled={!shop?.is_active} onClick={handleLinkClick} />
+          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
           <p className="px-4 py-2 mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Paramètres
+            Ma Boutique
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard/settings" icon={<Settings size={20} />} label="Paramètres" onClick={handleLinkClick} />
-          <SidebarLink to="/dashboard/help" icon={<HelpCircle size={20} />} label="Aide & Support" onClick={handleLinkClick} />
+          <SidebarLink to="/dashboard/store" icon={<Store size={20} />} label="Ma Boutique" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/settings" icon={<Settings size={20} />} label="Paramètres" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/help" icon={<HelpCircle size={20} />} label="Aide & Support" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
       </nav>
 
@@ -234,7 +253,10 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClo
       <div className="p-3 border-t border-gray-100">
         <button 
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+          className={`w-full flex items-center gap-3 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all ${
+            isOpen ? 'px-4' : 'px-2 justify-center'
+          }`}
+          title={!isOpen ? 'Déconnexion' : undefined}
         >
           <LogOut size={20} />
           {isOpen && <span className="font-medium">Déconnexion</span>}

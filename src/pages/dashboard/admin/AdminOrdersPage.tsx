@@ -9,10 +9,11 @@ import { usePermissions } from '../../../hooks/usePermissions'
 import { useAuthStore } from '../../../store/authStore'
 import { useToast } from '../../../components/Toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://apibuy.buymore.ml'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
-// Cache pour les images chargées depuis l'API
+// Cache pour les images et slugs chargés depuis l'API
 const productImageCache = new Map<number, string | null>()
+const productSlugCache = new Map<number, string | null>()
 
 // Fonction pour charger l'image d'un produit depuis l'API
 const fetchProductImage = async (productId: number): Promise<string | null> => {
@@ -26,6 +27,10 @@ const fetchProductImage = async (productId: number): Promise<string | null> => {
     
     const result = await response.json()
     const product = result.data
+    // Cache le slug du produit
+    if (product.slug) {
+      productSlugCache.set(productId, product.slug)
+    }
     
     let imageUrl: string | null = null
     
@@ -145,13 +150,15 @@ const AdminOrdersPage: React.FC = () => {
   const [statusNote, setStatusNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const handleProductClick = (productId: number, productSlug?: string) => {
-    if (productSlug) {
-      navigate(`/products/${productSlug}`)
-    } else if (productId) {
-      // Fallback to ID if slug is not available
-      navigate(`/products/${productId}`)
+  const handleProductClick = async (e: React.MouseEvent, productId: number, productSlug?: string) => {
+    e.stopPropagation()
+    let slug = productSlug || productSlugCache.get(productId)
+    if (!slug && productId) {
+      await fetchProductImage(productId) // This also caches the slug
+      slug = productSlugCache.get(productId) || undefined
     }
+    const url = `/products/${slug || productId}`
+    window.open(url, '_blank')
   }
 
   const handleStatusClick = (order: Order) => {
@@ -668,7 +675,7 @@ const AdminOrdersPage: React.FC = () => {
                                   return (
                                     <div key={item.id || idx} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                       <button
-                                        onClick={(e) => { e.stopPropagation(); productId && handleProductClick(productId, item.product_slug || item.product?.slug) }}
+                                        onClick={(e) => { e.stopPropagation(); productId && handleProductClick(e, productId, item.product_slug || item.product?.slug) }}
                                         className={`w-14 h-14 sm:w-16 sm:h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 transition-all ${productId ? 'hover:ring-2 hover:ring-indigo-500 cursor-pointer' : 'cursor-default'}`}
                                         title={productId ? 'Voir le produit' : ''}
                                       >
@@ -682,7 +689,7 @@ const AdminOrdersPage: React.FC = () => {
                                       </button>
                                       <div className="flex-1 min-w-0">
                                         <button
-                                          onClick={(e) => { e.stopPropagation(); productId && handleProductClick(productId, item.product_slug || item.product?.slug) }}
+                                          onClick={(e) => { e.stopPropagation(); productId && handleProductClick(e, productId, item.product_slug || item.product?.slug) }}
                                           className={`font-medium text-xs sm:text-sm text-gray-900 text-left block ${productId ? 'hover:text-indigo-600 cursor-pointer' : ''} transition-colors line-clamp-2`}
                                         >
                                           {item.product_name || item.product?.name || 'Produit'}
@@ -712,7 +719,7 @@ const AdminOrdersPage: React.FC = () => {
                           return (
                             <div key={item.id || index} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-indigo-200 transition-colors">
                               <button
-                                onClick={(e) => { e.stopPropagation(); productId && handleProductClick(productId, item.product_slug || item.product?.slug) }}
+                                onClick={(e) => { e.stopPropagation(); productId && handleProductClick(e, productId, item.product_slug || item.product?.slug) }}
                                 className={`w-14 h-14 sm:w-16 sm:h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 transition-all ${productId ? 'hover:ring-2 hover:ring-indigo-500 cursor-pointer' : 'cursor-default'}`}
                                 title={productId ? 'Voir le produit' : ''}
                               >
@@ -726,7 +733,7 @@ const AdminOrdersPage: React.FC = () => {
                               </button>
                               <div className="flex-1 min-w-0">
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); productId && handleProductClick(productId, item.product_slug || item.product?.slug) }}
+                                  onClick={(e) => { e.stopPropagation(); productId && handleProductClick(e, productId, item.product_slug || item.product?.slug) }}
                                   className={`font-semibold text-xs sm:text-sm text-gray-900 text-left block ${productId ? 'hover:text-indigo-600 cursor-pointer' : ''} transition-colors line-clamp-2`}
                                 >
                                   {item.product_name || item.product?.name || 'Produit'}
