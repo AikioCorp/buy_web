@@ -69,6 +69,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (isOpen) {
       loadCategories()
       setActiveTab('general')
+      setError(null)
+      setSuccess(null)
+      
       if (product) {
         setFormData({
           name: product.name || '',
@@ -134,10 +137,16 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         setShowStockInput(false)
         setSeoData({ meta_title: '', meta_description: '', tags: [] })
       }
-      setError(null)
-      setSuccess(null)
     }
   }, [isOpen, product])
+
+  // Cleanup pour éviter les fuites mémoire
+  useEffect(() => {
+    return () => {
+      // Réinitialiser les previews d'images pour libérer la mémoire
+      imagePreviewUrls.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [])
 
   const loadCategories = async () => {
     try {
@@ -178,14 +187,22 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   }
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files)
+      setImages(prev => [...prev, ...newFiles])
+      // Generate preview URLs
+      const newUrls = newFiles.map(file => URL.createObjectURL(file))
+      setImagePreviewUrls(prev => [...prev, ...newUrls])
+    }
+  }
 
-    const newFiles = Array.from(files)
-    const newPreviewUrls = newFiles.map(file => URL.createObjectURL(file))
-
-    setImages(prev => [...prev, ...newFiles])
-    setImagePreviewUrls(prev => [...prev, ...newPreviewUrls])
+  const handleRemoveImage = (index: number) => {
+    // Libérer la mémoire de l'URL de preview
+    if (imagePreviewUrls[index]) {
+      URL.revokeObjectURL(imagePreviewUrls[index])
+    }
+    setImages(prev => prev.filter((_, i) => i !== index))
+    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index))
   }
 
   const removeImage = (index: number) => {
@@ -355,10 +372,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         }
       }
 
-      setTimeout(() => {
-        onSuccess()
-        onClose()
-      }, 1500)
+      // Appeler onSuccess sans délai pour éviter les problèmes de timing
+      onSuccess()
+      // Le modal sera fermé par le parent via handleFormSuccess
 
     } catch (err: any) {
       setError(err.message || 'Une erreur est survenue')

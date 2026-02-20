@@ -38,7 +38,6 @@ import DashboardLayout from './components/dashboard/DashboardLayout'
 import {
   VendorDashboardPage,
   ProductsPage,
-  OrdersPage,
   SettingsPage,
   StorePage,
   AnalyticsPage,
@@ -46,6 +45,7 @@ import {
   ShippingPage,
   HelpPage
 } from './pages/dashboard'
+import VendorOrdersPage from './pages/dashboard/VendorOrdersPage'
 
 // Import du Layout Dashboard Client
 import { ClientDashboardLayout } from './components/dashboard/client'
@@ -158,7 +158,7 @@ function App() {
                 <Route index element={<VendorDashboardPage />} />
                 <Route path="store" element={<StorePage />} />
                 <Route path="products" element={<ProductsPage />} />
-                <Route path="orders" element={<OrdersPage />} />
+                <Route path="orders" element={<VendorOrdersPage />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
                 <Route path="earnings" element={<EarningsPage />} />
                 <Route path="shipping" element={<ShippingPage />} />

@@ -304,6 +304,13 @@ const ProductsPage: React.FC = () => {
     loadData()
   }, [currentPage])
 
+  // Cleanup pour éviter les fuites mémoire
+  useEffect(() => {
+    return () => {
+      // Cleanup si nécessaire
+    }
+  }, [])
+
   const loadData = async () => {
     try {
       setLoading(true)
@@ -398,8 +405,15 @@ const ProductsPage: React.FC = () => {
   }
 
   const handleFormSuccess = () => {
-    loadData()
-    setMessage({ type: 'success', text: editingProduct ? 'Produit mis à jour!' : 'Produit créé!' })
+    // Fermer le modal d'abord pour éviter les re-renders
+    setIsFormModalOpen(false)
+    setEditingProduct(null)
+    
+    // Recharger les données après un court délai
+    setTimeout(() => {
+      loadData()
+      setMessage({ type: 'success', text: editingProduct ? 'Produit mis à jour!' : 'Produit créé!' })
+    }, 300)
   }
 
   // Filter products
