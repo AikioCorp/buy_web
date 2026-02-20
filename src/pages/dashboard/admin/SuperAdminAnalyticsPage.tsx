@@ -7,6 +7,7 @@ import { usersService } from '../../../lib/api/usersService'
 import { ordersService } from '../../../lib/api/ordersService'
 import { shopsService } from '../../../lib/api/shopsService'
 import { productsService } from '../../../lib/api/productsService'
+import { usePermissions } from '../../../hooks/usePermissions'
 
 interface Stats {
   totalUsers: number
@@ -17,6 +18,10 @@ interface Stats {
 }
 
 const SuperAdminAnalyticsPage: React.FC = () => {
+  const {
+    canViewAnalytics,
+    isSuperAdmin
+  } = usePermissions()
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     totalOrders: 0,

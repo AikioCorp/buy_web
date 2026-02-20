@@ -8,6 +8,7 @@ import { authService } from '@/lib/api/authService'
 export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [registerMethod, setRegisterMethod] = useState<'email' | 'phone'>('email')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState('customer')
@@ -124,13 +125,21 @@ export function RegisterPage() {
       finalShopPhone = formatMaliPhone(shopPhone)
     }
 
+    // Pour l'onglet téléphone : générer email et mot de passe automatiquement
+    const finalEmail = registerMethod === 'phone'
+      ? `${username}@buymore-user.local`
+      : email
+    const finalPassword = registerMethod === 'phone'
+      ? `BM_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+      : password
+
     const registerData = {
       username,
-      email: email,
-      password,
+      email: finalEmail,
+      password: finalPassword,
       first_name: firstName,
       last_name: lastName,
-      phone: phoneNumber || undefined,
+      phone: phoneNumber,
       is_seller: role === 'vendor',
       store_name: role === 'vendor' ? shopName : undefined,
       store_description: role === 'vendor' ? shopDescription : undefined,
@@ -392,7 +401,31 @@ export function RegisterPage() {
                   </div>
                 )}
 
-                {/* Formulaire email — seul <form> HTML de la page */}
+                {/* Onglets Email / Téléphone */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRegisterMethod('email')}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${registerMethod === 'email'
+                      ? 'bg-[#0f4c2b] text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                  >
+                    <Mail className="inline w-4 h-4 mr-1.5" /> Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegisterMethod('phone')}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${registerMethod === 'phone'
+                      ? 'bg-[#0f4c2b] text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                  >
+                    <Phone className="inline w-4 h-4 mr-1.5" /> Téléphone
+                  </button>
+                </div>
+
+                {/* Formulaire d'inscription */}
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                   {/* Nom complet */}
                   <div className="group">
@@ -414,59 +447,63 @@ export function RegisterPage() {
                     </div>
                   </div>
 
-                  {/* Email */}
-                  <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Adresse email
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                  {/* Email — uniquement en mode email */}
+                  {registerMethod === 'email' && (
+                    <div className="group">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Adresse email
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                        </div>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                          className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                          placeholder="votre@email.com"
+                        />
                       </div>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                        placeholder="votre@email.com"
-                      />
                     </div>
-                  </div>
+                  )}
 
-                  {/* Mot de passe */}
-                  <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Mot de passe
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                  {/* Mot de passe — uniquement en mode email */}
+                  {registerMethod === 'email' && (
+                    <div className="group">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Mot de passe
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#0f4c2b] transition-colors" />
+                        </div>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          minLength={6}
+                          className="block w-full pl-12 pr-12 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
                       </div>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                        className="block w-full pl-12 pr-12 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
+                      <p className="mt-1 text-xs text-gray-500">Minimum 6 caractères</p>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Minimum 6 caractères</p>
-                  </div>
+                  )}
 
-                  {/* Numéro de téléphone (optionnel) */}
+                  {/* Numéro de téléphone (optionnel en mode email, obligatoire en mode phone) */}
                   <div className="group">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Numéro de téléphone <span className="text-gray-400 font-normal">(optionnel)</span>
+                      Numéro de téléphone {registerMethod === 'email' && <span className="text-gray-400 font-normal">(optionnel)</span>}
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -474,20 +511,23 @@ export function RegisterPage() {
                       </div>
                       <input
                         type="tel"
-                        value={phoneNumber}
+                        value={phoneNumber.replace(/(\d{2})(?=\d)/g, '$1 ').trim()}
                         onChange={(e) => {
                           const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
                           setPhoneNumber(value)
                         }}
-                        maxLength={8}
+                        required={registerMethod === 'phone'}
+                        maxLength={11}
                         className="block w-full pl-12 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-xl text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all bg-gray-50 focus:bg-white"
                         placeholder="70 00 00 00"
                       />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
-                      <Shield className="h-3 w-3" />
-                      Si fourni, un code SMS sera envoyé pour vérification
-                    </p>
+                    {phoneNumber && (
+                      <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                        <Shield className="h-3 w-3" />
+                        Un code SMS sera envoyé pour vérification
+                      </p>
+                    )}
                   </div>
                   {/* Type de compte */}
                   <div>

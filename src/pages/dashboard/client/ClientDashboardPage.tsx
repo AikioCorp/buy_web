@@ -31,7 +31,7 @@ const StatCard = ({ title, value, icon, color, trend }: { title: string, value: 
       <h3 className="text-3xl font-bold mt-2">{value}</h3>
       {trend && <p className="text-xs text-gray-500 mt-1">{trend}</p>}
     </div>
-    <div className={`${color} p-3 rounded-lg`}>{icon}</div>
+    <div className="p-3 rounded-lg" style={{ background: color }}>{icon}</div>
   </div>
 )
 

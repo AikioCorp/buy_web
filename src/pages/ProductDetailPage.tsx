@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useToast } from '@/components/Toast'
 import { LoginPopup } from '@/components/LoginPopup'
 import { Button } from '@/components/Button'
+import { SmartBackButton } from '@/components/SmartBackButton'
 import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight, Star, Truck, Shield, RefreshCw, Check, MessageCircle, X, ZoomIn } from 'lucide-react'
 
 // Helper to format price
@@ -335,6 +336,11 @@ export function ProductDetailPage() {
           <span className="mx-2">/</span>
           <span className="text-gray-900">{product.name}</span>
         </nav>
+
+        {/* Smart Back Button */}
+        <div className="mb-6">
+          <SmartBackButton />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Images Section */}

@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { shopsService, Shop } from '@/lib/api/shopsService'
 import { productsService, Product } from '@/lib/api/productsService'
 import { CardContent } from '@/components/Card'
+import { SmartBackButton } from '@/components/SmartBackButton'
 import { Package, Store, Star, ShoppingBag, Heart, ShoppingCart, Eye, ChevronRight, MapPin, ArrowLeft, MessageCircle } from 'lucide-react'
 import { useFavoritesStore } from '@/store/favoritesStore'
 import { useCartStore } from '@/store/cartStore'
@@ -145,14 +146,12 @@ export function ShopDetailPage() {
         } : {}}
       >
         <div className="absolute inset-0 bg-black/30"></div>
-        {/* Back Button */}
-        <button 
-          onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 z-20 flex items-center gap-2 px-4 py-2 bg-white/90 hover:bg-white text-gray-800 rounded-full shadow-lg transition-all"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Retour</span>
-        </button>
+        {/* Smart Back Button */}
+        <div className="absolute top-4 left-4 z-20">
+          <SmartBackButton 
+            className="bg-white/90 hover:bg-white text-gray-800 rounded-full shadow-lg" 
+          />
+        </div>
       </div>
 
       <div className="container mx-auto px-4">

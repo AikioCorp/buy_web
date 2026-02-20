@@ -31,7 +31,7 @@ const StatCard = ({
           <span>{change}</span>
         </div>
       </div>
-      <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: color }}>
         {icon}
       </div>
     </div>

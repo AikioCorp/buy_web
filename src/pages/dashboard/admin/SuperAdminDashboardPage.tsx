@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   TrendingUp, DollarSign, Users, ShoppingBag, Store, Package,
-  Settings, Download, Activity, ArrowUp
+  Settings, Download, Activity, ArrowUp, RefreshCw
 } from 'lucide-react'
-import { usersService } from '../../../lib/api/usersService'
-import { ordersService } from '../../../lib/api/ordersService'
-import { shopsService } from '../../../lib/api/shopsService'
-import { productsService } from '../../../lib/api/productsService'
+import { useDashboardCache } from '../../../hooks/useDashboardCache'
 
 interface DashboardStats {
   totalUsers: number
@@ -29,14 +26,19 @@ const MetricCard = ({ title, value, change, icon, color, loading }: any) => (
           {change || ''}
         </div>
       </div>
-      <div className={`${color} p-3 rounded-lg`}>{icon}</div>
+      <div className="p-3 rounded-lg" style={{ background: color }}>{icon}</div>
     </div>
   </div>
 )
 
 const SuperAdminDashboardPage: React.FC = () => {
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month')
-  const [stats, setStats] = useState<DashboardStats>({
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  
+  // Utiliser le hook de cache
+  const { data, loading, error, loadDashboardData, refreshStats, isDataStale } = useDashboardCache()
+  
+  const stats = data?.stats || {
     totalUsers: 0,
     totalOrders: 0,
     totalShops: 0,
@@ -44,76 +46,20 @@ const SuperAdminDashboardPage: React.FC = () => {
     totalRevenue: 0,
     pendingOrders: 0,
     activeVendors: 0
-  })
-  const [loading, setLoading] = useState(true)
-  const [recentOrders, setRecentOrders] = useState<any[]>([])
-
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true)
-      
-      const [usersRes, ordersRes, shopsRes, productsRes] = await Promise.allSettled([
-        usersService.getAllUsers(1, 1),
-        ordersService.getAllOrdersAdmin({ page: 1 }),
-        shopsService.getAllShopsAdmin({ page: 1 }),
-        productsService.getAllProductsAdmin({ page: 1 })
-      ])
-
-      let totalUsers = 0
-      let totalOrders = 0
-      let totalShops = 0
-      let totalProducts = 0
-      let totalRevenue = 0
-      let pendingOrders = 0
-      let activeVendors = 0
-
-      if (usersRes.status === 'fulfilled' && usersRes.value.data) {
-        totalUsers = usersRes.value.data.count || 0
-        // Compter les vendeurs actifs
-        if (usersRes.value.data.results) {
-          activeVendors = usersRes.value.data.results.filter((u: any) => u.is_seller && u.is_active).length
-        }
-      }
-
-      if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
-        const ordersData = ordersRes.value.data
-        totalOrders = ordersData.count || 0
-        if (ordersData.results) {
-          totalRevenue = ordersData.results.reduce((sum: number, order: any) => 
-            sum + parseFloat(order.total_amount || '0'), 0
-          )
-          pendingOrders = ordersData.results.filter((o: any) => o.status === 'pending').length
-          setRecentOrders(ordersData.results.slice(0, 5))
-        }
-      }
-
-      if (shopsRes.status === 'fulfilled' && shopsRes.value.data) {
-        const shopsData = shopsRes.value.data
-        totalShops = shopsData.count || (Array.isArray(shopsData) ? shopsData.length : 0)
-      }
-
-      if (productsRes.status === 'fulfilled' && productsRes.value.data) {
-        totalProducts = productsRes.value.data.count || 0
-      }
-
-      setStats({
-        totalUsers,
-        totalOrders,
-        totalShops,
-        totalProducts,
-        totalRevenue,
-        pendingOrders,
-        activeVendors
-      })
-    } catch (err) {
-      console.error('Erreur chargement dashboard:', err)
-    } finally {
-      setLoading(false)
-    }
+  }
+  
+  const recentOrders = data?.recentOrders || []
+  
+  // Rafraîchir rapidement les stats sans recharger la page
+  const handleQuickRefresh = async () => {
+    setIsRefreshing(true)
+    await refreshStats()
+    setIsRefreshing(false)
+  }
+  
+  // Forcer un rechargement complet
+  const handleFullRefresh = async () => {
+    await loadDashboardData(true)
   }
 
   const formatCurrency = (amount: number) => {
@@ -131,12 +77,32 @@ const SuperAdminDashboardPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Tableau de Bord Super Admin</h1>
-          <p className="text-gray-600 mt-1">Vue complète de la plateforme et analytiques globales</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-gray-600">Vue complète de la plateforme et analytiques globales</p>
+            {data && (
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                isDataStale ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+              }`}>
+                {isDataStale ? '⚠️ Cache expiré' : '✓ Cache actif'}
+              </span>
+            )}
+          </div>
         </div>
-        <button className="mt-4 md:mt-0 flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-          <Download size={18} />
-          Exporter Rapport
-        </button>
+        <div className="mt-4 md:mt-0 flex items-center gap-2">
+          <button 
+            onClick={handleQuickRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            title="Rafraîchir les statistiques"
+          >
+            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Rafraîchissement...' : 'Rafraîchir'}
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            <Download size={18} />
+            Exporter
+          </button>
+        </div>
       </div>
 
       {/* Period Selector */}

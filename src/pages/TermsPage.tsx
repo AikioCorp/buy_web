@@ -61,12 +61,12 @@ export function TermsPage() {
                 </div>
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p>
-                    Buy More est une plateforme de commerce en ligne malienne, 
+                    Buy More est une plateforme de commerce en ligne malienne,
                     dont le siège social est situé à Sotuba ACI, Bamako, Mali.
                   </p>
                   <p>
-                    Les présentes Conditions Générales d'Utilisation (CGU) régissent l'utilisation du site 
-                    <strong> buymore.ml</strong> et de tous les services associés. En accédant à notre plateforme, 
+                    Les présentes Conditions Générales d'Utilisation (CGU) régissent l'utilisation du site
+                    <strong> buymore.ml</strong> et de tous les services associés. En accédant à notre plateforme,
                     vous acceptez sans réserve les présentes conditions.
                   </p>
                   <p>
@@ -89,18 +89,18 @@ export function TermsPage() {
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p><strong>2.1 Création de compte</strong></p>
                   <p>
-                    Pour effectuer des achats sur Buy More, vous devez créer un compte en fournissant 
-                    des informations exactes et complètes. Vous êtes responsable de la confidentialité 
+                    Pour effectuer des achats sur Buy More, vous devez créer un compte en fournissant
+                    des informations exactes et complètes. Vous êtes responsable de la confidentialité
                     de vos identifiants de connexion.
                   </p>
                   <p><strong>2.2 Conditions d'âge</strong></p>
                   <p>
-                    Vous devez être âgé d'au moins 18 ans ou avoir l'autorisation d'un parent/tuteur 
+                    Vous devez être âgé d'au moins 18 ans ou avoir l'autorisation d'un parent/tuteur
                     légal pour utiliser nos services.
                   </p>
                   <p><strong>2.3 Sécurité du compte</strong></p>
                   <p>
-                    Vous êtes seul responsable de toutes les activités effectuées depuis votre compte. 
+                    Vous êtes seul responsable de toutes les activités effectuées depuis votre compte.
                     En cas d'utilisation non autorisée, contactez-nous immédiatement.
                   </p>
                 </div>
@@ -117,8 +117,8 @@ export function TermsPage() {
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p><strong>3.1 Processus de commande</strong></p>
                   <p>
-                    Toute commande passée sur Buy More constitue un contrat de vente. Les prix affichés 
-                    sont en Francs CFA (FCFA) et incluent toutes les taxes applicables. Les frais de 
+                    Toute commande passée sur Buy More constitue un contrat de vente. Les prix affichés
+                    sont en Francs CFA (FCFA) et incluent toutes les taxes applicables. Les frais de
                     livraison sont indiqués séparément.
                   </p>
                   <p><strong>3.2 Modes de paiement</strong></p>
@@ -129,12 +129,12 @@ export function TermsPage() {
                   </ul>
                   <p><strong>3.3 Confirmation de commande</strong></p>
                   <p>
-                    Vous recevrez un email ou SMS de confirmation après validation de votre commande. 
+                    Vous recevrez un email ou SMS de confirmation après validation de votre commande.
                     Cette confirmation vaut acceptation de la vente.
                   </p>
                   <p><strong>3.4 Annulation</strong></p>
                   <p>
-                    Vous pouvez annuler votre commande tant qu'elle n'a pas été expédiée. 
+                    Vous pouvez annuler votre commande tant qu'elle n'a pas été expédiée.
                     Contactez notre service client dans les plus brefs délais.
                   </p>
                 </div>
@@ -151,7 +151,7 @@ export function TermsPage() {
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p><strong>4.1 Zones de livraison</strong></p>
                   <p>
-                    Nous livrons dans toutes les principales villes du Mali. Les délais et frais 
+                    Nous livrons dans toutes les principales villes du Mali. Les délais et frais
                     varient selon la destination.
                   </p>
                   <p><strong>4.2 Délais de livraison</strong></p>
@@ -161,7 +161,7 @@ export function TermsPage() {
                   </ul>
                   <p><strong>4.3 Réception</strong></p>
                   <p>
-                    À la réception, vérifiez l'état du colis. En cas de dommage visible, 
+                    À la réception, vérifiez l'état du colis. En cas de dommage visible,
                     refusez le colis et contactez-nous immédiatement.
                   </p>
                 </div>
@@ -178,7 +178,7 @@ export function TermsPage() {
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p><strong>5.1 Droit de retour</strong></p>
                   <p>
-                    Vous disposez de 7 jours à compter de la réception pour retourner un produit 
+                    Vous disposez de 7 jours à compter de la réception pour retourner un produit
                     non utilisé et dans son emballage d'origine.
                   </p>
                   <p><strong>5.2 Produits non retournables</strong></p>
@@ -190,7 +190,7 @@ export function TermsPage() {
                   </ul>
                   <p><strong>5.3 Procédure de remboursement</strong></p>
                   <p>
-                    Le remboursement est effectué sous 5 à 10 jours ouvrables après réception 
+                    Le remboursement est effectué sous 5 à 10 jours ouvrables après réception
                     et vérification du produit retourné, via le même mode de paiement utilisé.
                   </p>
                 </div>
@@ -207,8 +207,8 @@ export function TermsPage() {
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p><strong>6.1 Inscription vendeur</strong></p>
                   <p>
-                    Les vendeurs doivent fournir des informations exactes et des documents valides 
-                    lors de leur inscription. Buy More se réserve le droit de refuser ou suspendre 
+                    Les vendeurs doivent fournir des informations exactes et des documents valides
+                    lors de leur inscription. Buy More se réserve le droit de refuser ou suspendre
                     tout compte vendeur.
                   </p>
                   <p><strong>6.2 Obligations des vendeurs</strong></p>
@@ -220,7 +220,7 @@ export function TermsPage() {
                   </ul>
                   <p><strong>6.3 Commissions</strong></p>
                   <p>
-                    Buy More prélève une commission sur chaque vente réalisée. Le taux est 
+                    Buy More prélève une commission sur chaque vente réalisée. Le taux est
                     communiqué lors de l'inscription et peut varier selon les catégories.
                   </p>
                 </div>
@@ -236,8 +236,8 @@ export function TermsPage() {
                 </div>
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p>
-                    Tous les éléments du site Buy More (logos, textes, images, design) sont la 
-                    propriété exclusive de Buy More. Toute reproduction 
+                    Tous les éléments du site Buy More (logos, textes, images, design) sont la
+                    propriété exclusive de Buy More. Toute reproduction
                     ou utilisation non autorisée est strictement interdite.
                   </p>
                 </div>
@@ -253,7 +253,7 @@ export function TermsPage() {
                 </div>
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p>
-                    Buy More agit en tant qu'intermédiaire entre vendeurs et acheteurs. 
+                    Buy More agit en tant qu'intermédiaire entre vendeurs et acheteurs.
                     Nous ne pouvons être tenus responsables :
                   </p>
                   <ul className="list-disc pl-5 space-y-1">
@@ -274,7 +274,7 @@ export function TermsPage() {
                 </div>
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p>
-                    Vos données personnelles sont collectées et traitées conformément à notre 
+                    Vos données personnelles sont collectées et traitées conformément à notre
                     politique de confidentialité. Nous nous engageons à :
                   </p>
                   <ul className="list-disc pl-5 space-y-1">
@@ -296,9 +296,9 @@ export function TermsPage() {
                 </div>
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p>
-                    Buy More se réserve le droit de modifier les présentes conditions à tout moment. 
-                    Les utilisateurs seront informés des modifications par email ou notification 
-                    sur le site. L'utilisation continue du site après modification vaut acceptation 
+                    Buy More se réserve le droit de modifier les présentes conditions à tout moment.
+                    Les utilisateurs seront informés des modifications par email ou notification
+                    sur le site. L'utilisation continue du site après modification vaut acceptation
                     des nouvelles conditions.
                   </p>
                 </div>
@@ -318,12 +318,20 @@ export function TermsPage() {
             {/* Contact CTA */}
             <div className="mt-8 text-center">
               <p className="text-gray-600 mb-4">Des questions sur nos conditions ?</p>
-              <Link
-                to="/contact"
-                className="inline-flex items-center gap-2 bg-[#0f4c2b] text-white px-6 py-3 rounded-full font-semibold hover:bg-[#1a5f3a] transition-colors"
-              >
-                Nous contacter
-              </Link>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Link
+                  to="/contact"
+                  className="inline-flex items-center gap-2 bg-[#0f4c2b] text-white px-6 py-3 rounded-full font-semibold hover:bg-[#1a5f3a] transition-colors"
+                >
+                  Nous contacter
+                </Link>
+                <Link
+                  to="/privacy"
+                  className="inline-flex items-center gap-2 border-2 border-[#0f4c2b] text-[#0f4c2b] px-6 py-3 rounded-full font-semibold hover:bg-[#0f4c2b] hover:text-white transition-colors"
+                >
+                  Politique de confidentialité
+                </Link>
+              </div>
             </div>
           </div>
         </div>

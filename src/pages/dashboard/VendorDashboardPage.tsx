@@ -110,7 +110,7 @@ const QuickActionCard = ({
     to={link}
     className="group bg-white rounded-2xl p-6 border border-gray-100 hover:border-transparent hover:shadow-xl transition-all duration-300"
   >
-    <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform" style={{ background: color }}>
       {icon}
     </div>
     <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-emerald-600 transition-colors">

@@ -159,6 +159,9 @@ export const CACHE_KEYS = {
   SHOP_DETAIL: (id: number) => `shop_${id}`,
   DEALS: 'deals',
   HOME_DATA: 'home_data',
+  DASHBOARD_STATS: 'dashboard_stats',
+  DASHBOARD_ORDERS: 'dashboard_orders',
+  DASHBOARD_FULL: 'dashboard_full',
 }
 
 // TTL personnalisés (en millisecondes)

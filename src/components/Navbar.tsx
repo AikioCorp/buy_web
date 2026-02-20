@@ -313,7 +313,17 @@ export function Navbar() {
 
           {/* Icônes droite */}
           <div className="flex items-center gap-3">
-            <button className="p-1.5 text-white transition-all duration-200 transform hover:scale-110 active:scale-95">
+            <button 
+              onClick={() => {
+                setIsMenuOpen(true)
+                // Focus sur le champ de recherche après un court délai
+                setTimeout(() => {
+                  const searchInput = document.querySelector('input[placeholder="Rechercher un produit..."]') as HTMLInputElement
+                  if (searchInput) searchInput.focus()
+                }, 100)
+              }}
+              className="p-1.5 text-white transition-all duration-200 transform hover:scale-110 active:scale-95"
+            >
               <Search size={20} className="transform transition-transform" />
             </button>
             <Link to="/cart" className="p-1.5 text-white transition-all duration-200 transform hover:scale-110 active:scale-95 relative">
@@ -328,76 +338,56 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Menu mobile déroulant pour le header compact */}
+      {/* Menu mobile déroulant pour le header compact - Design simplifié et élégant */}
       {isMenuOpen && (!isHomePage || isScrolled) && (
-        <div className="md:hidden fixed top-12 left-0 right-0 bg-[#1a5f3a] z-[99] shadow-lg max-h-[70vh] overflow-y-auto">
-          {/* Mobile Search */}
-          <form onSubmit={handleSearch} className="p-4 border-b border-[#236b45]">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher un produit..."
-                className="w-full px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#e8d20c]"
-              />
+        <div className="md:hidden fixed top-12 left-0 right-0 bg-gradient-to-br from-[#0f4c2b] via-[#1a5f3a] to-[#0f4c2b] z-[99] shadow-2xl">
+          {/* Mobile Search - Design moderne */}
+          <div className="p-6">
+            <form onSubmit={handleSearch} className="space-y-4">
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#e8d20c] transition-colors">
+                  <Search className="w-5 h-5" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Que recherchez-vous ?"
+                  className="w-full pl-12 pr-4 py-4 bg-white/95 backdrop-blur-sm border-2 border-transparent rounded-2xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#e8d20c] focus:border-[#e8d20c] transition-all shadow-lg"
+                  autoFocus
+                />
+              </div>
               <button
                 type="submit"
-                className="absolute right-3 top-1/2 -translate-y-1/2"
+                className="w-full px-6 py-4 bg-gradient-to-r from-[#e8d20c] to-[#f5e042] text-[#0f4c2b] rounded-2xl font-bold hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
               >
-                <Search className="w-5 h-5 text-gray-600" />
+                <Search size={20} />
+                <span>Rechercher</span>
               </button>
-            </div>
-          </form>
+            </form>
 
-          {/* Mobile Links */}
-          <div className="py-2">
-            <Link
-              to="/"
-              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              Accueil
-            </Link>
-            <Link
-              to="/shops"
-              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Store className="w-5 h-5" />
-              Boutiques
-            </Link>
-            <Link
-              to="/categories"
-              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Tag className="w-5 h-5" />
-              Catégories
-            </Link>
-            <Link
-              to="/products"
-              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Package className="w-5 h-5" />
-              Produits
-            </Link>
-            <Link
-              to="/deals"
-              className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#236b45] transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <span className="text-lg">🔥</span>
-              Promotions
-            </Link>
+            {/* Suggestions de recherche populaires */}
+            <div className="mt-6">
+              <p className="text-xs text-white/60 mb-3 font-medium">Recherches populaires</p>
+              <div className="flex flex-wrap gap-2">
+                {popularSearches.slice(0, 4).map((term, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setSearchQuery(term)
+                      handleSearch(new Event('submit') as any)
+                    }}
+                    className="px-3 py-1.5 bg-white/10 backdrop-blur-sm text-white text-xs rounded-full hover:bg-white/20 transition-colors border border-white/20"
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* User Actions */}
-          <div className="border-t border-[#236b45] py-2">
+          <div className="border-t border-white/10 py-2">
             {user ? (
               <>
                 <Link

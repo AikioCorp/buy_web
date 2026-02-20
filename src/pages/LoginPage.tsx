@@ -8,7 +8,7 @@ import { PhoneLoginForm } from '../components/auth/PhoneLoginForm'
 export function LoginPage() {
   const [email, setEmail] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email')
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('phone')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const { login, error, isLoading, clearError, isAuthenticated, user, role } = useAuthStore()
@@ -95,16 +95,6 @@ export function LoginPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setLoginMethod('email')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${loginMethod === 'email'
-                      ? 'bg-[#0f4c2b] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                  >
-                    <Mail className="inline w-4 h-4 mr-1" /> Email
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setLoginMethod('phone')}
                     className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${loginMethod === 'phone'
                       ? 'bg-[#0f4c2b] text-white'
@@ -112,6 +102,16 @@ export function LoginPage() {
                       }`}
                   >
                     <Phone className="inline w-4 h-4 mr-1" /> Téléphone
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('email')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${loginMethod === 'email'
+                      ? 'bg-[#0f4c2b] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                  >
+                    <Mail className="inline w-4 h-4 mr-1" /> Email
                   </button>
                 </div>
               </div>

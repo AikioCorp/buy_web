@@ -102,6 +102,8 @@ export interface User {
   is_staff?: boolean;
   role?: UserRole;
   permissions?: string[];
+  avatar_url?: string;
+  avatar?: string;
 }
 
 export const authService = {
@@ -228,6 +230,8 @@ export const authService = {
           is_staff: d.is_staff === true || role === 'admin',
           role: role,
           permissions: d.permissions || [],
+          avatar_url: d.avatar_url || d.avatar,
+          avatar: d.avatar,
         } as User,
         status: response.status,
       };

@@ -5,9 +5,15 @@ import {
 } from 'lucide-react'
 import { shopsService, Shop } from '../../../lib/api/shopsService'
 import { useToast } from '../../../components/Toast'
+import { usePermissions } from '../../../hooks/usePermissions'
 
 const SuperAdminShopRequestsPage: React.FC = () => {
   const { showToast } = useToast()
+  const {
+    canViewShops,
+    canValidateShops,
+    isSuperAdmin
+  } = usePermissions()
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')

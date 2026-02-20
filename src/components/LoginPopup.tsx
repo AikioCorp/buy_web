@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Mail, Lock, Eye, EyeOff, LogIn, UserPlus, User, Phone } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useToast } from '@/components/Toast'
 import { PhoneInput } from '@/components/PhoneInput'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
+import { PhoneLoginForm } from '@/components/auth/PhoneLoginForm'
 
 interface LoginPopupProps {
   isOpen: boolean
@@ -14,7 +15,7 @@ interface LoginPopupProps {
 
 export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupProps) {
   const [isRegister, setIsRegister] = useState(false)
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email')
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('phone')
   const [email, setEmail] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [password, setPassword] = useState('')
@@ -25,8 +26,22 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
-  const { login, register } = useAuthStore()
+  const { login, register, isAuthenticated } = useAuthStore()
   const { showToast } = useToast()
+  const wasAuthenticatedRef = useRef(false)
+
+  // Détecter la connexion réussie et fermer le popup
+  useEffect(() => {
+    if (isAuthenticated && !wasAuthenticatedRef.current && isOpen) {
+      wasAuthenticatedRef.current = true
+      showToast('Connexion réussie !', 'success')
+      onClose()
+      if (onSuccess) onSuccess()
+    }
+    if (!isAuthenticated) {
+      wasAuthenticatedRef.current = false
+    }
+  }, [isAuthenticated, isOpen, onClose, onSuccess, showToast])
 
   if (!isOpen) return null
 
@@ -175,9 +190,9 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={isRegister ? handleRegister : handleLogin} className="p-6 space-y-4">
-          {error && (
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          {error && loginMethod === 'email' && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
@@ -191,6 +206,17 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={() => setLoginMethod('phone')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  loginMethod === 'phone'
+                    ? 'bg-[#0f4c2b] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Phone className="inline w-4 h-4 mr-1" /> Téléphone
+              </button>
+              <button
+                type="button"
                 onClick={() => setLoginMethod('email')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                   loginMethod === 'email'
@@ -200,81 +226,91 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
               >
                 <Mail className="inline w-4 h-4 mr-1" /> Email
               </button>
-              <button
-                type="button"
-                disabled
-                className="flex-1 py-2 px-3 rounded-lg text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed"
-              >
-                <Phone className="inline w-4 h-4 mr-1" /> Téléphone (bientôt disponible)
-              </button>
             </div>
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              La connexion par téléphone est temporairement désactivée.
-              Fonctionnalité en cours de correction.
-            </p>
           </div>
 
-          {/* Champs pour l'inscription */}
-          {isRegister && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prénom
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Prénom"
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nom
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Nom"
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Email ou Téléphone (téléphone désactivé, on force email) */}
-          {loginMethod === 'email' ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre@email.com"
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
-                  required
-                />
-              </div>
-            </div>
+          {/* Connexion par téléphone avec OTP (hors formulaire) */}
+          {loginMethod === 'phone' && !isRegister ? (
+            <PhoneLoginForm />
           ) : (
-            <></>
-          )}
+            /* Formulaire email/password ou inscription */
+            <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
 
-          <div>
+              {/* Champs pour l'inscription */}
+              {isRegister && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Prénom
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          placeholder="Prénom"
+                          className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nom
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          placeholder="Nom"
+                          className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Téléphone pour l'inscription */}
+                  {loginMethod === 'phone' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Numéro de téléphone
+                      </label>
+                      <PhoneInput
+                        value={phoneNumber}
+                        onChange={setPhoneNumber}
+                        required
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Email pour connexion/inscription */}
+              {loginMethod === 'email' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="votre@email.com"
+                      className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Mot de passe
             </label>
@@ -351,14 +387,27 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
-          >
-            Continuer sans compte
-          </button>
-        </form>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
+              >
+                Continuer sans compte
+              </button>
+            </form>
+          )}
+
+          {/* Bouton "Continuer sans compte" pour la connexion par téléphone */}
+          {loginMethod === 'phone' && !isRegister && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
+            >
+              Continuer sans compte
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

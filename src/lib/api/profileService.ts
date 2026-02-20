@@ -69,6 +69,15 @@ export const profileService = {
   },
 
   /**
+   * Mettre à jour l'avatar du client
+   */
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return apiClient.patchFormData<CustomerProfile>('/api/customers/profile', formData);
+  },
+
+  /**
    * Récupérer les adresses
    */
   async getAddresses() {

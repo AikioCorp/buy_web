@@ -16,6 +16,29 @@ export function PhoneLoginForm() {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
 
+  // Traduire les erreurs techniques en messages clairs pour l'utilisateur
+  const friendlyError = (raw: string): string => {
+    const lower = raw.toLowerCase();
+    if (lower.includes('database error') || lower.includes('saving new user'))
+      return 'Le numéro de téléphone fourni semble incorrect ou invalide. Veuillez vérifier et réessayer.';
+    if (lower.includes('invalid phone') || lower.includes('phone number'))
+      return 'Le numéro de téléphone est invalide. Assurez-vous d\'entrer un numéro malien valide (ex: 70 00 00 00).';
+    if (lower.includes('rate limit') || lower.includes('too many'))
+      return 'Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.';
+    if (lower.includes('otp') && (lower.includes('invalid') || lower.includes('expired') || lower.includes('invalide')))
+      return 'Le code de vérification est incorrect ou a expiré. Veuillez réessayer ou demander un nouveau code.';
+    if (lower.includes('network') || lower.includes('fetch') || lower.includes('timeout'))
+      return 'Problème de connexion réseau. Vérifiez votre connexion internet et réessayez.';
+    if (lower.includes('server') || lower.includes('500') || lower.includes('internal'))
+      return 'Le serveur rencontre un problème temporaire. Veuillez réessayer dans quelques instants.';
+    if (lower.includes('not found') || lower.includes('404'))
+      return 'Service temporairement indisponible. Veuillez réessayer plus tard.';
+    if (lower.includes('unauthorized') || lower.includes('401'))
+      return 'Session expirée. Veuillez vous reconnecter.';
+    // Si aucun pattern reconnu, retourner un message générique
+    return 'Une erreur est survenue. Veuillez vérifier vos informations et réessayer.';
+  };
+
   // Countdown timer pour le renvoi OTP
   useEffect(() => {
     if (countdown > 0) {
@@ -39,7 +62,8 @@ export function PhoneLoginForm() {
     try {
       const response = await authService.sendPhoneOtp(phone);
       if (response.error) {
-        setError(typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error));
+        const rawMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error);
+        setError(friendlyError(rawMsg));
         return;
       }
       setFormattedPhone(response.data?.phone || phone);
@@ -47,7 +71,7 @@ export function PhoneLoginForm() {
       setCountdown(60); // 60 secondes avant de pouvoir renvoyer
     } catch (err: any) {
       const msg = err?.message || err?.toString?.() || 'Erreur lors de l\'envoi du code';
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setError(friendlyError(typeof msg === 'string' ? msg : JSON.stringify(msg)));
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +125,8 @@ export function PhoneLoginForm() {
       });
 
       if (response.error) {
-        setError(typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error));
+        const rawMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error);
+        setError(friendlyError(rawMsg));
         return;
       }
 
@@ -132,7 +157,7 @@ export function PhoneLoginForm() {
       window.location.reload();
     } catch (err: any) {
       const msg = err?.message || err?.toString?.() || 'Code OTP invalide ou expiré';
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setError(friendlyError(typeof msg === 'string' ? msg : JSON.stringify(msg)));
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +170,8 @@ export function PhoneLoginForm() {
     try {
       const response = await authService.sendPhoneOtp(phone);
       if (response.error) {
-        setError(typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error));
+        const rawMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error);
+        setError(friendlyError(rawMsg));
         return;
       }
       setCountdown(60);
@@ -153,7 +179,7 @@ export function PhoneLoginForm() {
       otpRefs.current[0]?.focus();
     } catch (err: any) {
       const msg = err?.message || err?.toString?.() || 'Erreur lors du renvoi du code';
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setError(friendlyError(typeof msg === 'string' ? msg : JSON.stringify(msg)));
     } finally {
       setIsLoading(false);
     }
@@ -180,9 +206,13 @@ export function PhoneLoginForm() {
               <input
                 id="phone-login"
                 type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={phone.replace(/(\d{2})(?=\d)/g, '$1 ').trim()}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
+                  setPhone(value)
+                }}
                 placeholder="70 00 00 00"
+                maxLength={11}
                 className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent transition-all text-base"
                 required
               />

@@ -25,9 +25,11 @@ import { AboutPage } from './pages/AboutPage'
 import { ContactPage } from './pages/ContactPage'
 import { FAQPage } from './pages/FAQPage'
 import { TermsPage } from './pages/TermsPage'
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { AuthCallback } from './pages/AuthCallback'
 import { AuthSuccess } from './pages/AuthSuccess'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -109,135 +111,140 @@ function App() {
 
   return (
     <ToastProvider>
-    <ConfirmProvider>
-    <div className="pb-20 md:pb-0"> {/* Padding-bottom pour la navbar mobile */}
-    <Router>
-      <ScrollToTop />
-      <DashboardWelcomePopup />
-      <Routes>
-        {/* Routes d'authentification sans navbar */}
-        <Route element={<AuthLayout />}>
-          <Route path="login" element={<LoginPage />} />
-          <Route path="register" element={<RegisterPage />} />
-        </Route>
+      <ConfirmProvider>
+        <div className="pb-20 md:pb-0"> {/* Padding-bottom pour la navbar mobile */}
+          <Router>
+            <ScrollToTop />
+            <DashboardWelcomePopup />
+            <Routes>
+              {/* Routes d'authentification sans navbar */}
+              <Route element={<AuthLayout />}>
+                <Route path="login" element={<LoginPage />} />
+                <Route path="register" element={<RegisterPage />} />
+                <Route path="forgot-password" element={<ForgotPasswordPage />} />
+              </Route>
 
-        {/* OAuth Callback Routes */}
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/auth/success" element={<AuthSuccess />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+              {/* OAuth Callback Routes */}
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/auth/success" element={<AuthSuccess />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* Routes principales avec navbar */}
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="shops" element={<ShopsPage />} />
-          <Route path="shops/:id" element={<ShopDetailPage />} />
-          <Route path="categories" element={<CategoriesPage />} />
-          <Route path="products" element={<PublicProductsPage />} />
-          <Route path="products/:id" element={<ProductDetailPage />} />
-          <Route path="deals" element={<DealsPage />} />
-          <Route path="cart" element={<CartPage />} />
-          <Route path="checkout" element={<CheckoutPage />} />
-          <Route path="favorites" element={<PublicFavoritesPage />} />
-          <Route path="about" element={<AboutPage />} />
-          <Route path="contact" element={<ContactPage />} />
-          <Route path="faq" element={<FAQPage />} />
-          <Route path="terms" element={<TermsPage />} />
-          <Route path="test-api" element={<TestApiPage />} />
-        </Route>
+              {/* Routes principales avec navbar */}
+              <Route path="/" element={<Layout />}>
+                <Route index element={<HomePage />} />
+                <Route path="shops" element={<ShopsPage />} />
+                <Route path="shops/:id" element={<ShopDetailPage />} />
+                <Route path="categories" element={<CategoriesPage />} />
+                <Route path="products" element={<PublicProductsPage />} />
+                <Route path="products/:id" element={<ProductDetailPage />} />
+                <Route path="deals" element={<DealsPage />} />
+                <Route path="cart" element={<CartPage />} />
+                <Route path="checkout" element={<CheckoutPage />} />
+                <Route path="favorites" element={<PublicFavoritesPage />} />
+                <Route path="about" element={<AboutPage />} />
+                <Route path="contact" element={<ContactPage />} />
+                <Route path="faq" element={<FAQPage />} />
+                <Route path="terms" element={<TermsPage />} />
+                <Route path="privacy" element={<PrivacyPolicyPage />} />
+                <Route path="test-api" element={<TestApiPage />} />
+              </Route>
 
-        {/* Routes du dashboard vendeur */}
-        <Route path="/dashboard" element={
-          <ProtectedRouteByRole allowedRoles={['vendor']}>
-            <DashboardLayout />
-          </ProtectedRouteByRole>
-        }>
-          <Route index element={<VendorDashboardPage />} />
-          <Route path="store" element={<StorePage />} />
-          <Route path="products" element={<ProductsPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
-          <Route path="earnings" element={<EarningsPage />} />
-          <Route path="shipping" element={<ShippingPage />} />
-          <Route path="profile" element={<SettingsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="help" element={<HelpPage />} />
-        </Route>
+              {/* Routes du dashboard vendeur */}
+              <Route path="/dashboard" element={
+                <ProtectedRouteByRole allowedRoles={['vendor']}>
+                  <DashboardLayout />
+                </ProtectedRouteByRole>
+              }>
+                <Route index element={<VendorDashboardPage />} />
+                <Route path="store" element={<StorePage />} />
+                <Route path="products" element={<ProductsPage />} />
+                <Route path="orders" element={<OrdersPage />} />
+                <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="earnings" element={<EarningsPage />} />
+                <Route path="shipping" element={<ShippingPage />} />
+                <Route path="profile" element={<SettingsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="help" element={<HelpPage />} />
+              </Route>
 
-        {/* Routes du dashboard client */}
-        <Route path="/client" element={
-          <ProtectedRouteByRole allowedRoles={['client']}>
-            <ClientDashboardLayout />
-          </ProtectedRouteByRole>
-        }>
-          <Route index element={<ClientDashboardPage />} />
-          <Route path="orders" element={<ClientOrdersPage />} />
-          <Route path="favorites" element={<FavoritesPage />} />
-          <Route path="profile" element={<ClientProfilePage />} />
-          <Route path="addresses" element={<AddressesPage />} />
-          <Route path="payments" element={<PaymentsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="settings" element={<ClientSettingsPage />} />
-        </Route>
+              {/* Routes du dashboard client */}
+              <Route path="/client" element={
+                <ProtectedRouteByRole allowedRoles={['client']}>
+                  <ClientDashboardLayout />
+                </ProtectedRouteByRole>
+              }>
+                <Route index element={<ClientDashboardPage />} />
+                <Route path="orders" element={<ClientOrdersPage />} />
+                <Route path="favorites" element={<FavoritesPage />} />
+                <Route path="profile" element={<ClientProfilePage />} />
+                <Route path="addresses" element={<AddressesPage />} />
+                <Route path="payments" element={<PaymentsPage />} />
+                <Route path="messages" element={<MessagesPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="settings" element={<ClientSettingsPage />} />
+              </Route>
 
-        {/* Routes du dashboard admin */}
-        <Route path="/admin" element={
-          <ProtectedRouteByRole allowedRoles={['admin', 'super_admin']}>
-            <AdminDashboardLayout />
-          </ProtectedRouteByRole>
-        }>
-          <Route index element={<AdminDashboardPage />} />
-          <Route path="users" element={<AdminUsersPage />} />
-          <Route path="shops" element={<AdminShopsPage />} />
-          <Route path="products" element={<AdminProductsPage />} />
-          <Route path="orders" element={<AdminOrdersPage />} />
-          <Route path="reports" element={<AdminReportsPage />} />
-          <Route path="moderation" element={<AdminModerationPage />} />
-          <Route path="reviews" element={<AdminReviewsPage />} />
-          <Route path="messages" element={<AdminMessagesPage />} />
-          <Route path="notifications" element={<AdminNotificationsPage />} />
-          <Route path="categories" element={<AdminCategoriesPage />} />
-          <Route path="analytics" element={<AdminAnalyticsPage />} />
-          <Route path="profile" element={<AdminProfilePage />} />
-          <Route path="homepage" element={<HomepageManagementPage />} />
-          <Route path="flash-sales" element={<FlashSalesManagementPage />} />
-          <Route path="revenue" element={<AdminRevenuePage />} />
-        </Route>
+              {/* Routes du dashboard admin - Utilise les pages SuperAdmin avec permissions */}
+              <Route path="/admin" element={
+                <ProtectedRouteByRole allowedRoles={['admin', 'super_admin']}>
+                  <AdminDashboardLayout />
+                </ProtectedRouteByRole>
+              }>
+                <Route index element={<AdminDashboardPage />} />
+                <Route path="users" element={<SuperAdminUsersPage />} />
+                <Route path="shops" element={<SuperAdminShopsPage />} />
+                <Route path="businesses" element={<SuperAdminShopsPage />} />
+                <Route path="products" element={<SuperAdminProductsPage />} />
+                <Route path="orders" element={<SuperAdminOrdersPage />} />
+                <Route path="categories" element={<SuperAdminCategoriesPage />} />
+                <Route path="shop-requests" element={<SuperAdminShopRequestsPage />} />
+                <Route path="reports" element={<AdminReportsPage />} />
+                <Route path="moderation" element={<AdminModerationPage />} />
+                <Route path="reviews" element={<AdminReviewsPage />} />
+                <Route path="messages" element={<AdminMessagesPage />} />
+                <Route path="notifications" element={<AdminNotificationsPage />} />
+                <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
+                <Route path="permissions" element={<PermissionsManagementPage />} />
+                <Route path="profile" element={<AdminProfilePage />} />
+                <Route path="homepage" element={<HomepageManagementPage />} />
+                <Route path="flash-sales" element={<FlashSalesManagementPage />} />
+                <Route path="revenue" element={<AdminRevenuePage />} />
+              </Route>
 
-        {/* Routes du dashboard super admin */}
-        <Route path="/superadmin" element={
-          <ProtectedRouteByRole allowedRoles={['super_admin']}>
-            <SuperAdminDashboardLayout />
-          </ProtectedRouteByRole>
-        }>
-          <Route index element={<SuperAdminDashboardPage />} />
-          <Route path="users" element={<SuperAdminUsersPage />} />
-          <Route path="businesses" element={<SuperAdminShopsPage />} />
-          <Route path="restaurants" element={<SuperAdminRestaurantsPage />} />
-          <Route path="categories" element={<SuperAdminCategoriesPage />} />
-          <Route path="products" element={<SuperAdminProductsPage />} />
-          <Route path="orders" element={<SuperAdminOrdersPage />} />
-          <Route path="shop-requests" element={<SuperAdminShopRequestsPage />} />
-          <Route path="moderation" element={<AdminModerationPage />} />
-          <Route path="reviews" element={<AdminReviewsPage />} />
-          <Route path="messages" element={<AdminMessagesPage />} />
-          <Route path="notifications" element={<AdminNotificationsPage />} />
-          <Route path="categories" element={<AdminCategoriesPage />} />
-          <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
-          <Route path="reports" element={<SuperAdminReportsPage />} />
-          <Route path="permissions" element={<PermissionsManagementPage />} />
-          <Route path="profile" element={<AdminProfilePage />} />
-          <Route path="homepage" element={<HomepageManagementPage />} />
-          <Route path="flash-sales" element={<FlashSalesManagementPage />} />
-          <Route path="revenue" element={<AdminRevenuePage />} />
-        </Route>
+              {/* Routes du dashboard super admin */}
+              <Route path="/superadmin" element={
+                <ProtectedRouteByRole allowedRoles={['super_admin']}>
+                  <SuperAdminDashboardLayout />
+                </ProtectedRouteByRole>
+              }>
+                <Route index element={<SuperAdminDashboardPage />} />
+                <Route path="users" element={<SuperAdminUsersPage />} />
+                <Route path="businesses" element={<SuperAdminShopsPage />} />
+                <Route path="restaurants" element={<SuperAdminRestaurantsPage />} />
+                <Route path="categories" element={<SuperAdminCategoriesPage />} />
+                <Route path="products" element={<SuperAdminProductsPage />} />
+                <Route path="orders" element={<SuperAdminOrdersPage />} />
+                <Route path="shop-requests" element={<SuperAdminShopRequestsPage />} />
+                <Route path="moderation" element={<AdminModerationPage />} />
+                <Route path="reviews" element={<AdminReviewsPage />} />
+                <Route path="messages" element={<AdminMessagesPage />} />
+                <Route path="notifications" element={<AdminNotificationsPage />} />
+                <Route path="categories" element={<AdminCategoriesPage />} />
+                <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
+                <Route path="reports" element={<SuperAdminReportsPage />} />
+                <Route path="permissions" element={<PermissionsManagementPage />} />
+                <Route path="profile" element={<AdminProfilePage />} />
+                <Route path="homepage" element={<HomepageManagementPage />} />
+                <Route path="flash-sales" element={<FlashSalesManagementPage />} />
+                <Route path="revenue" element={<AdminRevenuePage />} />
+              </Route>
 
-        {/* 404 - Catch all unmatched routes */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Router>
-    </div>
-    </ConfirmProvider>
+              {/* 404 - Catch all unmatched routes */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Router>
+        </div>
+      </ConfirmProvider>
     </ToastProvider>
   )
 }

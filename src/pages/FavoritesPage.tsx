@@ -7,12 +7,41 @@ import { useToast } from '@/components/Toast'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 const getImageUrl = (product: any): string | null => {
-  if (!product?.media || product.media.length === 0) return null
-  const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
-  let url = primaryImage?.image_url || primaryImage?.file
+  if (!product) return null
+  
+  let url: string | null = null
+  
+  // 1. Essayer product.media
+  if (product.media && product.media.length > 0) {
+    const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
+    url = primaryImage?.image_url || primaryImage?.file
+  }
+  // 2. Essayer product.product_media
+  else if (product.product_media && product.product_media.length > 0) {
+    const primaryImage = product.product_media.find((m: any) => m.is_primary) || product.product_media[0]
+    url = primaryImage?.image_url || primaryImage?.file
+  }
+  // 3. Essayer product.images
+  else if (product.images && product.images.length > 0) {
+    const primaryImage = product.images.find((img: any) => img.is_primary) || product.images[0]
+    url = primaryImage?.image || primaryImage?.url || primaryImage?.image_url
+  }
+  // 4. Propriétés directes
+  else if (product.image_url) {
+    url = product.image_url
+  } else if (product.image) {
+    url = product.image
+  } else if (product.thumbnail) {
+    url = product.thumbnail
+  }
+  
   if (!url) return null
+  
+  // Convertir http en https
   if (url.startsWith('http://')) url = url.replace('http://', 'https://')
-  if (url.startsWith('https://')) return url
+  
+  // Retourner l'URL complète
+  if (url.startsWith('https://') || url.startsWith('data:')) return url
   return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 

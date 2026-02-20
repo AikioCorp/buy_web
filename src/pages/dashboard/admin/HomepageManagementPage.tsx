@@ -168,9 +168,9 @@ export default function HomepageManagementPage() {
     setUploading(false)
   }
 
-  // Générer le gradient CSS personnalisé
+  // Générer le gradient CSS personnalisé (stocké comme string pour style inline)
   const generateCustomGradient = () => {
-    return `from-[${customColor1}] to-[${customColor2}]`
+    return `linear-gradient(to right, ${customColor1}, ${customColor2})`
   }
 
   const applyCustomGradient = () => {

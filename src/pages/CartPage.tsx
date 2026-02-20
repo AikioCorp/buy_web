@@ -77,6 +77,10 @@ export function CartPage() {
       return `• *${item.product.name}*\n  Quantité: ${item.quantity}\n  Prix unitaire: ${formatPrice(parseFloat(item.product.base_price), 'XOF')}\n  Sous-total: ${formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}\n  Lien: ${productUrl}`
     }).join('\n\n')
     
+    const deliveryFee = 1000
+    const subtotal = getTotal()
+    const totalGlobal = subtotal + deliveryFee
+    
     let orderRef = ''
     
     // Try to create order in DB if user is logged in
@@ -88,7 +92,7 @@ export function CartPage() {
             product_id: item.product.id,
             quantity: item.quantity
           })),
-          delivery_fee: 1000,
+          delivery_fee: deliveryFee,
         })
         if (response.data && !response.error) {
           const orderData = (response.data as any).data || response.data
@@ -100,7 +104,7 @@ export function CartPage() {
       }
     }
     
-    const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Montant total: ${formatPrice(getTotal(), 'XOF')}*${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
+    const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Sous-total: ${formatPrice(subtotal, 'XOF')}*\n*Livraison: ${formatPrice(deliveryFee, 'XOF')}*\n*Total global: ${formatPrice(totalGlobal, 'XOF')}*${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
     const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
   }

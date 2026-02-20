@@ -8,6 +8,7 @@ import { shopsService, Shop, CreateShopData } from '../../../lib/api/shopsServic
 import { locationsService, Commune, Quartier } from '../../../lib/api/locationsService'
 import { apiClient } from '../../../lib/api/apiClient'
 import { useToast } from '../../../components/Toast'
+import { usePermissions } from '../../../hooks/usePermissions'
 import ShopFormModal from '../../../components/admin/ShopFormModal'
 import CommissionManagementModal from '../../../components/admin/CommissionManagementModal'
 
@@ -15,6 +16,14 @@ type TabFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'suspended';
 
 const SuperAdminShopsPage: React.FC = () => {
   const { showToast } = useToast()
+  const {
+    canViewShops,
+    canEditShops,
+    canDeleteShops,
+    canCreateShops,
+    canValidateShops,
+    isSuperAdmin
+  } = usePermissions()
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

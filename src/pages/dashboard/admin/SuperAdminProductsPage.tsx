@@ -5,6 +5,7 @@ import { categoriesService, Category } from '../../../lib/api/categoriesService'
 import { shopsService, Shop } from '../../../lib/api/shopsService'
 import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
 import { useToast } from '../../../components/Toast'
+import { usePermissions } from '../../../hooks/usePermissions'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -26,6 +27,14 @@ const getProductImageUrl = (media?: ProductMedia[], images?: ProductMedia[]): st
 
 const SuperAdminProductsPage: React.FC = () => {
   const { showToast } = useToast()
+  const {
+    canViewProducts,
+    canEditProducts,
+    canDeleteProducts,
+    canCreateProducts,
+    canModerateProducts,
+    isSuperAdmin
+  } = usePermissions()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [shops, setShops] = useState<Shop[]>([])

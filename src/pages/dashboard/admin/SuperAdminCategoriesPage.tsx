@@ -2,9 +2,17 @@ import React, { useState, useEffect } from 'react'
 import { Search, FolderTree, Edit2, Trash2, X, Save, Plus, Star, ChevronRight, Upload, Loader2, RefreshCw, Package, MoreVertical } from 'lucide-react'
 import { categoriesService, Category, CreateCategoryData } from '../../../lib/api/categoriesService'
 import { useToast } from '../../../components/Toast'
+import { usePermissions } from '../../../hooks/usePermissions'
 
 const SuperAdminCategoriesPage: React.FC = () => {
   const { showToast } = useToast()
+  const {
+    canViewCategories,
+    canEditCategories,
+    canDeleteCategories,
+    canCreateCategories,
+    isSuperAdmin
+  } = usePermissions()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

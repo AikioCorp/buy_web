@@ -5,24 +5,45 @@ import { useProfile } from '../../../hooks/useProfile'
 import { profileService } from '../../../lib/api'
 
 const ProfilePage: React.FC = () => {
-  const { user } = useAuthStore()
+  const { user, loadUser } = useAuthStore()
   const { profile, isLoading, refresh } = useProfile()
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+
+      // Preview immédiat
       const reader = new FileReader()
-      
       reader.onload = (event) => {
         if (event.target && typeof event.target.result === 'string') {
           setAvatarPreview(event.target.result)
         }
       }
-      
       reader.readAsDataURL(file)
+
+      // Upload immédiat
+      setIsSaving(true)
+      setMessage(null)
+      try {
+        const response = await profileService.uploadAvatar(file)
+        if (response.error) {
+          setMessage({ type: 'error', text: typeof response.error === 'string' ? response.error : 'Erreur lors de l\'upload de l\'image' })
+          // Revert preview on error if needed, but keeping it is fine as "what tried to be uploaded"
+        } else {
+          setMessage({ type: 'success', text: 'Photo de profil mise à jour avec succès' })
+          refresh()
+          loadUser()
+          // Update user in auth store if necessary - Assuming refresh() handles profile data re-fetch
+        }
+      } catch (err) {
+        console.error(err)
+        setMessage({ type: 'error', text: 'Erreur technique lors de l\'upload' })
+      } finally {
+        setIsSaving(false)
+      }
     }
   }
 
@@ -69,7 +90,7 @@ const ProfilePage: React.FC = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Mon profil</h1>
-      
+
       <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
         <div className="p-6">
           <div className="flex flex-col md:flex-row gap-8">
@@ -78,23 +99,23 @@ const ProfilePage: React.FC = () => {
                 <div className="relative mb-4">
                   <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                     {avatarPreview ? (
-                      <img 
-                        src={avatarPreview} 
-                        alt={profile ? `${profile.first_name} ${profile.last_name}` : 'Avatar'} 
+                      <img
+                        src={avatarPreview}
+                        alt={profile ? `${profile.first_name} ${profile.last_name}` : 'Avatar'}
                         className="w-full h-full object-cover"
                       />
                     ) : (
                       <UserCircle size={64} className="text-gray-400" />
                     )}
                   </div>
-                  <label 
-                    htmlFor="avatar-upload" 
+                  <label
+                    htmlFor="avatar-upload"
                     className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white p-2 rounded-full cursor-pointer"
                   >
                     <Camera size={18} />
                     <span className="sr-only">Changer la photo</span>
                   </label>
-                  <input 
+                  <input
                     type="file"
                     id="avatar-upload"
                     className="hidden"
@@ -106,7 +127,7 @@ const ProfilePage: React.FC = () => {
                 <p className="text-gray-600 capitalize">Client</p>
               </div>
             </div>
-            
+
             <div className="md:w-2/3">
               {message && (
                 <div className={`mb-4 p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
@@ -138,7 +159,7 @@ const ProfilePage: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -164,7 +185,7 @@ const ProfilePage: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -180,10 +201,10 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="bg-white rounded-lg shadow overflow-hidden mb-6 p-6">
         <h2 className="text-lg font-bold mb-4">Préférences de notification</h2>
-        
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
@@ -195,7 +216,7 @@ const ProfilePage: React.FC = () => {
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
             </label>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Promotions et offres</p>
@@ -206,7 +227,7 @@ const ProfilePage: React.FC = () => {
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
             </label>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Messages des vendeurs</p>

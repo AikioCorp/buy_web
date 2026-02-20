@@ -5,6 +5,7 @@ import { Product } from '../lib/api/productsService'
 import { categoriesService } from '../lib/api/categoriesService'
 import productCacheService from '../services/productCache.service'
 import { useFavoritesStore } from '../store/favoritesStore'
+import { useCartStore } from '../store/cartStore'
 import { useToast } from '../components/Toast'
 
 interface CategoryItem {
@@ -527,21 +528,35 @@ export function ProductsPage() {
                       )}
                       
                       {/* Quick Actions */}
-                      <button 
-                        className={`absolute top-1.5 right-1.5 p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity ${
-                          isFavorite(product.id) 
-                            ? 'bg-red-500 text-white' 
-                            : 'bg-white/90 hover:bg-red-50 hover:text-red-500'
-                        }`}
-                        onClick={(e) => { 
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const added = toggleFavorite(product);
-                          showToast(added ? 'Ajouté aux favoris !' : 'Retiré des favoris', 'success');
-                        }}
-                      >
-                        <Heart size={14} className={isFavorite(product.id) ? 'fill-current' : ''} />
-                      </button>
+                      <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          className={`p-1.5 rounded-full shadow ${
+                            isFavorite(product.id) 
+                              ? 'bg-red-500 text-white' 
+                              : 'bg-white/90 hover:bg-red-50 hover:text-red-500'
+                          }`}
+                          onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const added = toggleFavorite(product);
+                            showToast(added ? 'Ajouté aux favoris !' : 'Retiré des favoris', 'success');
+                          }}
+                        >
+                          <Heart size={14} className={isFavorite(product.id) ? 'fill-current' : ''} />
+                        </button>
+                        <button 
+                          className="p-1.5 rounded-full shadow bg-white/90 hover:bg-green-500 hover:text-white transition-colors"
+                          onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const { addItem } = useCartStore.getState();
+                            addItem(product, 1);
+                            showToast(`${product.name} ajouté au panier !`, 'success');
+                          }}
+                        >
+                          <ShoppingCart size={14} />
+                        </button>
+                      </div>
 
                       {/* Stock badge */}
                       {(product.stock ?? 0) > 0 && (

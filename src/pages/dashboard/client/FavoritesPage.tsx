@@ -6,16 +6,43 @@ import { useFavorites } from '../../../hooks/useFavorites'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 // Fonction utilitaire pour construire l'URL de l'image
-const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_primary?: boolean }>): string | null => {
-  if (!media || media.length === 0) return null
-  const primaryImage = media.find(m => m.is_primary) || media[0]
-  let url = primaryImage?.image_url || primaryImage?.file
+const getImageUrl = (product: any): string | null => {
+  if (!product) return null
+  
+  let url: string | null = null
+  
+  // 1. Essayer product.media
+  if (product.media && product.media.length > 0) {
+    const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
+    url = primaryImage?.image_url || primaryImage?.file
+  }
+  // 2. Essayer product.product_media
+  else if (product.product_media && product.product_media.length > 0) {
+    const primaryImage = product.product_media.find((m: any) => m.is_primary) || product.product_media[0]
+    url = primaryImage?.image_url || primaryImage?.file
+  }
+  // 3. Essayer product.images
+  else if (product.images && product.images.length > 0) {
+    const primaryImage = product.images.find((img: any) => img.is_primary) || product.images[0]
+    url = primaryImage?.image || primaryImage?.url || primaryImage?.image_url
+  }
+  // 4. Propriétés directes
+  else if (product.image_url) {
+    url = product.image_url
+  } else if (product.image) {
+    url = product.image
+  } else if (product.thumbnail) {
+    url = product.thumbnail
+  }
+  
   if (!url) return null
-  // Convertir http:// en https:// pour éviter le blocage mixed content
+  
+  // Convertir http:// en https://
   if (url.startsWith('http://')) {
     url = url.replace('http://', 'https://')
   }
-  if (url.startsWith('https://')) return url
+  
+  if (url.startsWith('https://') || url.startsWith('data:')) return url
   return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
@@ -74,9 +101,9 @@ const FavoritesPage: React.FC = () => {
             >
               <Link to={`/products/${favorite.product.slug || favorite.product.id}`}>
                 <div className="aspect-square bg-gray-100 overflow-hidden">
-                  {getImageUrl(favorite.product.media) ? (
+                  {getImageUrl(favorite.product) ? (
                     <img
-                      src={getImageUrl(favorite.product.media)!}
+                      src={getImageUrl(favorite.product)!}
                       alt={favorite.product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />

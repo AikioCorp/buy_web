@@ -4,6 +4,7 @@ import { Heart, ShoppingCart, Eye, Star } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { useFavoritesStore } from '@/store/favoritesStore'
 import { useToast } from '@/components/Toast'
+import { useSmartNavigation } from '@/hooks/useSmartNavigation'
 import { Product } from '@/lib/api/productsService'
 
 interface ProductCardProps {
@@ -36,6 +37,7 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
   const addItem = useCartStore((state) => state.addItem)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
   const { showToast } = useToast()
+  const { navigateWithScroll } = useSmartNavigation()
   
   const isLiked = isFavorite(product.id)
 
@@ -60,14 +62,18 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
   const handleQuickView = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    // Navigate to product page using slug (fallback to ID)
-    window.location.href = `/products/${product.slug || product.id}`
+    navigateWithScroll(`/products/${product.slug || product.id}`)
+  }
+
+  const handleProductClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    navigateWithScroll(`/products/${product.slug || product.id}`)
   }
 
   return (
-    <Link
-      to={`/products/${product.slug || product.id}`}
-      className={`group rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${dark ? 'bg-white/10 backdrop-blur-sm' : 'bg-white'}`}
+    <div
+      onClick={handleProductClick}
+      className={`group rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer ${dark ? 'bg-white/10 backdrop-blur-sm' : 'bg-white'}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -167,6 +173,6 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
           </p>
         )}
       </div>
-    </Link>
+    </div>
   )
 }

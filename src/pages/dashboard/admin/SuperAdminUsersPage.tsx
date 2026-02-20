@@ -7,11 +7,22 @@ import { shopsService } from '../../../lib/api/shopsService'
 import { MessageSquare } from 'lucide-react'
 import { useToast } from '../../../components/Toast'
 import { useConfirm } from '../../../components/ConfirmModal'
+import { usePermissions } from '../../../hooks/usePermissions'
 import { UserInfoModal } from './SuperAdminUsersPage_InfoModal'
 
 const SuperAdminUsersPage: React.FC = () => {
   const { showToast } = useToast()
   const { confirm, alert: showAlert } = useConfirm()
+  const {
+    canViewUsers,
+    canEditUsers,
+    canDeleteUsers,
+    canCreateUsers,
+    canResetPassword,
+    canChangeUserStatus,
+    canSendNotifications,
+    isSuperAdmin
+  } = usePermissions()
   const [users, setUsers] = useState<UserData[]>([])
   const [allUsers, setAllUsers] = useState<UserData[]>([]) // Cache de tous les utilisateurs
   const [loading, setLoading] = useState(true)

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 import { shopsService } from '../../../lib/api/shopsService'
 import { useToast } from '../../../components/Toast'
+import { usePermissions } from '../../../hooks/usePermissions'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -68,6 +69,12 @@ const getImageUrl = (item: any): string | null => {
 const SuperAdminOrdersPage: React.FC = () => {
   const { showToast } = useToast()
   const navigate = useNavigate()
+  const {
+    canViewOrders,
+    canManageOrders,
+    canCancelOrders,
+    isSuperAdmin
+  } = usePermissions()
   const [orders, setOrders] = useState<Order[]>([])
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
