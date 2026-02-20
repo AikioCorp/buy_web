@@ -180,8 +180,9 @@ export function RegisterPage() {
     setOtpLoading(true)
 
     try {
+      const formattedPhoneForApi = otpPhone.length === 8 && !otpPhone.startsWith('+') ? `+223${otpPhone}` : otpPhone;
       const response = await authService.verifyPhoneOtp({
-        phone: otpPhone,
+        phone: formattedPhoneForApi,
         otp: otpCode,
       })
 
@@ -225,7 +226,8 @@ export function RegisterPage() {
     setOtpLoading(true)
     setOtpError('')
     try {
-      const response = await authService.sendPhoneOtp(otpPhone)
+      const formattedPhoneForApi = otpPhone.length === 8 && !otpPhone.startsWith('+') ? `+223${otpPhone}` : otpPhone;
+      const response = await authService.sendPhoneOtp(formattedPhoneForApi)
       if (response.error) {
         const errMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error)
         setOtpError(errMsg)

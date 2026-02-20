@@ -40,12 +40,13 @@ export function PhoneRegisterForm() {
     setIsLoading(true);
 
     try {
-      const response = await authService.sendPhoneOtp(phone);
+      const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
+      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         setError(response.error);
         return;
       }
-      setFormattedPhone(response.data?.phone || phone);
+      setFormattedPhone(response.data?.phone || formattedPhoneForApi);
       setStep('otp');
       setCountdown(60);
     } catch (err: any) {
@@ -99,8 +100,9 @@ export function PhoneRegisterForm() {
     setIsLoading(true);
 
     try {
+      const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
       const response = await authService.verifyPhoneOtp({
-        phone,
+        phone: formattedPhoneForApi,
         otp: otpCode,
         first_name: firstName,
         last_name: lastName,
@@ -156,7 +158,8 @@ export function PhoneRegisterForm() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await authService.sendPhoneOtp(phone);
+      const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
+      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         setError(response.error);
         return;
@@ -187,8 +190,8 @@ export function PhoneRegisterForm() {
           <div key={s.key} className="flex items-center gap-2">
             <div
               className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all ${idx <= currentStepIdx
-                  ? 'bg-[#0f4c2b] text-white'
-                  : 'bg-gray-200 text-gray-500'
+                ? 'bg-[#0f4c2b] text-white'
+                : 'bg-gray-200 text-gray-500'
                 }`}
             >
               {idx + 1}

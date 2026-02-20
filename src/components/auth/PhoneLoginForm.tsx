@@ -60,13 +60,14 @@ export function PhoneLoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await authService.sendPhoneOtp(phone);
+      const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
+      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         const rawMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error);
         setError(friendlyError(rawMsg));
         return;
       }
-      setFormattedPhone(response.data?.phone || phone);
+      setFormattedPhone(response.data?.phone || formattedPhoneForApi);
       setStep('otp');
       setCountdown(60); // 60 secondes avant de pouvoir renvoyer
     } catch (err: any) {
@@ -119,8 +120,9 @@ export function PhoneLoginForm() {
     setIsLoading(true);
 
     try {
+      const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
       const response = await authService.verifyPhoneOtp({
-        phone,
+        phone: formattedPhoneForApi,
         otp: otpCode,
       });
 
@@ -168,7 +170,8 @@ export function PhoneLoginForm() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await authService.sendPhoneOtp(phone);
+      const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
+      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         const rawMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error);
         setError(friendlyError(rawMsg));
