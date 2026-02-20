@@ -92,7 +92,7 @@ const BAMAKO_ZONES: Record<string, { quartiers: string[], frais_livraison: numbe
   },
   'Commune VI': {
     quartiers: ['Sogoniko', 'Faladié', 'Magnambougou', 'Niamakoro', 'Banankabougou', 'Missabougou', 'Sokorodji', 'Yirimadio', 'Dianéguéla', 'Senou'],
-    frais_livraison: 1500
+    frais_livraison: 1000
   }
 }
 

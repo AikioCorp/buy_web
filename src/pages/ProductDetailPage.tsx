@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { productsService, Product } from '@/lib/api/productsService'
 import { SEO } from '@/components/SEO'
@@ -10,6 +10,10 @@ import { LoginPopup } from '@/components/LoginPopup'
 import { Button } from '@/components/Button'
 import { SmartBackButton } from '@/components/SmartBackButton'
 import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight, Star, Truck, Shield, RefreshCw, Check, MessageCircle, X, ZoomIn } from 'lucide-react'
+
+// Cache système pour les produits
+const productCache = new Map<string, { data: Product; timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
 // Helper to format price
 const formatPrice = (price: number | string, currency: string = 'XOF') => {
@@ -38,6 +42,7 @@ export function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
@@ -56,31 +61,65 @@ export function ProductDetailPage() {
   useEffect(() => {
     if (id) {
       loadProduct()
+      // Refresh silencieux toutes les 2 minutes si la page est active
+      const refreshInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          refreshProductSilently()
+        }
+      }, 2 * 60 * 1000)
+      
+      return () => clearInterval(refreshInterval)
     }
   }, [id])
 
-  const loadProduct = async () => {
+  const loadProduct = useCallback(async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
+      else setRefreshing(true)
       
-      // Utiliser l'ID ou le slug directement (le backend supporte les deux)
+      // Vérifier le cache d'abord
+      const cacheKey = `product_${id}`
+      const cached = productCache.get(cacheKey)
+      const now = Date.now()
+      
+      if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+        // Utiliser le cache
+        setProduct(cached.data)
+        if (!silent) {
+          setLoading(false)
+          loadSimilarProducts(cached.data)
+        }
+        // Refresh en arrière-plan si le cache a plus de 1 minute
+        if ((now - cached.timestamp) > 60 * 1000) {
+          refreshProductSilently()
+        }
+        return
+      }
+      
+      // Charger depuis l'API
       const response = await productsService.getProduct(id!)
       if (response.data) {
         setProduct(response.data)
+        // Mettre en cache
+        productCache.set(cacheKey, { data: response.data, timestamp: now })
         // Load similar products based on category
-        loadSimilarProducts(response.data)
+        if (!silent) loadSimilarProducts(response.data)
       } else if (response.error || response.status === 404) {
-        // Produit non trouvé - rediriger vers la page produits
         console.warn('Product not found:', id)
         setProduct(null)
       }
     } catch (error) {
       console.error('Error loading product:', error)
-      setProduct(null)
+      if (!silent) setProduct(null)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
+      else setRefreshing(false)
     }
-  }
+  }, [id])
+
+  const refreshProductSilently = useCallback(() => {
+    loadProduct(true)
+  }, [loadProduct])
 
   const loadSimilarProducts = async (currentProduct: Product) => {
     try {

@@ -226,7 +226,9 @@ export const ordersService = {
       }
       return { data: response.data, status: response.status };
     } catch (error: any) {
-      console.error('Erreur getAllOrdersAdmin:', error);
+      if (import.meta.env.DEV) {
+        console.error('Erreur getAllOrdersAdmin:', error);
+      }
       return {
         data: { count: 0, next: null, previous: null, results: [] },
         status: error.response?.status || 500

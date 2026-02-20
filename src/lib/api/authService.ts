@@ -197,7 +197,9 @@ export const authService = {
 
     if (response.data) {
       const d = response.data;
-      console.log('API /auth/me response:', d); // DEBUG: Voir la structure exacte
+      if (import.meta.env.DEV) {
+        console.log('API /auth/me response:', d); // DEBUG: Voir la structure exacte
+      }
 
       // Détection de rôle - IMPORTANT: Respecter la hiérarchie des rôles
       let role: UserRole = 'client';

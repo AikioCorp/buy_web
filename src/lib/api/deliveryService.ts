@@ -128,7 +128,9 @@ export const deliveryService = {
       return { data: response.data || [], status: response.status };
     } catch (error: any) {
       // Si l'endpoint n'existe pas, retourner un tableau vide
-      console.warn('Delivery zones endpoint not available:', error.message);
+      if (import.meta.env.DEV) {
+        console.warn('Delivery zones endpoint not available:', error.message);
+      }
       return { data: [], status: 200 };
     }
   },

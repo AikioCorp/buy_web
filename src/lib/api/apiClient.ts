@@ -5,8 +5,10 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
-// Debug : afficher l'URL de l'API
-console.log('🔗 API_BASE_URL:', API_BASE_URL);
+// Debug : afficher l'URL de l'API seulement en dev
+if (import.meta.env.DEV) {
+  console.log('🔗 API_BASE_URL:', API_BASE_URL);
+}
 
 interface ApiResponse<T> {
   data?: T;
@@ -120,8 +122,9 @@ class ApiClient {
         }
         // Auto-logout on 401 Unauthorized (token expired or invalid)
         if (response.status === 401) {
-          // Ne pas logger les 401 car ils sont gérés automatiquement
-          console.log('🔒 Session expirée, redirection vers login...');
+          if (import.meta.env.DEV) {
+            console.log('🔒 Session expirée, redirection vers login...');
+          }
           this.setToken(null);
           localStorage.removeItem('auth-storage'); // Clear zustand persisted auth
           // Redirect to login if not already there
@@ -130,8 +133,8 @@ class ApiClient {
             const loginUrl = `${window.location.origin}/login?session_expired=true`;
             window.location.replace(loginUrl);
           }
-        } else {
-          // Logger les autres erreurs (pas les 401)
+        } else if (import.meta.env.DEV) {
+          // Logger les autres erreurs seulement en dev
           console.error('API Error:', response.status, errorMessage, data);
           console.error('Failed endpoint:', endpoint);
           console.error('Request headers:', {
@@ -216,7 +219,9 @@ class ApiClient {
         headers['Authorization'] = `Bearer ${this.token}`;
       }
 
-      console.log('📤 Upload request:', { url, fieldName, fileName: file.name, fileSize: file.size, hasToken: !!this.token });
+      if (import.meta.env.DEV) {
+        console.log('📤 Upload request:', { url, fieldName, fileName: file.name, fileSize: file.size, hasToken: !!this.token });
+      }
 
       const response = await fetch(url, {
         method: 'POST',

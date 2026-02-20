@@ -62,7 +62,9 @@ export const categoriesService = {
       }
       return { data: response.data || [], status: response.status };
     } catch (error: any) {
-      console.error('Erreur getAllCategoriesAdmin:', error);
+      if (import.meta.env.DEV) {
+        console.error('Erreur getAllCategoriesAdmin:', error);
+      }
       return { data: [], status: error.response?.status || 500 };
     }
   },

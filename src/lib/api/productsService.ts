@@ -219,13 +219,17 @@ export const productsService = {
         const response = await apiClient.upload(endpoint, image, 'image');
         
         if (response.error) {
+          if (import.meta.env.DEV) {
           console.error('Erreur upload image:', response.error);
+        }
           errors.push(response.error);
         } else {
           results.push(response);
         }
       } catch (error: any) {
-        console.error('Erreur upload image:', error);
+        if (import.meta.env.DEV) {
+          console.error('Erreur upload image:', error);
+        }
         errors.push(error.message || 'Erreur inconnue');
       }
     }
@@ -286,9 +290,13 @@ export const productsService = {
 
       // Essayer l'endpoint admin d'abord
       const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
-      console.log('📡 API Request:', endpoint);
+      if (import.meta.env.DEV) {
+        console.log('📡 API Request:', endpoint);
+      }
       const response = await apiClient.get<ProductsResponse | Product[]>(endpoint);
-      console.log('📦 API Raw Response:', response.data);
+      if (import.meta.env.DEV) {
+        console.log('📦 API Raw Response:', response.data);
+      }
 
       if (response.error) {
         return {
@@ -311,7 +319,9 @@ export const productsService = {
       }
       return { data: response.data, status: response.status };
     } catch (error: any) {
-      console.error('Erreur getAllProductsAdmin:', error);
+      if (import.meta.env.DEV) {
+        console.error('Erreur getAllProductsAdmin:', error);
+      }
       return {
         data: { count: 0, next: null, previous: null, results: [] },
         status: error.response?.status || 500

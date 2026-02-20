@@ -95,10 +95,14 @@ export const shopsService = {
         `/api/shops?page=${page}&page_size=${pageSize}`
       );
 
-      console.log('getPublicShops API response:', response);
+      if (import.meta.env.DEV) {
+        console.log('getPublicShops API response:', response);
+      }
 
       if (response.error) {
-        console.warn('getPublicShops error:', response.error);
+        if (import.meta.env.DEV) {
+          console.warn('getPublicShops error:', response.error);
+        }
         return {
           data: { count: 0, next: null, previous: null, results: [] },
           status: response.status || 200,
@@ -107,7 +111,9 @@ export const shopsService = {
 
       // Gérer les deux formats de réponse possibles
       if (Array.isArray(response.data)) {
-        console.log('getPublicShops: Array format, count:', response.data.length);
+        if (import.meta.env.DEV) {
+          console.log('getPublicShops: Array format, count:', response.data.length);
+        }
         return {
           data: {
             count: response.data.length,
@@ -120,7 +126,7 @@ export const shopsService = {
       }
 
       // Format paginé avec results
-      if (response.data?.results) {
+      if (import.meta.env.DEV && response.data?.results) {
         console.log('getPublicShops: Paginated format, count:', response.data.results.length);
       }
 
@@ -129,7 +135,9 @@ export const shopsService = {
         status: response.status,
       };
     } catch (error: any) {
-      console.error('Erreur getPublicShops:', error);
+      if (import.meta.env.DEV) {
+        console.error('Erreur getPublicShops:', error);
+      }
       return {
         data: { count: 0, next: null, previous: null, results: [] },
         status: 200
@@ -275,9 +283,13 @@ export const shopsService = {
       // Don't send is_active - let backend set it to false for vendors
     };
 
-    console.log('📝 Creating shop with data:', storeData);
+    if (import.meta.env.DEV) {
+      console.log('📝 Creating shop with data:', storeData);
+    }
     const response = await apiClient.post<Shop>('/api/shops', storeData);
-    console.log('📦 Create shop response:', response);
+    if (import.meta.env.DEV) {
+      console.log('📦 Create shop response:', response);
+    }
     return response;
   },
 
@@ -355,7 +367,9 @@ export const shopsService = {
       }
       return { data: response.data, status: response.status };
     } catch (error: any) {
-      console.error('Erreur getAllShopsAdmin:', error);
+      if (import.meta.env.DEV) {
+        console.error('Erreur getAllShopsAdmin:', error);
+      }
       return {
         data: { count: 0, next: null, previous: null, results: [] },
         status: error.response?.status || 500
