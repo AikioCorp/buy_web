@@ -700,8 +700,11 @@ const VendorOrdersPage: React.FC = () => {
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-100"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500"
                 >
+                  <option value={orderToUpdate.status} disabled>
+                    {getStatusInfo(orderToUpdate.status).label} (actuel)
+                  </option>
                   {getNextStatuses(orderToUpdate.status).map((status) => (
                     <option key={status.value} value={status.value}>
                       {status.label}
