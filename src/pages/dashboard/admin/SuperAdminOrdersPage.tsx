@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   Search, ShoppingBag, Eye, X, Truck, CheckCircle, XCircle, Clock, Package,
   ArrowRightLeft, Store, AlertTriangle, Loader2, RefreshCw, Phone, MapPin,
-  CreditCard, Edit
+  CreditCard, Edit, Plus, Minus, Trash2, Save
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
@@ -11,6 +11,34 @@ import { useToast } from '../../../components/Toast'
 import { usePermissions } from '../../../hooks/usePermissions'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+
+// Données des communes et quartiers de Bamako
+const BAMAKO_ZONES: Record<string, { quartiers: string[], frais_livraison: number }> = {
+  'Commune I': {
+    quartiers: ['Korofina Nord', 'Korofina Sud', 'Banconi', 'Boulkassoumbougou', 'Djelibougou', 'Sotuba', 'Fadjiguila', 'Sikoroni', 'Doumanzana'],
+    frais_livraison: 1000
+  },
+  'Commune II': {
+    quartiers: ['Hippodrome', 'Médina Coura', 'Bozola', 'Niarela', 'Quinzambougou', 'Bagadadji', 'TSF', 'Missira', 'Zone Industrielle', 'Bougouba'],
+    frais_livraison: 1000
+  },
+  'Commune III': {
+    quartiers: ['Bamako Coura', 'Darsalam', 'Ouolofobougou', 'ACI 2000', 'Point G', 'Koulouba', "N'Tomikorobougou", 'Samé', 'Badialan I', 'Badialan II', 'Badialan III'],
+    frais_livraison: 1000
+  },
+  'Commune IV': {
+    quartiers: ['Lafiabougou', 'Hamdallaye', 'Djicoroni Para', 'Sébénikoro', 'Taliko', 'Lassa', 'Sébénikoro', 'Djélibougou'],
+    frais_livraison: 1000
+  },
+  'Commune V': {
+    quartiers: ['Badalabougou', 'Quartier du Fleuve', 'Torokorobougou', 'Daoudabougou', 'Sabalibougou', 'Kalaban Coura', 'Baco Djicoroni ACI', 'Baco Djicoroni Golf', 'Garantiguibougou'],
+    frais_livraison: 1000
+  },
+  'Commune VI': {
+    quartiers: ['Sogoniko', 'Faladié', 'Magnambougou', 'Niamakoro', 'Banankabougou', 'Missabougou', 'Sokorodji', 'Yirimadio', 'Dianéguéla', 'Senou'],
+    frais_livraison: 1000
+  }
+}
 
 interface Shop {
   id: number
@@ -88,6 +116,7 @@ const SuperAdminOrdersPage: React.FC = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null)
   const [orderToUpdate, setOrderToUpdate] = useState<Order | null>(null)
   const [orderToTransfer, setOrderToTransfer] = useState<Order | null>(null)
@@ -96,6 +125,21 @@ const SuperAdminOrdersPage: React.FC = () => {
   const [transferShopId, setTransferShopId] = useState<number | null>(null)
   const [transferReason, setTransferReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+
+  // Edit order state
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
+  const [editItems, setEditItems] = useState<Array<{ product_id: number; product_name: string; quantity: number; unit_price: number; product_image?: string | null }>>([])
+  const [editDeliveryFee, setEditDeliveryFee] = useState(1000)
+  const [editShippingName, setEditShippingName] = useState('')
+  const [editShippingPhone, setEditShippingPhone] = useState('')
+  const [editShippingCommune, setEditShippingCommune] = useState('')
+  const [editShippingQuartier, setEditShippingQuartier] = useState('')
+  const [editShippingDetails, setEditShippingDetails] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [addProductSearch, setAddProductSearch] = useState('')
+  const [addProductResults, setAddProductResults] = useState<any[]>([])
+  const [addProductLoading, setAddProductLoading] = useState(false)
 
   // Filtres avancés
   const [selectedShopId, setSelectedShopId] = useState<number | null>(null)
@@ -268,6 +312,126 @@ const SuperAdminOrdersPage: React.FC = () => {
     const url = `/products/${slug || productId}`
     window.open(url, '_blank')
   }
+
+  // === Edit Order Handlers ===
+  const handleEditOrder = (order: Order) => {
+    setEditingOrder(order)
+    const items = (order as any).order_items || (order as any).items || []
+    setEditItems(items.map((item: any) => ({
+      product_id: item.product_id,
+      product_name: item.product_name || item.product?.name || 'Produit',
+      quantity: item.quantity,
+      unit_price: parseFloat(item.unit_price || '0'),
+      product_image: getImageUrl(item) || null,
+    })))
+    setEditDeliveryFee(parseFloat((order as any).delivery_fee || '1000'))
+    setEditShippingName((order as any).shipping_full_name || '')
+    setEditShippingPhone((order as any).shipping_phone || '')
+    setEditShippingCommune((order as any).shipping_commune || '')
+    setEditShippingQuartier((order as any).shipping_quartier || '')
+    setEditShippingDetails((order as any).shipping_address_details || '')
+    setEditNotes((order as any).customer_notes || '')
+    setAddProductSearch('')
+    setAddProductResults([])
+    setIsEditModalOpen(true)
+  }
+
+  const handleEditQuantity = (index: number, delta: number) => {
+    setEditItems(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], quantity: Math.max(1, updated[index].quantity + delta) }
+      return updated
+    })
+  }
+
+  const handleEditRemoveItem = (index: number) => {
+    setEditItems(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSearchProduct = async () => {
+    if (!addProductSearch.trim()) return
+    setAddProductLoading(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products?search=${encodeURIComponent(addProductSearch)}&page_size=5`)
+      const result = await response.json()
+      const products = result.data?.results || result.results || result.data || []
+      setAddProductResults(Array.isArray(products) ? products : [])
+    } catch {
+      setAddProductResults([])
+    } finally {
+      setAddProductLoading(false)
+    }
+  }
+
+  const handleAddProduct = (product: any) => {
+    const existingIndex = editItems.findIndex(item => item.product_id === product.id)
+    if (existingIndex >= 0) {
+      handleEditQuantity(existingIndex, 1)
+    } else {
+      const price = product.is_on_sale && product.promo_price ? product.promo_price : product.base_price
+      const mediaArray = product.media || product.product_media || product.images || []
+      const primaryMedia = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
+      let imgUrl = primaryMedia?.image_url || primaryMedia?.file || primaryMedia?.image || product.image_url || product.thumbnail || null
+      if (imgUrl && imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://')
+      if (imgUrl && !imgUrl.startsWith('https://')) imgUrl = `${API_BASE_URL}${imgUrl.startsWith('/') ? '' : '/'}${imgUrl}`
+      setEditItems(prev => [...prev, {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+        unit_price: parseFloat(price),
+        product_image: imgUrl,
+      }])
+    }
+    setAddProductSearch('')
+    setAddProductResults([])
+  }
+
+  const handleSaveEditOrder = async () => {
+    if (!editingOrder || editItems.length === 0) {
+      showToast('Ajoutez au moins un article', 'error')
+      return
+    }
+    setEditSaving(true)
+    try {
+      const response = await ordersService.updateOrderItems(editingOrder.id, {
+        items: editItems.map(item => ({ product_id: item.product_id, quantity: item.quantity })),
+        delivery_fee: editDeliveryFee,
+        customer_notes: editNotes,
+        shipping_full_name: editShippingName,
+        shipping_phone: editShippingPhone,
+        shipping_commune: editShippingCommune,
+        shipping_quartier: editShippingQuartier,
+        shipping_address_details: editShippingDetails,
+      })
+      if (response.error) {
+        showToast(response.error || 'Erreur lors de la modification', 'error')
+      } else {
+        showToast('Commande modifiée avec succès !', 'success')
+        setIsEditModalOpen(false)
+        setEditingOrder(null)
+        loadOrders()
+      }
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la modification', 'error')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const editSubtotal = editItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0)
+
+  // Auto-update delivery fee when subtotal changes
+  useEffect(() => {
+    if (isEditModalOpen) {
+      if (editSubtotal >= 50000) {
+        setEditDeliveryFee(0)
+      } else if (editDeliveryFee === 0 && editSubtotal < 50000) {
+        setEditDeliveryFee(1000)
+      }
+    }
+  }, [editSubtotal, isEditModalOpen])
+
+  const editTotal = editSubtotal + editDeliveryFee
 
   const formatPrice = (price: string) => {
     return new Intl.NumberFormat('fr-FR').format(Number(price)) + ' FCFA'
@@ -468,6 +632,9 @@ const SuperAdminOrdersPage: React.FC = () => {
                             >
                               {getStatusBadge(order.status)}
                             </button>
+                            {(order as any).order_source === 'whatsapp' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">📱 WhatsApp</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
@@ -513,6 +680,15 @@ const SuperAdminOrdersPage: React.FC = () => {
                           >
                             <Edit size={18} />
                           </button>
+                          {(order.status === 'pending' || order.status === 'confirmed') && (
+                            <button
+                              onClick={() => handleEditOrder(order)}
+                              className="p-2.5 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors"
+                              title="Modifier les articles"
+                            >
+                              <Package size={18} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleTransferClick(order)}
                             className="p-2.5 text-orange-600 hover:bg-orange-100 rounded-xl transition-colors"
@@ -565,6 +741,9 @@ const SuperAdminOrdersPage: React.FC = () => {
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Commande #{viewingOrder.id}</h2>
                 <p className="text-sm text-gray-500">{formatDate(viewingOrder.created_at)}</p>
+                {(viewingOrder as any).order_source === 'whatsapp' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold mt-1">📱 Commande WhatsApp</span>
+                )}
               </div>
               <button
                 onClick={() => setIsViewModalOpen(false)}
@@ -643,38 +822,39 @@ const SuperAdminOrdersPage: React.FC = () => {
                     (viewingOrder as any).order_items.map((item: any) => {
                       const storeName = (viewingOrder as any).stores?.find((s: any) => s.id === item.store_id)?.name;
                       return (
-                      <div
-                        key={item.id}
-                        onClick={(e) => handleProductClick(e, item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
-                        className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
-                        title="Ouvrir dans un nouvel onglet"
-                      >
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                          {getImageUrl(item) ? (
-                            <img
-                              src={getImageUrl(item)!}
-                              alt={item.product_name || 'Produit'}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                              <Package className="text-gray-400" size={24} />
+                        <div
+                          key={item.id}
+                          onClick={(e) => handleProductClick(e, item.product_id || item.product?.id, item.product_slug || item.product?.slug)}
+                          className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                          title="Ouvrir dans un nouvel onglet"
+                        >
+                          <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                            {getImageUrl(item) ? (
+                              <img
+                                src={getImageUrl(item)!}
+                                alt={item.product_name || 'Produit'}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                                <Package className="text-gray-400" size={24} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors">{item.product_name || 'Produit'}</div>
+                            <div className="text-sm text-gray-500">
+                              Quantité: {item.quantity}
+                              {storeName && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">{storeName}</span>}
                             </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors">{item.product_name || 'Produit'}</div>
-                          <div className="text-sm text-gray-500">
-                            Quantité: {item.quantity}
-                            {storeName && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">{storeName}</span>}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-500">{formatPrice(item.unit_price)} × {item.quantity}</div>
+                            <div className="font-bold text-green-600">{formatPrice(item.total_price)}</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">{formatPrice(item.unit_price)} × {item.quantity}</div>
-                          <div className="font-bold text-green-600">{formatPrice(item.total_price)}</div>
-                        </div>
-                      </div>
-                    )})
+                      )
+                    })
                   ) : (viewingOrder.items || []).length > 0 ? (
                     viewingOrder.items.map((item) => (
                       <div
@@ -719,23 +899,35 @@ const SuperAdminOrdersPage: React.FC = () => {
             </div>
 
             <div className="p-6 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => {
                     setIsViewModalOpen(false)
                     handleStatusClick(viewingOrder)
                   }}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm"
                 >
                   <Edit size={16} />
                   Modifier le statut
                 </button>
+                {(viewingOrder.status === 'pending' || viewingOrder.status === 'confirmed') && (
+                  <button
+                    onClick={() => {
+                      setIsViewModalOpen(false)
+                      handleEditOrder(viewingOrder)
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+                  >
+                    <Package size={16} />
+                    Modifier les articles
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setIsViewModalOpen(false)
                     handleTransferClick(viewingOrder)
                   }}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 text-sm"
                 >
                   <ArrowRightLeft size={16} />
                   Transférer
@@ -942,6 +1134,174 @@ const SuperAdminOrdersPage: React.FC = () => {
                     Transférer
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Order Items Modal */}
+      {isEditModalOpen && editingOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-auto flex flex-col max-h-[95vh]">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Package size={20} className="text-green-600" />
+                  Modifier la commande #{(editingOrder as any).order_number || editingOrder.id}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {(editingOrder as any).order_source === 'whatsapp' && '📱 Commande WhatsApp — '}
+                  Modifiez les articles, quantités et infos client
+                </p>
+              </div>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+              {/* Items */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Articles ({editItems.length})</h3>
+                <div className="space-y-2">
+                  {editItems.map((item, index) => (
+                    <div key={`${item.product_id}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                        {item.product_image ? <img src={item.product_image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-400" size={16} /></div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
+                        <p className="text-xs text-gray-500">{item.unit_price.toLocaleString()} FCFA / unité</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleEditQuantity(index, -1)} className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100"><Minus size={14} /></button>
+                        <span className="w-10 text-center font-bold text-sm">{item.quantity}</span>
+                        <button onClick={() => handleEditQuantity(index, 1)} className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100"><Plus size={14} /></button>
+                      </div>
+                      <div className="text-right flex-shrink-0 w-24">
+                        <p className="text-sm font-bold">{(item.unit_price * item.quantity).toLocaleString()} FCFA</p>
+                      </div>
+                      <button onClick={() => handleEditRemoveItem(index)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                    </div>
+                  ))}
+                  {editItems.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Package size={32} className="mx-auto mb-2" />
+                      <p>Aucun article. Ajoutez des produits ci-dessous.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Add product search */}
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2"><Plus size={16} /> Ajouter un produit</h4>
+                <div className="flex gap-2">
+                  <input type="text" value={addProductSearch} onChange={(e) => setAddProductSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearchProduct()} placeholder="Rechercher un produit..." className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm" />
+                  <button onClick={handleSearchProduct} disabled={addProductLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                    {addProductLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />} Chercher
+                  </button>
+                </div>
+                {addProductResults.length > 0 && (
+                  <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+                    {addProductResults.map((product: any) => {
+                      const price = product.is_on_sale && product.promo_price ? product.promo_price : product.base_price
+                      return (
+                        <button key={product.id} onClick={() => handleAddProduct(product)} className="w-full flex items-center gap-3 p-2 hover:bg-blue-100 rounded-lg text-left">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                            <p className="text-xs text-blue-600 font-bold">{parseFloat(price).toLocaleString()} FCFA</p>
+                          </div>
+                          <Plus size={18} className="text-blue-600" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              {/* Delivery fee & notes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Frais de livraison (FCFA)</label>
+                  <input type="number" value={editDeliveryFee} onChange={(e) => setEditDeliveryFee(parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  {editSubtotal >= 50000 && editDeliveryFee > 0 && (
+                    <p className="text-xs text-emerald-600 mt-1 cursor-pointer hover:underline" onClick={() => setEditDeliveryFee(0)}>
+                      ✅ Commande ≥ 50 000 FCFA — Cliquez pour livraison gratuite
+                    </p>
+                  )}
+                  {editSubtotal >= 50000 && editDeliveryFee === 0 && (
+                    <p className="text-xs text-emerald-600 mt-1 font-medium">\u2728 Livraison gratuite appliquée !</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                  <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Note..." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
+              </div>
+              {/* Shipping */}
+              <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                <h4 className="font-medium text-orange-900 mb-3 flex items-center gap-2"><MapPin size={16} /> Informations client & livraison</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Nom complet</label>
+                    <input type="text" value={editShippingName} onChange={(e) => setEditShippingName(e.target.value)} placeholder="Nom du client" className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Téléphone</label>
+                    <input type="tel" value={editShippingPhone} onChange={(e) => setEditShippingPhone(e.target.value)} placeholder="Téléphone" className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Commune *</label>
+                    <select
+                      value={editShippingCommune}
+                      onChange={(e) => {
+                        setEditShippingCommune(e.target.value)
+                        setEditShippingQuartier('') // Reset quartier when commune changes
+                      }}
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm bg-white"
+                    >
+                      <option value="">Sélectionnez une commune</option>
+                      {Object.keys(BAMAKO_ZONES).map((commune) => (
+                        <option key={commune} value={commune}>{commune}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Quartier *</label>
+                    <select
+                      value={editShippingQuartier}
+                      onChange={(e) => setEditShippingQuartier(e.target.value)}
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm bg-white"
+                      disabled={!editShippingCommune}
+                    >
+                      <option value="">Sélectionnez un quartier</option>
+                      {editShippingCommune && BAMAKO_ZONES[editShippingCommune]?.quartiers.map((quartier) => (
+                        <option key={quartier} value={quartier}>{quartier}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Détails adresse</label>
+                    <input type="text" value={editShippingDetails} onChange={(e) => setEditShippingDetails(e.target.value)} placeholder="Rue, repère, indications..." className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
+                  </div>
+                </div>
+              </div>
+              {/* Totals */}
+              <div className={`rounded-xl p-4 border ${editSubtotal >= 50000 && editDeliveryFee === 0 ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200' : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'}`}>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm"><span className="text-gray-600">Sous-total</span><span className="font-medium">{editSubtotal.toLocaleString()} FCFA</span></div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Livraison</span>
+                    <span className={`font-medium ${editDeliveryFee === 0 ? 'text-emerald-600' : ''}`}>
+                      {editDeliveryFee === 0 ? 'GRATUIT' : `${editDeliveryFee.toLocaleString()} FCFA`}
+                    </span>
+                  </div>
+                  <div className="border-t border-green-200 pt-2 flex justify-between"><span className="font-bold text-green-900 text-lg">Total</span><span className="font-bold text-green-700 text-lg">{editTotal.toLocaleString()} FCFA</span></div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50 rounded-b-xl flex-shrink-0">
+              <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-white text-sm" disabled={editSaving}>Annuler</button>
+              <button onClick={handleSaveEditOrder} disabled={editSaving || editItems.length === 0} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 text-sm font-medium">
+                {editSaving ? (<><Loader2 className="animate-spin" size={16} />Enregistrement...</>) : (<><Save size={16} />Enregistrer</>)}
               </button>
             </div>
           </div>

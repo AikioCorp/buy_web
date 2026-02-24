@@ -67,7 +67,7 @@ export function ProductDetailPage() {
           refreshProductSilently()
         }
       }, 2 * 60 * 1000)
-      
+
       return () => clearInterval(refreshInterval)
     }
   }, [id])
@@ -76,12 +76,12 @@ export function ProductDetailPage() {
     try {
       if (!silent) setLoading(true)
       else setRefreshing(true)
-      
+
       // Vérifier le cache d'abord
       const cacheKey = `product_${id}`
       const cached = productCache.get(cacheKey)
       const now = Date.now()
-      
+
       if (cached && (now - cached.timestamp) < CACHE_DURATION) {
         // Utiliser le cache
         setProduct(cached.data)
@@ -95,7 +95,7 @@ export function ProductDetailPage() {
         }
         return
       }
-      
+
       // Charger depuis l'API
       const response = await productsService.getProduct(id!)
       if (response.data) {
@@ -125,8 +125,8 @@ export function ProductDetailPage() {
     try {
       const categoryId = currentProduct.category?.id || (currentProduct as any).category_id
       if (categoryId) {
-        const response = await productsService.getProducts({ 
-          category_id: categoryId, 
+        const response = await productsService.getProducts({
+          category_id: categoryId,
           page_size: 5,
           light: true,
         })
@@ -187,31 +187,52 @@ export function ProductDetailPage() {
     navigate('/checkout')
   }
 
+  const [whatsappLoading, setWhatsappLoading] = useState(false)
+
   const handleWhatsAppOrder = async () => {
-    if (product) {
+    if (product && !whatsappLoading) {
+      setWhatsappLoading(true)
       const productUrl = `${window.location.origin}/products/${product.slug || product.id}`
       let orderRef = ''
 
-      // Try to create order in DB if user is logged in
-      if (user) {
-        try {
-          const { ordersService } = await import('@/lib/api/ordersService')
+      // Always try to create order in DB
+      const orderDeliveryFee = getPrice() * quantity >= 50000 ? 0 : 1000
+      try {
+        const { ordersService } = await import('@/lib/api/ordersService')
+
+        if (user) {
+          // Authenticated user
           const response = await ordersService.createWhatsAppOrder({
             items: [{ product_id: product.id, quantity }],
-            delivery_fee: 1000,
+            delivery_fee: orderDeliveryFee,
           })
           if (response.data && !response.error) {
             const orderData = (response.data as any).data || response.data
             orderRef = `\n\n*Réf. commande:* #${orderData.order_number || orderData.id}`
           }
-        } catch (err) {
-          console.error('WhatsApp order creation failed, continuing with redirect:', err)
+        } else {
+          // Guest user - use public endpoint
+          const response = await ordersService.createGuestWhatsAppOrder({
+            items: [{ product_id: product.id, quantity }],
+            delivery_fee: orderDeliveryFee,
+          })
+          if (response.data && !response.error) {
+            const orderData = (response.data as any).data || response.data
+            orderRef = `\n\n*Réf. commande:* #${orderData.order_number || orderData.id}`
+          }
         }
+      } catch (err) {
+        console.error('WhatsApp order creation failed, continuing with redirect:', err)
       }
 
-      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Montant total:* ${formatPrice(getPrice() * quantity)} FCFA\n\n*Lien du produit:* ${productUrl}${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci de me confirmer la disponibilité et les frais de livraison.`
+      const productTotal = getPrice() * quantity
+      const deliveryFee = productTotal >= 50000 ? 0 : 1000
+      const totalWithDelivery = productTotal + deliveryFee
+      const deliveryLabel = deliveryFee === 0 ? 'GRATUIT \u2728' : `${formatPrice(deliveryFee)} FCFA`
+      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Sous-total:* ${formatPrice(productTotal)} FCFA\n*Livraison:* ${deliveryLabel}\n*Total global:* ${formatPrice(totalWithDelivery)} FCFA\n\n*Lien du produit:* ${productUrl}${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
       const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
       window.open(whatsappUrl, '_blank')
+      setWhatsappLoading(false)
     }
   }
 
@@ -262,7 +283,7 @@ export function ProductDetailPage() {
     showToast('Merci pour votre avis !', 'success')
   }
 
-  const averageRating = reviews.length > 0 
+  const averageRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : '0'
 
@@ -302,7 +323,7 @@ export function ProductDetailPage() {
             <div className="animate-pulse">
               <div className="aspect-square bg-gray-200 rounded-2xl"></div>
               <div className="grid grid-cols-4 gap-2 mt-4">
-                {[1,2,3,4].map(i => <div key={i} className="aspect-square bg-gray-200 rounded-lg"></div>)}
+                {[1, 2, 3, 4].map(i => <div key={i} className="aspect-square bg-gray-200 rounded-lg"></div>)}
               </div>
             </div>
             <div className="animate-pulse space-y-4">
@@ -398,27 +419,27 @@ export function ProductDetailPage() {
                     <Package className="h-32 w-32 opacity-30" />
                   </div>
                 )}
-                
+
                 {/* Overlay gradient on hover */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                
+
                 {/* Zoom indicator - Enhanced */}
                 {currentImage && (
                   <div className="absolute top-6 right-6 bg-gradient-to-br from-[#0f4c2b] to-[#1a5f3a] text-white p-3 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg backdrop-blur-sm transform group-hover:scale-110">
                     <ZoomIn className="w-6 h-6" />
                   </div>
                 )}
-                
+
                 {/* Navigation arrows - Enhanced */}
                 {images.length > 1 && (
                   <>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); setSelectedImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1); }}
                       className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-2xl shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 border border-gray-200"
                     >
                       <ChevronLeft className="w-6 h-6 text-gray-800" />
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); setSelectedImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0); }}
                       className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-4 rounded-2xl shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 border border-gray-200"
                     >
@@ -444,16 +465,15 @@ export function ProductDetailPage() {
 
               </div>
             </div>
-            
+
             {/* Thumbnails - Single horizontal line */}
             <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               {images.slice(0, 5).map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImageIndex(idx)}
-                  className={`flex-shrink-0 w-20 h-20 bg-white rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                    selectedImageIndex === idx ? 'border-[#0f4c2b] shadow-lg ring-2 ring-[#0f4c2b]/20 scale-110' : 'border-gray-200 hover:border-gray-400 hover:scale-105'
-                  }`}
+                  className={`flex-shrink-0 w-20 h-20 bg-white rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${selectedImageIndex === idx ? 'border-[#0f4c2b] shadow-lg ring-2 ring-[#0f4c2b]/20 scale-110' : 'border-gray-200 hover:border-gray-400 hover:scale-105'
+                    }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>
@@ -471,7 +491,7 @@ export function ProductDetailPage() {
             )}
 
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{product.name}</h1>
-            
+
             {/* Rating */}
             {reviews.length > 0 && (
               <div className="flex items-center gap-3">
@@ -486,8 +506,8 @@ export function ProductDetailPage() {
 
             {/* Store link */}
             {product.store && (
-              <Link 
-                to={`/shops/${product.store.slug || product.store.id}`} 
+              <Link
+                to={`/shops/${product.store.slug || product.store.id}`}
                 className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors"
               >
                 <Store className="h-4 w-4" />
@@ -587,7 +607,7 @@ export function ProductDetailPage() {
                     const basePrice = parseFloat(product.base_price || '0')
                     const priceModifier = parseFloat(variant.price_modifier || '0')
                     const finalPrice = basePrice + priceModifier
-                    
+
                     return (
                       <div
                         key={variant.id}
@@ -597,20 +617,20 @@ export function ProductDetailPage() {
                           {/* Variant Image */}
                           {variant.image_url && (
                             <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                              <img 
-                                src={variant.image_url} 
+                              <img
+                                src={variant.image_url}
                                 alt={variantName}
                                 className="w-full h-full object-cover"
                               />
                             </div>
                           )}
-                          
+
                           {/* Variant Info */}
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900 text-sm truncate">
                               {variantName || variant.sku || 'Variante'}
                             </p>
-                            
+
                             {/* Price */}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-[#0f4c2b] font-bold text-sm">
@@ -622,7 +642,7 @@ export function ProductDetailPage() {
                                 </span>
                               )}
                             </div>
-                            
+
                             {/* Stock */}
                             <div className="flex items-center gap-2 mt-1">
                               {variant.stock > 0 ? (
@@ -677,7 +697,7 @@ export function ProductDetailPage() {
             <div className="flex items-center gap-4">
               <label className="font-medium text-gray-700 text-sm">Quantité :</label>
               <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-                <button 
+                <button
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
                   className="px-4 py-2 bg-gray-100 hover:bg-gray-200 transition-colors font-bold"
                 >
@@ -690,7 +710,7 @@ export function ProductDetailPage() {
                   onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                   className="w-16 px-2 py-2 text-center border-0 focus:outline-none focus:ring-0 font-semibold"
                 />
-                <button 
+                <button
                   onClick={() => setQuantity(q => q + 1)}
                   className="px-4 py-2 bg-gray-100 hover:bg-gray-200 transition-colors font-bold"
                 >
@@ -720,7 +740,7 @@ export function ProductDetailPage() {
                   Commander
                 </Button>
               </div>
-              
+
               <button
                 onClick={handleWhatsAppOrder}
                 disabled={(product.stock ?? 0) <= 0}
@@ -731,18 +751,17 @@ export function ProductDetailPage() {
               </button>
 
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={handleLike}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl transition-all ${
-                    isLiked 
-                      ? 'border-red-500 bg-red-50 text-red-500' 
-                      : 'border-gray-200 hover:border-red-300 hover:bg-red-50 hover:text-red-500'
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl transition-all ${isLiked
+                    ? 'border-red-500 bg-red-50 text-red-500'
+                    : 'border-gray-200 hover:border-red-300 hover:bg-red-50 hover:text-red-500'
+                    }`}
                 >
                   <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
                   <span className="text-sm font-medium">{isLiked ? 'Favori' : 'Ajouter aux favoris'}</span>
                 </button>
-                <button 
+                <button
                   onClick={handleShare}
                   className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500 transition-all"
                 >
@@ -811,7 +830,7 @@ export function ProductDetailPage() {
           {showReviewForm && (
             <div className="mb-8 p-6 bg-gray-50 rounded-xl">
               <h3 className="font-semibold text-gray-900 mb-4">Partagez votre expérience</h3>
-              
+
               {/* Sélection des étoiles */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Votre note</label>
@@ -937,7 +956,7 @@ export function ProductDetailPage() {
                 const imageUrl = productImages[0]?.image_url || productImages[0]?.file
                 const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
                 const fullImageUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`) : null
-                
+
                 return (
                   <Link
                     key={relProduct.id}
@@ -946,8 +965,8 @@ export function ProductDetailPage() {
                   >
                     <div className="aspect-square bg-gray-100 overflow-hidden">
                       {fullImageUrl ? (
-                        <img 
-                          src={fullImageUrl} 
+                        <img
+                          src={fullImageUrl}
                           alt={relProduct.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
@@ -971,8 +990,8 @@ export function ProductDetailPage() {
 
       {/* Image Zoom Modal */}
       {showImageModal && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center animate-in fade-in duration-200" 
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center animate-in fade-in duration-200"
           onClick={() => setShowImageModal(false)}
         >
           {/* Close button with tooltip */}
@@ -1050,11 +1069,10 @@ export function ProductDetailPage() {
                     e.stopPropagation();
                     setModalImageIndex(idx);
                   }}
-                  className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
-                    modalImageIndex === idx 
-                      ? 'border-white scale-110 shadow-lg shadow-white/50' 
-                      : 'border-white/30 hover:border-white/60 hover:scale-105'
-                  }`}
+                  className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${modalImageIndex === idx
+                    ? 'border-white scale-110 shadow-lg shadow-white/50'
+                    : 'border-white/30 hover:border-white/60 hover:scale-105'
+                    }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>

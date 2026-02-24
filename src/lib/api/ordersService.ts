@@ -188,6 +188,57 @@ export const ordersService = {
     return apiClient.post<Order>('/api/orders/whatsapp', orderData);
   },
 
+  /**
+   * Créer une commande WhatsApp en tant qu'invité (pas besoin d'être connecté)
+   */
+  async createGuestWhatsAppOrder(data: {
+    items: Array<{ product_id: number; quantity: number }>;
+    customer_name?: string;
+    customer_phone?: string;
+    delivery_fee?: number;
+    notes?: string;
+  }) {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app';
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/whatsapp-guest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: data.items,
+          customer_name: data.customer_name,
+          customer_phone: data.customer_phone,
+          delivery_fee: data.delivery_fee || 1000,
+          notes: data.notes || 'Commande passée via WhatsApp (invité)',
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        return { data: result.data || result, error: null, status: response.status };
+      }
+      return { data: null, error: result.message || 'Erreur lors de la création de la commande', status: response.status };
+    } catch (error: any) {
+      return { data: null, error: error.message || 'Erreur réseau', status: 500 };
+    }
+  },
+
+  /**
+   * Modifier les articles d'une commande (Admin uniquement)
+   */
+  async updateOrderItems(orderId: number, data: {
+    items: Array<{ product_id: number; quantity: number }>;
+    delivery_fee?: number;
+    customer_notes?: string;
+    shipping_full_name?: string;
+    shipping_phone?: string;
+    shipping_commune?: string;
+    shipping_quartier?: string;
+    shipping_address_details?: string;
+  }) {
+    return apiClient.put<Order>(`/api/orders/${orderId}/items`, data);
+  },
+
   // ========== ADMIN ENDPOINTS ==========
 
   /**

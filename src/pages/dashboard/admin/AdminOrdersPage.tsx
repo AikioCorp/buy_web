@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import {
   Search, ShoppingCart, Eye, X, CheckCircle, Clock, Truck, XCircle,
-  AlertTriangle, Ban, Loader2, RefreshCw, Package, MapPin, Phone, CreditCard, Edit, User
+  AlertTriangle, Ban, Loader2, RefreshCw, Package, MapPin, Phone, CreditCard, Edit, User,
+  Plus, Minus, Trash2, Save
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
@@ -24,16 +25,16 @@ const fetchProductImage = async (productId: number): Promise<string | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/products/${productId}`)
     if (!response.ok) return null
-    
+
     const result = await response.json()
     const product = result.data
     // Cache le slug du produit
     if (product.slug) {
       productSlugCache.set(productId, product.slug)
     }
-    
+
     let imageUrl: string | null = null
-    
+
     // Chercher l'image dans le produit
     if (product.media && product.media.length > 0) {
       const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
@@ -46,7 +47,7 @@ const fetchProductImage = async (productId: number): Promise<string | null> => {
     } else if (product.thumbnail) {
       imageUrl = product.thumbnail
     }
-    
+
     // Formater l'URL
     if (imageUrl) {
       if (imageUrl.startsWith('http://')) {
@@ -56,7 +57,7 @@ const fetchProductImage = async (productId: number): Promise<string | null> => {
         imageUrl = `${API_BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
       }
     }
-    
+
     productImageCache.set(productId, imageUrl)
     return imageUrl
   } catch (error) {
@@ -68,9 +69,9 @@ const fetchProductImage = async (productId: number): Promise<string | null> => {
 // Fonction pour obtenir l'URL de l'image d'un produit
 const getProductImageUrl = (item: any): string | null => {
   if (!item) return null
-  
+
   let url: string | null = null
-  
+
   // 1. Try direct product_image field (from order_items)
   if (item.product_image) {
     url = item.product_image
@@ -78,7 +79,7 @@ const getProductImageUrl = (item: any): string | null => {
   // 2. Check product object if exists
   else {
     const product = item.product || item
-    
+
     // 2a. media array (new format)
     if (product.media && product.media.length > 0) {
       const primaryImage = product.media.find((m: any) => m.is_primary) || product.media[0]
@@ -102,17 +103,17 @@ const getProductImageUrl = (item: any): string | null => {
       url = product.thumbnail
     }
   }
-  
+
   if (!url) return null
-  
+
   // Fix protocol
   if (url.startsWith('http://')) {
     url = url.replace('http://', 'https://')
   }
-  
+
   // Return full URL
-  return url.startsWith('https://') || url.startsWith('data:') 
-    ? url 
+  return url.startsWith('https://') || url.startsWith('data:')
+    ? url
     : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
@@ -125,7 +126,7 @@ const AdminOrdersPage: React.FC = () => {
     canManageOrders,
     canCancelOrders
   } = usePermissions()
-  
+
   // State pour les images chargées dynamiquement
   const [loadedImages, setLoadedImages] = React.useState<Map<number, string | null>>(new Map())
 
@@ -144,11 +145,27 @@ const AdminOrdersPage: React.FC = () => {
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null)
   const [orderToUpdate, setOrderToUpdate] = useState<Order | null>(null)
   const [newStatus, setNewStatus] = useState<OrderStatus>('pending')
   const [statusNote, setStatusNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+
+  // Edit order state
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
+  const [editItems, setEditItems] = useState<Array<{ product_id: number; product_name: string; quantity: number; unit_price: number; product_image?: string | null }>>([])
+  const [editDeliveryFee, setEditDeliveryFee] = useState(1000)
+  const [editShippingName, setEditShippingName] = useState('')
+  const [editShippingPhone, setEditShippingPhone] = useState('')
+  const [editShippingCommune, setEditShippingCommune] = useState('')
+  const [editShippingQuartier, setEditShippingQuartier] = useState('')
+  const [editShippingDetails, setEditShippingDetails] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [addProductSearch, setAddProductSearch] = useState('')
+  const [addProductResults, setAddProductResults] = useState<any[]>([])
+  const [addProductLoading, setAddProductLoading] = useState(false)
 
   const handleProductClick = async (e: React.MouseEvent, productId: number, productSlug?: string) => {
     e.stopPropagation()
@@ -185,6 +202,128 @@ const AdminOrdersPage: React.FC = () => {
     }
   }
 
+  // === Edit Order Handlers ===
+  const handleEditOrder = (order: Order) => {
+    setEditingOrder(order)
+    const items = (order as any).order_items || (order as any).items || []
+    setEditItems(items.map((item: any) => ({
+      product_id: item.product_id,
+      product_name: item.product_name || item.product?.name || 'Produit',
+      quantity: item.quantity,
+      unit_price: parseFloat(item.unit_price || '0'),
+      product_image: getProductImageUrl(item) || null,
+    })))
+    setEditDeliveryFee(parseFloat((order as any).delivery_fee || '1000'))
+    setEditShippingName((order as any).shipping_full_name || '')
+    setEditShippingPhone((order as any).shipping_phone || '')
+    setEditShippingCommune((order as any).shipping_commune || '')
+    setEditShippingQuartier((order as any).shipping_quartier || '')
+    setEditShippingDetails((order as any).shipping_address_details || '')
+    setEditNotes((order as any).customer_notes || '')
+    setAddProductSearch('')
+    setAddProductResults([])
+    setIsEditModalOpen(true)
+  }
+
+  const handleEditQuantity = (index: number, delta: number) => {
+    setEditItems(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], quantity: Math.max(1, updated[index].quantity + delta) }
+      return updated
+    })
+  }
+
+  const handleEditRemoveItem = (index: number) => {
+    setEditItems(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSearchProduct = async () => {
+    if (!addProductSearch.trim()) return
+    setAddProductLoading(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products?search=${encodeURIComponent(addProductSearch)}&page_size=5`)
+      const result = await response.json()
+      const products = result.data?.results || result.results || result.data || []
+      setAddProductResults(Array.isArray(products) ? products : [])
+    } catch {
+      setAddProductResults([])
+    } finally {
+      setAddProductLoading(false)
+    }
+  }
+
+  const handleAddProduct = (product: any) => {
+    // Check if product already exists in items
+    const existingIndex = editItems.findIndex(item => item.product_id === product.id)
+    if (existingIndex >= 0) {
+      handleEditQuantity(existingIndex, 1)
+    } else {
+      const price = product.is_on_sale && product.promo_price ? product.promo_price : product.base_price
+      const mediaArray = product.media || product.product_media || product.images || []
+      const primaryMedia = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
+      let imgUrl = primaryMedia?.image_url || primaryMedia?.file || primaryMedia?.image || product.image_url || product.thumbnail || null
+      if (imgUrl && imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://')
+      if (imgUrl && !imgUrl.startsWith('https://')) imgUrl = `${API_BASE_URL}${imgUrl.startsWith('/') ? '' : '/'}${imgUrl}`
+
+      setEditItems(prev => [...prev, {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+        unit_price: parseFloat(price),
+        product_image: imgUrl,
+      }])
+    }
+    setAddProductSearch('')
+    setAddProductResults([])
+  }
+
+  const handleSaveEditOrder = async () => {
+    if (!editingOrder || editItems.length === 0) {
+      showToast('Ajoutez au moins un article', 'error')
+      return
+    }
+    setEditSaving(true)
+    try {
+      const response = await ordersService.updateOrderItems(editingOrder.id, {
+        items: editItems.map(item => ({ product_id: item.product_id, quantity: item.quantity })),
+        delivery_fee: editDeliveryFee,
+        customer_notes: editNotes,
+        shipping_full_name: editShippingName,
+        shipping_phone: editShippingPhone,
+        shipping_commune: editShippingCommune,
+        shipping_quartier: editShippingQuartier,
+        shipping_address_details: editShippingDetails,
+      })
+      if (response.error) {
+        showToast(response.error || 'Erreur lors de la modification', 'error')
+      } else {
+        showToast('Commande modifiée avec succès !', 'success')
+        setIsEditModalOpen(false)
+        setEditingOrder(null)
+        loadOrders()
+      }
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la modification', 'error')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const editSubtotal = editItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0)
+
+  // Auto-update delivery fee when subtotal changes
+  useEffect(() => {
+    if (isEditModalOpen) {
+      if (editSubtotal >= 50000) {
+        setEditDeliveryFee(0)
+      } else if (editDeliveryFee === 0 && editSubtotal < 50000) {
+        setEditDeliveryFee(1000)
+      }
+    }
+  }, [editSubtotal, isEditModalOpen])
+
+  const editTotal = editSubtotal + editDeliveryFee
+
   const pageSize = 20
 
   // Stats
@@ -205,7 +344,7 @@ const AdminOrdersPage: React.FC = () => {
   // Charger les images manquantes après le chargement des commandes
   const loadMissingImages = React.useCallback(async (orders: any[]) => {
     const imagesToLoad: number[] = []
-    
+
     for (const order of orders) {
       const items = (order as any).order_items || []
       for (const item of items) {
@@ -214,9 +353,9 @@ const AdminOrdersPage: React.FC = () => {
         }
       }
     }
-    
+
     if (imagesToLoad.length === 0) return
-    
+
     const newImages = new Map(loadedImages)
     await Promise.all(
       imagesToLoad.map(async (productId) => {
@@ -224,10 +363,10 @@ const AdminOrdersPage: React.FC = () => {
         newImages.set(productId, imageUrl)
       })
     )
-    
+
     setLoadedImages(newImages)
   }, [loadedImages])
-  
+
   const loadOrders = async () => {
     try {
       setLoading(true)
@@ -252,9 +391,9 @@ const AdminOrdersPage: React.FC = () => {
           setOrders(actualData.results)
           setTotalCount(actualData.count || actualData.results.length)
         }
-        
+
         setError(null)
-        
+
         // Charger les images manquantes en arrière-plan
         const ordersData = Array.isArray(actualData) ? actualData : actualData.results || []
         loadMissingImages(ordersData)
@@ -440,11 +579,10 @@ const AdminOrdersPage: React.FC = () => {
             <button
               key={tab.key}
               onClick={() => { setStatusFilter(tab.key); setCurrentPage(1) }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                statusFilter === tab.key
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${statusFilter === tab.key
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               {tab.label}
             </button>
@@ -530,6 +668,15 @@ const AdminOrdersPage: React.FC = () => {
                             title="Modifier le statut"
                           >
                             <Edit size={18} />
+                          </button>
+                        )}
+                        {canManageOrderActions && (order.status === 'pending' || order.status === 'confirmed') && (
+                          <button
+                            onClick={() => handleEditOrder(order)}
+                            className="p-2 hover:bg-green-50 text-gray-400 hover:text-green-600 rounded-lg"
+                            title="Modifier les articles"
+                          >
+                            <Package size={18} />
                           </button>
                         )}
                         {canCancelOrderActions && order.status !== 'delivered' && order.status !== 'cancelled' && (
@@ -621,8 +768,8 @@ const AdminOrdersPage: React.FC = () => {
                     <p className="font-medium text-gray-900">
                       {(viewingOrder as any).payment_method === 'cash_on_delivery' ? 'Paiement à la livraison' :
                         (viewingOrder as any).payment_method === 'mobile_money' ? 'Mobile Money' :
-                        (viewingOrder as any).payment_method === 'whatsapp' ? 'Via WhatsApp' :
-                          (viewingOrder as any).payment_method || 'Non spécifié'}
+                          (viewingOrder as any).payment_method === 'whatsapp' ? 'Via WhatsApp' :
+                            (viewingOrder as any).payment_method || 'Non spécifié'}
                     </p>
                     <p className="text-gray-600">Sous-total: {parseFloat((viewingOrder as any).subtotal || '0').toLocaleString()} FCFA</p>
                     <p className="text-gray-600">Livraison: {parseFloat((viewingOrder as any).delivery_fee || '0').toLocaleString()} FCFA</p>
@@ -648,7 +795,7 @@ const AdminOrdersPage: React.FC = () => {
                   const items = (viewingOrder as any).order_items || viewingOrder.items || [];
                   const stores = (viewingOrder as any).stores || [];
                   const isMultiShop = stores.length > 1;
-                  
+
                   if (isMultiShop) {
                     // Grouper par boutique
                     const itemsByStore = new Map<number, any[]>();
@@ -656,7 +803,7 @@ const AdminOrdersPage: React.FC = () => {
                       if (!itemsByStore.has(item.store_id)) itemsByStore.set(item.store_id, []);
                       itemsByStore.get(item.store_id)!.push(item);
                     });
-                    
+
                     return (
                       <div className="space-y-4">
                         {Array.from(itemsByStore.entries()).map(([storeId, storeItems]) => {
@@ -780,6 +927,15 @@ const AdminOrdersPage: React.FC = () => {
                     Changer le statut
                   </button>
                 )}
+                {canManageOrderActions && (viewingOrder.status === 'pending' || viewingOrder.status === 'confirmed') && (
+                  <button
+                    onClick={() => { setIsViewModalOpen(false); handleEditOrder(viewingOrder) }}
+                    className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
+                  >
+                    <Package size={14} />
+                    Modifier les articles
+                  </button>
+                )}
                 {canCancelOrderActions && viewingOrder.status !== 'delivered' && viewingOrder.status !== 'cancelled' && (
                   <button
                     onClick={() => { setIsViewModalOpen(false); handleCancelOrder(viewingOrder) }}
@@ -831,24 +987,21 @@ const AdminOrdersPage: React.FC = () => {
                       <button
                         key={option.value}
                         onClick={() => setNewStatus(option.value)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
-                          newStatus === option.value
-                            ? isCancelled ? 'border-red-400 bg-red-50' : 'border-indigo-400 bg-indigo-50'
-                            : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                        }`}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${newStatus === option.value
+                          ? isCancelled ? 'border-red-400 bg-red-50' : 'border-indigo-400 bg-indigo-50'
+                          : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          newStatus === option.value
-                            ? isCancelled ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${newStatus === option.value
+                          ? isCancelled ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'
+                          : 'bg-gray-100 text-gray-500'
+                          }`}>
                           {React.createElement(info.icon, { size: 16 })}
                         </div>
-                        <span className={`font-medium text-sm ${
-                          newStatus === option.value
-                            ? isCancelled ? 'text-red-700' : 'text-indigo-700'
-                            : 'text-gray-700'
-                        }`}>
+                        <span className={`font-medium text-sm ${newStatus === option.value
+                          ? isCancelled ? 'text-red-700' : 'text-indigo-700'
+                          : 'text-gray-700'
+                          }`}>
                           {option.label}
                         </span>
                       </button>
@@ -883,9 +1036,8 @@ const AdminOrdersPage: React.FC = () => {
               <button
                 onClick={handleUpdateStatus}
                 disabled={actionLoading || newStatus === orderToUpdate.status}
-                className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 text-sm font-medium ${
-                  newStatus === 'cancelled' ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'
-                }`}
+                className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 text-sm font-medium ${newStatus === 'cancelled' ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
               >
                 {actionLoading ? (
                   <>
@@ -894,6 +1046,273 @@ const AdminOrdersPage: React.FC = () => {
                   </>
                 ) : (
                   'Confirmer'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Order Items Modal */}
+      {isEditModalOpen && editingOrder && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-3xl my-auto flex flex-col max-h-[98vh]">
+            {/* Header */}
+            <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Package size={20} className="text-green-600" />
+                  Modifier la commande #{(editingOrder as any).order_number || editingOrder.id}
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  {(editingOrder as any).order_source === 'whatsapp' && '📱 Commande WhatsApp - '}
+                  Modifiez les articles, les quantités et les informations client
+                </p>
+              </div>
+              <button onClick={() => setIsEditModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full">
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Content - scrollable */}
+            <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
+              {/* Current items */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <ShoppingCart size={16} />
+                  Articles ({editItems.length})
+                </h3>
+                <div className="space-y-2">
+                  {editItems.map((item, index) => (
+                    <div key={`${item.product_id}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                        {item.product_image ? (
+                          <img src={item.product_image} alt={item.product_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="text-gray-400" size={16} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
+                        <p className="text-xs text-gray-500">{item.unit_price.toLocaleString()} FCFA / unité</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleEditQuantity(index, -1)}
+                          className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span className="w-10 text-center font-bold text-sm">{item.quantity}</span>
+                        <button
+                          onClick={() => handleEditQuantity(index, 1)}
+                          className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                      <div className="text-right flex-shrink-0 w-24">
+                        <p className="text-sm font-bold text-gray-900">{(item.unit_price * item.quantity).toLocaleString()} FCFA</p>
+                      </div>
+                      <button
+                        onClick={() => handleEditRemoveItem(index)}
+                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  {editItems.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Package size={32} className="mx-auto mb-2" />
+                      <p>Aucun article. Ajoutez des produits ci-dessous.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Add product */}
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                  <Plus size={16} />
+                  Ajouter un produit
+                </h4>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={addProductSearch}
+                    onChange={(e) => setAddProductSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchProduct()}
+                    placeholder="Rechercher un produit..."
+                    className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
+                  />
+                  <button
+                    onClick={handleSearchProduct}
+                    disabled={addProductLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {addProductLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                    Chercher
+                  </button>
+                </div>
+                {addProductResults.length > 0 && (
+                  <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+                    {addProductResults.map((product: any) => {
+                      const mediaArray = product.media || product.product_media || product.images || []
+                      const primaryMedia = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
+                      let imgUrl = primaryMedia?.image_url || primaryMedia?.file || product.image_url || product.thumbnail || null
+                      if (imgUrl && imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://')
+                      if (imgUrl && !imgUrl.startsWith('https://')) imgUrl = `${API_BASE_URL}${imgUrl.startsWith('/') ? '' : '/'}${imgUrl}`
+                      const price = product.is_on_sale && product.promo_price ? product.promo_price : product.base_price
+
+                      return (
+                        <button
+                          key={product.id}
+                          onClick={() => handleAddProduct(product)}
+                          className="w-full flex items-center gap-3 p-2 hover:bg-blue-100 rounded-lg text-left transition-colors"
+                        >
+                          <div className="w-10 h-10 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                            {imgUrl ? <img src={imgUrl} alt="" className="w-full h-full object-cover" /> : <Package className="text-gray-400 m-auto" size={16} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                            <p className="text-xs text-blue-600 font-bold">{parseFloat(price).toLocaleString()} FCFA</p>
+                          </div>
+                          <Plus size={18} className="text-blue-600 flex-shrink-0" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Delivery fee */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Frais de livraison (FCFA)</label>
+                  <input
+                    type="number"
+                    value={editDeliveryFee}
+                    onChange={(e) => setEditDeliveryFee(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                  <input
+                    type="text"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Note de la commande..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+              </div>
+
+              {/* Shipping info */}
+              <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                <h4 className="font-medium text-orange-900 mb-3 flex items-center gap-2">
+                  <MapPin size={16} />
+                  Informations client & livraison
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Nom complet</label>
+                    <input
+                      type="text"
+                      value={editShippingName}
+                      onChange={(e) => setEditShippingName(e.target.value)}
+                      placeholder="Nom du client"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={editShippingPhone}
+                      onChange={(e) => setEditShippingPhone(e.target.value)}
+                      placeholder="Numéro de téléphone"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Commune</label>
+                    <input
+                      type="text"
+                      value={editShippingCommune}
+                      onChange={(e) => setEditShippingCommune(e.target.value)}
+                      placeholder="Commune"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Quartier</label>
+                    <input
+                      type="text"
+                      value={editShippingQuartier}
+                      onChange={(e) => setEditShippingQuartier(e.target.value)}
+                      placeholder="Quartier"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Détails adresse</label>
+                    <input
+                      type="text"
+                      value={editShippingDetails}
+                      onChange={(e) => setEditShippingDetails(e.target.value)}
+                      placeholder="Détails supplémentaires (rue, repère...)"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Sous-total ({editItems.length} article{editItems.length > 1 ? 's' : ''})</span>
+                    <span className="font-medium">{editSubtotal.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Livraison</span>
+                    <span className="font-medium">{editDeliveryFee.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="border-t border-green-200 pt-2 flex justify-between">
+                    <span className="font-bold text-green-900 text-lg">Total</span>
+                    <span className="font-bold text-green-700 text-lg">{editTotal.toLocaleString()} FCFA</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-xl sm:rounded-b-2xl flex-shrink-0">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-white text-sm font-medium"
+                disabled={editSaving}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveEditOrder}
+                disabled={editSaving || editItems.length === 0}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 text-sm font-medium"
+              >
+                {editSaving ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Enregistrement...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Enregistrer les modifications
+                  </>
                 )}
               </button>
             </div>
