@@ -64,6 +64,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<any[]>([])
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
+  const [mainImageIndex, setMainImageIndex] = useState<number>(0)
 
   useEffect(() => {
     if (isOpen) {
@@ -222,6 +223,37 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       }
     }
     setExistingImages(prev => prev.filter((_, i) => i !== index))
+    // Réinitialiser l'index de l'image principale si nécessaire
+    if (index === mainImageIndex) {
+      setMainImageIndex(0)
+    } else if (index < mainImageIndex) {
+      setMainImageIndex(prev => prev - 1)
+    }
+  }
+
+  const setAsMainImage = (index: number, isExisting: boolean) => {
+    if (isExisting) {
+      // Réorganiser les images existantes
+      const newExistingImages = [...existingImages]
+      const [selectedImage] = newExistingImages.splice(index, 1)
+      newExistingImages.unshift(selectedImage)
+      setExistingImages(newExistingImages)
+    } else {
+      // Réorganiser les nouvelles images
+      const adjustedIndex = index - existingImages.length
+      const newImages = [...images]
+      const newUrls = [...imagePreviewUrls]
+      
+      const [selectedImage] = newImages.splice(adjustedIndex, 1)
+      const [selectedUrl] = newUrls.splice(adjustedIndex, 1)
+      
+      newImages.unshift(selectedImage)
+      newUrls.unshift(selectedUrl)
+      
+      setImages(newImages)
+      setImagePreviewUrls(newUrls)
+    }
+    setMainImageIndex(0)
   }
 
   const addVariant = () => {
@@ -1170,7 +1202,16 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         alt="" 
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                        {index !== 0 && (
+                          <button
+                            onClick={() => setAsMainImage(index, true)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium flex items-center gap-1 hover:bg-emerald-600 transition-colors"
+                          >
+                            <Check size={14} />
+                            Principale
+                          </button>
+                        )}
                         <button
                           onClick={() => removeExistingImage(index)}
                           className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
@@ -1179,30 +1220,48 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         </button>
                       </div>
                       {index === 0 && (
-                        <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
-                          Principale
+                        <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+                          ⭐ Principale
                         </div>
                       )}
                     </div>
                   ))}
 
                   {/* New images preview */}
-                  {imagePreviewUrls.map((url, index) => (
-                    <div key={`new-${index}`} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100">
-                      <img src={url} alt="" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button
-                          onClick={() => removeImage(index)}
-                          className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                  {imagePreviewUrls.map((url, index) => {
+                    const totalIndex = existingImages.length + index
+                    const isMain = existingImages.length === 0 && index === 0
+                    return (
+                      <div key={`new-${index}`} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                          {!isMain && (
+                            <button
+                              onClick={() => setAsMainImage(totalIndex, false)}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium flex items-center gap-1 hover:bg-emerald-600 transition-colors"
+                            >
+                              <Check size={14} />
+                              Principale
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                        {isMain && (
+                          <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+                            ⭐ Principale
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                          Nouveau
+                        </div>
                       </div>
-                      <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                        Nouveau
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

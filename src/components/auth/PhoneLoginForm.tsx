@@ -19,6 +19,10 @@ export function PhoneLoginForm() {
   // Traduire les erreurs techniques en messages clairs pour l'utilisateur
   const friendlyError = (raw: string): string => {
     const lower = raw.toLowerCase();
+    // Cas spécial : aucun compte trouvé avec ce numéro
+    if (lower.includes('account_not_found') || lower.includes('aucun compte')) {
+      return 'ACCOUNT_NOT_FOUND';
+    }
     if (lower.includes('database error') || lower.includes('saving new user'))
       return 'Le numéro de téléphone fourni semble incorrect ou invalide. Veuillez vérifier et réessayer.';
     if (lower.includes('invalid phone') || lower.includes('phone number'))
@@ -190,11 +194,28 @@ export function PhoneLoginForm() {
 
   return (
     <div className="space-y-4">
-      {error && (
+      {error && error === 'ACCOUNT_NOT_FOUND' ? (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
+          <p className="text-amber-800 text-sm font-semibold mb-1">
+            📱 Aucun compte trouvé avec ce numéro
+          </p>
+          <p className="text-amber-700 text-sm mb-3">
+            Ce numéro de téléphone n'est associé à aucun compte BuyMore.
+            Créez votre compte gratuitement en quelques secondes !
+          </p>
+          <a
+            href="/register"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white py-2 px-4 rounded-lg text-sm font-medium hover:shadow-lg transform hover:scale-[1.02] transition-all"
+          >
+            Créer un compte gratuit
+            <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
+      ) : error ? (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg animate-shake">
           <p className="text-red-700 text-sm font-medium">{error}</p>
         </div>
-      )}
+      ) : null}
 
       {step === 'phone' ? (
         <form onSubmit={handleSendOTP} className="space-y-4">

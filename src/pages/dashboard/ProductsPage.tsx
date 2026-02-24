@@ -353,15 +353,6 @@ const ProductsPage: React.FC = () => {
   }
 
   const handleAddProduct = () => {
-    // Check if shop is approved
-    const isShopApproved = store?.is_active || store?.status === 'approved' || store?.is_verified
-    if (!isShopApproved) {
-      setMessage({
-        type: 'error',
-        text: 'Votre boutique doit être approuvée avant de pouvoir ajouter des produits.'
-      })
-      return
-    }
     setEditingProduct(null)
     setIsFormModalOpen(true)
   }
@@ -451,15 +442,13 @@ const ProductsPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Mes Produits</h1>
           <p className="text-gray-500 mt-1">Gérez votre catalogue de produits</p>
         </div>
-        {store && (
-          <button
-            onClick={handleAddProduct}
-            className="mt-4 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl font-medium hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg"
-          >
-            <Plus size={20} />
-            Ajouter un produit
-          </button>
-        )}
+        <button
+          onClick={handleAddProduct}
+          className="mt-4 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl font-medium hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg"
+        >
+          <Plus size={20} />
+          Ajouter un produit
+        </button>
       </div>
 
       {/* Message */}

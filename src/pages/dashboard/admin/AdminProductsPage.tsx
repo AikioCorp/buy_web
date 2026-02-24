@@ -300,15 +300,13 @@ const AdminProductsPage: React.FC = () => {
           </h1>
           <p className="text-gray-500 mt-1">{totalCount} produits enregistrés</p>
         </div>
-        {canEditProducts() && (
-          <button
-            onClick={handleCreateProduct}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-red-700 transition-all shadow-lg shadow-orange-500/25"
-          >
-            <Plus size={20} />
-            Nouveau produit
-          </button>
-        )}
+        <button
+          onClick={handleCreateProduct}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-red-700 transition-all shadow-lg shadow-orange-500/25"
+        >
+          <Plus size={20} />
+          Nouveau produit
+        </button>
       </div>
 
       {/* Stats Cards */}

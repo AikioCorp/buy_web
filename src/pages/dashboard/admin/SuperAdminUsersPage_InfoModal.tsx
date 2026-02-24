@@ -11,6 +11,7 @@ interface UserInfoModalProps {
   onSave: (userId: string, data: Partial<UserData>) => Promise<void>
   onToggleActive: (user: UserData) => void
   onToggleSeller: (user: UserData) => void
+  onToggleStaff: (user: UserData) => void
   onResetPassword: (user: UserData) => void
   onSendNotification: (user: UserData) => void
   onSendMessage: (user: UserData) => void
@@ -26,6 +27,7 @@ export const UserInfoModal: React.FC<UserInfoModalProps> = ({
   onSave,
   onToggleActive,
   onToggleSeller,
+  onToggleStaff,
   onResetPassword,
   onSendNotification,
   onSendMessage,
@@ -153,6 +155,13 @@ export const UserInfoModal: React.FC<UserInfoModalProps> = ({
               >
                 <Store size={24} className="text-green-600" />
                 <span className="text-xs font-medium text-green-900">{user.is_seller ? 'Retirer vendeur' : 'Rendre vendeur'}</span>
+              </button>
+              <button
+                onClick={() => handleAction(() => onToggleStaff(user))}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 rounded-xl transition-all"
+              >
+                <Shield size={24} className="text-red-600" />
+                <span className="text-xs font-medium text-red-900">{user.is_staff ? 'Retirer admin' : 'Rendre admin'}</span>
               </button>
               <button
                 onClick={() => handleAction(() => onResetPassword(user))}

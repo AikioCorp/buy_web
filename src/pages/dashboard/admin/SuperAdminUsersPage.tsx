@@ -207,6 +207,16 @@ const SuperAdminUsersPage: React.FC = () => {
     }
   }
 
+  const handleToggleStaff = async (user: UserData) => {
+    try {
+      await usersService.updateUser(user.id, { is_staff: !user.is_staff })
+      loadUsers()
+      showToast('Statut admin modifié avec succès', 'success')
+    } catch (err: any) {
+      showToast(err.message || 'Erreur lors de la modification du statut admin', 'error')
+    }
+  }
+
   const handleOpenResetPassword = (user: UserData) => {
     setUserToResetPassword(user)
     setNewPassword('')
@@ -1387,6 +1397,7 @@ const SuperAdminUsersPage: React.FC = () => {
         }}
         onToggleActive={handleToggleActive}
         onToggleSeller={handleToggleSeller}
+        onToggleStaff={handleToggleStaff}
         onResetPassword={handleOpenResetPassword}
         onSendNotification={handleOpenNotifModal}
         onSendMessage={handleOpenMsgModal}

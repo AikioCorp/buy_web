@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { ScrollToTop } from './components/ScrollToTop'
+import { BackToTop } from './components/BackToTop'
 import { ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmModal'
 import { Layout } from './components/Layout'
@@ -115,6 +116,7 @@ function App() {
         <div className="pb-20 md:pb-0"> {/* Padding-bottom pour la navbar mobile */}
           <Router>
             <ScrollToTop />
+            <BackToTop />
             <DashboardWelcomePopup />
             <Routes>
               {/* Routes d'authentification sans navbar */}

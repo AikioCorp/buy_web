@@ -98,6 +98,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isInStock, setIsInStock] = useState(true)
   const [showStockInput, setShowStockInput] = useState(false)
+  const [mainImageIndex, setMainImageIndex] = useState<number>(0)
   const [categorySearch, setCategorySearch] = useState('')
 
   useEffect(() => {
@@ -196,6 +197,29 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       newPreviews.splice(index, 1)
       return newPreviews
     })
+    
+    // Réinitialiser l'index de l'image principale si nécessaire
+    if (index === mainImageIndex) {
+      setMainImageIndex(0)
+    } else if (index < mainImageIndex) {
+      setMainImageIndex(prev => prev - 1)
+    }
+  }
+
+  const setAsMainImage = (index: number) => {
+    // Réorganiser les images pour mettre la sélectionnée en première position
+    const newImages = [...formData.images]
+    const newPreviews = [...imagePreview]
+    
+    const [selectedImage] = newImages.splice(index, 1)
+    const [selectedPreview] = newPreviews.splice(index, 1)
+    
+    newImages.unshift(selectedImage)
+    newPreviews.unshift(selectedPreview)
+    
+    setFormData({ ...formData, images: newImages })
+    setImagePreview(newPreviews)
+    setMainImageIndex(0)
   }
 
   const addVariant = () => {
@@ -1165,29 +1189,46 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               {imagePreview.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {imagePreview.map((src, index) => (
-                    <div key={`img-${index}-${src.slice(-20)}`} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
+                    <div key={`img-${index}-${src.slice(-20)}`} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100">
                       <img
                         src={src}
                         alt={`Preview ${index + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23f3f4f6" width="100" height="100"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-size="12">Image</text></svg>' }}
                       />
-                      {/* Delete button - always visible */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          removeImage(index)
-                        }}
-                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg z-10"
-                        title="Supprimer cette image"
-                      >
-                        <X size={16} />
-                      </button>
+                      {/* Overlay avec boutons au hover */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                        {index !== 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              setAsMainImage(index)
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium flex items-center gap-1 hover:bg-emerald-600 transition-colors"
+                            title="Définir comme image principale"
+                          >
+                            <Check size={14} />
+                            Principale
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            removeImage(index)
+                          }}
+                          className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                          title="Supprimer cette image"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                       {index === 0 && (
-                        <div className="absolute bottom-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                          Principale
+                        <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+                          ⭐ Principale
                         </div>
                       )}
                     </div>

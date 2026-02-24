@@ -366,29 +366,44 @@ export function Navbar() {
               </button>
             </form>
 
-            {/* Suggestions de recherche populaires */}
-            <div className="mt-6">
-              <p className="text-xs text-white/60 mb-3 font-medium">Recherches populaires</p>
-              <div className="flex flex-wrap gap-2">
-                {popularSearches.slice(0, 4).map((term, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setSearchQuery(term)
-                      handleSearch(new Event('submit') as any)
-                    }}
-                    className="px-3 py-1.5 bg-white/10 backdrop-blur-sm text-white text-xs rounded-full hover:bg-white/20 transition-colors border border-white/20"
-                  >
-                    {term}
-                  </button>
-                ))}
+            {/* Suggestions de recherche populaires - Masquées si recherche active */}
+            {!searchQuery && (
+              <div className="mt-6">
+                <p className="text-xs text-white/60 mb-3 font-medium">Recherches populaires</p>
+                <div className="flex flex-wrap gap-2">
+                  {popularSearches.slice(0, 4).map((term, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setSearchQuery(term)
+                        handleSearch(new Event('submit') as any)
+                      }}
+                      className="px-3 py-1.5 bg-white/10 backdrop-blur-sm text-white text-xs rounded-full hover:bg-white/20 transition-colors border border-white/20"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Bouton discret pour réinitialiser la recherche */}
+            {searchQuery && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs text-white/50 hover:text-white/80 transition-colors underline"
+                >
+                  Effacer la recherche
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* User Actions */}
-          <div className="border-t border-white/10 py-2">
-            {user ? (
+          {/* User Actions - Masqués si recherche active */}
+          {!searchQuery && (
+            <div className="border-t border-white/10 py-2">
+              {user ? (
               <>
                 <Link
                   to={user.is_superuser ? '/superadmin' : user.is_staff ? '/admin' : user.is_seller ? '/dashboard' : '/client'}
@@ -475,7 +490,8 @@ export function Navbar() {
                 </Link>
               </>
             )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 

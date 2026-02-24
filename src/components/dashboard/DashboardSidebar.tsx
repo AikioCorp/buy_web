@@ -212,8 +212,8 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClo
         )}
         <div className="space-y-1">
           <SidebarLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" end onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/products" icon={<Package size={20} />} label="Produits" badge={stats.products} onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/orders" icon={<ShoppingCart size={20} />} label="Commandes" badge={stats.orders} onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
@@ -222,9 +222,9 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClo
           </p>
         )}
         <div className="space-y-1">
-          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
-          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" disabled={!shop?.is_active} onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/analytics" icon={<BarChart3 size={20} />} label="Statistiques" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/earnings" icon={<Wallet size={20} />} label="Revenus" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/shipping" icon={<Truck size={20} />} label="Livraisons" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {isOpen && (
