@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Search, Store, Edit2, Trash2, X, Save, Plus, Eye, MapPin, Phone, Mail, 
-  Image as ImageIcon, CheckCircle, XCircle, Clock, AlertTriangle, 
+import {
+  Search, Store, Edit2, Trash2, X, Save, Plus, Eye, MapPin, Phone, Mail,
+  Image as ImageIcon, CheckCircle, XCircle, Clock, AlertTriangle,
   MessageSquare, Package, Send, Ban, User, Star, Shield, UserCog, Lock, Unlock, DollarSign
 } from 'lucide-react'
 import { shopsService, Shop, CreateShopData } from '../../../lib/api/shopsService'
@@ -11,6 +11,7 @@ import { useToast } from '../../../components/Toast'
 import { usePermissions } from '../../../hooks/usePermissions'
 import ShopFormModal from '../../../components/admin/ShopFormModal'
 import CommissionManagementModal from '../../../components/admin/CommissionManagementModal'
+import { useAdminCacheStore } from '../../../stores/adminCacheStore'
 
 type TabFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'suspended';
 
@@ -24,14 +25,16 @@ const SuperAdminShopsPage: React.FC = () => {
     canValidateShops,
     isSuperAdmin
   } = usePermissions()
+  const { setCache, getCache, isFresh } = useAdminCacheStore()
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [activeTab, setActiveTab] = useState<TabFilter>('all')
-  
+
   // Modal states
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -52,7 +55,7 @@ const SuperAdminShopsPage: React.FC = () => {
   const [selectedOwnerEmail, setSelectedOwnerEmail] = useState('')
   const [commissionShop, setCommissionShop] = useState<Shop | null>(null)
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false)
-  
+
   const [formData, setFormData] = useState<Partial<Shop>>({})
   const [createFormData, setCreateFormData] = useState<CreateShopData>({
     name: '',
@@ -72,16 +75,16 @@ const SuperAdminShopsPage: React.FC = () => {
     is_active: false // New shops start inactive until approved
   })
   const [actionLoading, setActionLoading] = useState(false)
-  
+
   // Location states
   const [communes, setCommunes] = useState<Commune[]>([])
   const [quartiers, setQuartiers] = useState<Quartier[]>([])
   const [editQuartiers, setEditQuartiers] = useState<Quartier[]>([])
-  
+
   // WhatsApp different checkbox
   const [createWhatsappDifferent, setCreateWhatsappDifferent] = useState(false)
   const [editWhatsappDifferent, setEditWhatsappDifferent] = useState(false)
-  
+
   // File upload states
   const [createLogoFile, setCreateLogoFile] = useState<File | null>(null)
   const [createBannerFile, setCreateBannerFile] = useState<File | null>(null)
@@ -93,7 +96,7 @@ const SuperAdminShopsPage: React.FC = () => {
   const [editBannerPreview, setEditBannerPreview] = useState<string>('')
 
   const pageSize = 20
-  
+
   // Stats computed from shops
   const stats = {
     total: shops.length,
@@ -103,7 +106,7 @@ const SuperAdminShopsPage: React.FC = () => {
     suspended: shops.filter(s => s.status === 'suspended').length,
     totalProducts: shops.reduce((acc, s) => acc + (s.products_count || 0), 0)
   }
-  
+
   // Filtered shops based on active tab
   const filteredShops = shops.filter(shop => {
     if (activeTab === 'all') return true
@@ -115,7 +118,18 @@ const SuperAdminShopsPage: React.FC = () => {
   })
 
   useEffect(() => {
-    loadShops()
+    const cached = getCache('shops')
+    if (cached) {
+      setShops(cached.data)
+      setTotalCount(cached.totalCount)
+      setLoading(false)
+      if (!isFresh('shops')) {
+        setRefreshing(true)
+        loadShops(true)
+      }
+    } else {
+      loadShops()
+    }
   }, [currentPage, searchQuery])
 
   // Load communes on mount
@@ -195,53 +209,54 @@ const SuperAdminShopsPage: React.FC = () => {
 
   const uploadStoreImage = async (storeId: number, file: File, type: 'logo' | 'banner') => {
     console.log('Uploading store image:', { storeId, fileName: file.name, fileSize: file.size, fileType: file.type, type })
-    
+
     // Use the upload method with field name 'image'
     const response = await apiClient.upload<{ success: boolean; data: { publicUrl: string } }>(
       `/api/upload/stores/${storeId}?type=${type}`,
       file,
       'image'
     )
-    
+
     console.log('Upload response:', response)
-    
+
     if (response.error) {
       console.error('Upload error:', response.error)
       return ''
     }
-    
+
     return response.data?.data?.publicUrl || ''
   }
 
-  const loadShops = async () => {
+  const loadShops = async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError(null)
-      
+
       const response = await shopsService.getAllShopsAdmin({
         page: currentPage,
         search: searchQuery || undefined
       })
 
-      console.log('Shops response:', response)
-
       if (response.data) {
+        let loadedShops: Shop[] = []
+        let count = 0
         if (Array.isArray(response.data)) {
-          setShops(response.data)
-          setTotalCount(response.data.length)
+          loadedShops = response.data
+          count = response.data.length
         } else if (response.data.results) {
-          setShops(response.data.results)
-          setTotalCount(response.data.count)
-        } else {
-          setShops([])
-          setTotalCount(0)
+          loadedShops = response.data.results
+          count = response.data.count
         }
+        setShops(loadedShops)
+        setTotalCount(count)
+        setCache('shops', loadedShops, count)
       }
     } catch (err: any) {
       console.error('Erreur API:', err)
-      setError(err.message || 'Erreur lors du chargement des boutiques')
+      if (!silent) setError(err.message || 'Erreur lors du chargement des boutiques')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
@@ -274,13 +289,13 @@ const SuperAdminShopsPage: React.FC = () => {
 
   const handleSaveShop = async (data: any, logoFile?: File, bannerFile?: File) => {
     if (!editingShop) return
-    
+
     try {
       setActionLoading(true)
-      
+
       // Upload images if selected
       let updateData = { ...data }
-      
+
       if (logoFile) {
         try {
           const logoUrl = await uploadStoreImage(editingShop.id, logoFile, 'logo')
@@ -291,7 +306,7 @@ const SuperAdminShopsPage: React.FC = () => {
           console.error('Error uploading logo:', uploadErr)
         }
       }
-      
+
       if (bannerFile) {
         try {
           const bannerUrl = await uploadStoreImage(editingShop.id, bannerFile, 'banner')
@@ -302,9 +317,9 @@ const SuperAdminShopsPage: React.FC = () => {
           console.error('Error uploading banner:', uploadErr)
         }
       }
-      
+
       await shopsService.updateShop(editingShop.id, updateData as any)
-      
+
       setIsEditModalOpen(false)
       setEditingShop(null)
       loadShops()
@@ -354,10 +369,10 @@ const SuperAdminShopsPage: React.FC = () => {
 
   const handleConfirmAction = async () => {
     if (!selectedShopForAction || !actionType) return
-    
+
     try {
       setActionLoading(true)
-      
+
       if (actionType === 'approve') {
         await shopsService.approveShop(selectedShopForAction.id, actionReason || undefined)
         showToast(`Boutique "${selectedShopForAction.name}" approuvée`, 'success')
@@ -370,7 +385,7 @@ const SuperAdminShopsPage: React.FC = () => {
         await shopsService.suspendShop(selectedShopForAction.id, actionReason || '')
         showToast(`Boutique "${selectedShopForAction.name}" suspendue`, 'success')
       }
-      
+
       setIsActionModalOpen(false)
       setSelectedShopForAction(null)
       setActionType(null)
@@ -408,7 +423,7 @@ const SuperAdminShopsPage: React.FC = () => {
 
   const handleSendMessage = async () => {
     if (!selectedShopForAction || !messageContent.trim()) return
-    
+
     try {
       setActionLoading(true)
       await shopsService.sendMessageToShop(selectedShopForAction.id, messageContent)
@@ -429,7 +444,7 @@ const SuperAdminShopsPage: React.FC = () => {
 
   const getStatusBadgeModern = (shop: Shop) => {
     const status = shop.status || (shop.is_active ? 'approved' : 'pending')
-    
+
     switch (status) {
       case 'approved':
         return (
@@ -471,7 +486,7 @@ const SuperAdminShopsPage: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (!shopToDelete) return
-    
+
     try {
       setActionLoading(true)
       await shopsService.deleteShop(shopToDelete.id)
@@ -512,14 +527,14 @@ const SuperAdminShopsPage: React.FC = () => {
       showToast('Veuillez remplir tous les champs obligatoires (nom, slug)', 'error')
       return
     }
-    
+
     try {
       setActionLoading(true)
-      
+
       // Create shop first
       const response = await shopsService.createShop(data)
       const newShop = response.data
-      
+
       // Upload images if selected
       if (newShop && (logoFile || bannerFile)) {
         try {
@@ -539,7 +554,7 @@ const SuperAdminShopsPage: React.FC = () => {
           console.error('Error uploading images:', uploadErr)
         }
       }
-      
+
       setIsCreateModalOpen(false)
       loadShops()
       showToast('Boutique créée avec succès', 'success')
@@ -590,12 +605,15 @@ const SuperAdminShopsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestion des Boutiques</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Gestion des Boutiques
+            {refreshing && <span className="ml-2 inline-block w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin align-middle" />}
+          </h1>
           <p className="text-gray-600 mt-1">
             Gérez les boutiques de la plateforme
           </p>
         </div>
-        <button 
+        <button
           onClick={handleCreateShop}
           className="mt-4 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 transition-all"
         >
@@ -690,24 +708,22 @@ const SuperAdminShopsPage: React.FC = () => {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as TabFilter)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all ${
-                    activeTab === tab.key
+                  className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.key
                       ? 'bg-white text-indigo-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                   {tab.count > 0 && (
-                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
-                      activeTab === tab.key ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600'
-                    }`}>
+                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${activeTab === tab.key ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600'
+                      }`}>
                       {tab.count}
                     </span>
                   )}
                 </button>
               ))}
             </div>
-            
+
             {/* Search */}
             <form onSubmit={handleSearch} className="flex gap-2">
               <div className="relative">
@@ -730,7 +746,7 @@ const SuperAdminShopsPage: React.FC = () => {
           </div>
         </div>
 
-        {loading ? (
+        {loading && shops.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           </div>
@@ -769,7 +785,7 @@ const SuperAdminShopsPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Content */}
                   <div className="pt-10 px-4 pb-4">
                     <div className="flex items-start justify-between mb-2">
@@ -782,11 +798,11 @@ const SuperAdminShopsPage: React.FC = () => {
                         <span>{shop.products_count || 0} produits</span>
                       </div>
                     </div>
-                    
+
                     {shop.description && (
                       <p className="text-sm text-gray-600 line-clamp-2 mb-3">{shop.description}</p>
                     )}
-                    
+
                     {/* Contact Info */}
                     <div className="flex flex-wrap gap-2 mb-3 text-xs text-gray-500">
                       {shop.phone && (
@@ -802,7 +818,7 @@ const SuperAdminShopsPage: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    
+
                     {/* Toggle Active */}
                     <div className="flex items-center justify-between py-2 border-t border-gray-100 mb-3">
                       <span className="text-sm text-gray-600">Boutique active</span>
@@ -814,24 +830,24 @@ const SuperAdminShopsPage: React.FC = () => {
                         <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${shop.is_active ? 'left-6' : 'left-1'}`} />
                       </button>
                     </div>
-                    
+
                     {/* Actions */}
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => handleViewShop(shop)}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
                       >
                         <Eye size={14} />
                         Voir
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleOpenMessageModal(shop)}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
                         title="Envoyer un message"
                       >
                         <MessageSquare size={14} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           setCommissionShop(shop)
                           setIsCommissionModalOpen(true)
@@ -841,14 +857,14 @@ const SuperAdminShopsPage: React.FC = () => {
                       >
                         <DollarSign size={14} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleEditShop(shop)}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors"
                         title="Modifier"
                       >
                         <Edit2 size={14} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteClick(shop)}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
                         title="Supprimer"
@@ -856,18 +872,18 @@ const SuperAdminShopsPage: React.FC = () => {
                         <Trash2 size={14} />
                       </button>
                     </div>
-                    
+
                     {/* Approval Actions for pending shops */}
                     {(shop.status === 'pending' || (!shop.status && !shop.is_active)) && (
                       <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
-                        <button 
+                        <button
                           onClick={() => handleOpenActionModal(shop, 'approve')}
                           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
                         >
                           <CheckCircle size={14} />
                           Approuver
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleOpenActionModal(shop, 'reject')}
                           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
                         >
@@ -876,11 +892,11 @@ const SuperAdminShopsPage: React.FC = () => {
                         </button>
                       </div>
                     )}
-                    
+
                     {/* Suspend action for approved shops */}
                     {(shop.status === 'approved' || (shop.is_active && !shop.status)) && (
                       <div className="mt-2 pt-2 border-t border-gray-100">
-                        <button 
+                        <button
                           onClick={() => handleOpenActionModal(shop, 'suspend')}
                           className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-100 transition-colors"
                         >
@@ -893,7 +909,7 @@ const SuperAdminShopsPage: React.FC = () => {
                 </div>
               ))}
             </div>
-            
+
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="px-4 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -971,7 +987,7 @@ const SuperAdminShopsPage: React.FC = () => {
                   <p className="text-sm text-gray-600">Cette action est irréversible</p>
                 </div>
               </div>
-              
+
               <p className="text-gray-700 mb-6">
                 Êtes-vous sûr de vouloir supprimer la boutique <strong>{shopToDelete.name}</strong> ?
               </p>
@@ -1012,14 +1028,14 @@ const SuperAdminShopsPage: React.FC = () => {
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-              <button 
-                onClick={() => setIsViewModalOpen(false)} 
+              <button
+                onClick={() => setIsViewModalOpen(false)}
                 className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
               >
                 <X size={20} />
               </button>
               {!isEditingInView && (
-                <button 
+                <button
                   onClick={() => setIsEditingInView(true)}
                   className="absolute top-4 right-16 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
                   title="Modifier"
@@ -1047,7 +1063,7 @@ const SuperAdminShopsPage: React.FC = () => {
                         <input
                           type="text"
                           value={viewFormData.name || ''}
-                          onChange={(e) => setViewFormData({...viewFormData, name: e.target.value})}
+                          onChange={(e) => setViewFormData({ ...viewFormData, name: e.target.value })}
                           className="text-2xl md:text-3xl font-bold text-gray-900 border-b-2 border-indigo-500 focus:outline-none bg-transparent w-full"
                         />
                       ) : (
@@ -1087,7 +1103,7 @@ const SuperAdminShopsPage: React.FC = () => {
                   {isEditingInView ? (
                     <textarea
                       value={viewFormData.description || ''}
-                      onChange={(e) => setViewFormData({...viewFormData, description: e.target.value})}
+                      onChange={(e) => setViewFormData({ ...viewFormData, description: e.target.value })}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
@@ -1159,7 +1175,7 @@ const SuperAdminShopsPage: React.FC = () => {
                         <input
                           type="text"
                           value={viewFormData.phone || ''}
-                          onChange={(e) => setViewFormData({...viewFormData, phone: e.target.value})}
+                          onChange={(e) => setViewFormData({ ...viewFormData, phone: e.target.value })}
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                       ) : (
@@ -1175,7 +1191,7 @@ const SuperAdminShopsPage: React.FC = () => {
                         <input
                           type="email"
                           value={viewFormData.email || ''}
-                          onChange={(e) => setViewFormData({...viewFormData, email: e.target.value})}
+                          onChange={(e) => setViewFormData({ ...viewFormData, email: e.target.value })}
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                       ) : (
@@ -1191,7 +1207,7 @@ const SuperAdminShopsPage: React.FC = () => {
                         <input
                           type="text"
                           value={viewFormData.address_commune || ''}
-                          onChange={(e) => setViewFormData({...viewFormData, address_commune: e.target.value})}
+                          onChange={(e) => setViewFormData({ ...viewFormData, address_commune: e.target.value })}
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                       ) : (
@@ -1207,7 +1223,7 @@ const SuperAdminShopsPage: React.FC = () => {
                         <input
                           type="text"
                           value={viewFormData.address_quartier || ''}
-                          onChange={(e) => setViewFormData({...viewFormData, address_quartier: e.target.value})}
+                          onChange={(e) => setViewFormData({ ...viewFormData, address_quartier: e.target.value })}
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                       ) : (
@@ -1221,7 +1237,7 @@ const SuperAdminShopsPage: React.FC = () => {
                       {isEditingInView ? (
                         <textarea
                           value={viewFormData.address_details || ''}
-                          onChange={(e) => setViewFormData({...viewFormData, address_details: e.target.value})}
+                          onChange={(e) => setViewFormData({ ...viewFormData, address_details: e.target.value })}
                           rows={2}
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />

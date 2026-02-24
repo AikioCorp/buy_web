@@ -1,0 +1,2 @@
+src/pages/dashboard/admin/AdminOrdersPage.tsx(351,7): error TS2448: Block-scoped variable 'loadOrders' used before its declaration.
+src/pages/dashboard/admin/AdminOrdersPage.tsx(351,7): error TS2454: Variable 'loadOrders' is used before being assigned.

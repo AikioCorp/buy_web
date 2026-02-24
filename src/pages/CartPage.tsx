@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
 import { formatPrice } from '@/lib/utils'
+import { useToast } from '@/components/Toast'
+import analytics from '@/lib/analytics/tracker'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import { Trash2, ShoppingBag, MessageCircle } from 'lucide-react'
@@ -126,6 +128,9 @@ export function CartPage() {
 
     const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Sous-total: ${formatPrice(subtotal, 'XOF')}*\n*Livraison: ${formatPrice(deliveryFee, 'XOF')}*\n*Total global: ${formatPrice(totalGlobal, 'XOF')}*${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
     const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
+
+    analytics.whatsAppOrder(items.map(i => i.product.id), totalGlobal)
+
     window.open(whatsappUrl, '_blank')
     setWhatsappLoading(false)
   }

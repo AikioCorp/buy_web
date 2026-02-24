@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Search, ShoppingBag, Eye, X, Truck, CheckCircle, XCircle, Clock, Package,
   ArrowRightLeft, Store, AlertTriangle, Loader2, RefreshCw, Phone, MapPin,
@@ -9,6 +9,7 @@ import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersServic
 import { shopsService } from '../../../lib/api/shopsService'
 import { useToast } from '../../../components/Toast'
 import { usePermissions } from '../../../hooks/usePermissions'
+import { useAdminCacheStore } from '../../../stores/adminCacheStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -103,6 +104,7 @@ const SuperAdminOrdersPage: React.FC = () => {
     canCancelOrders,
     isSuperAdmin
   } = usePermissions()
+  const { setCache, getCache, isFresh } = useAdminCacheStore()
   const [orders, setOrders] = useState<Order[]>([])
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
@@ -159,17 +161,26 @@ const SuperAdminOrdersPage: React.FC = () => {
   }
 
   useEffect(() => {
-    loadOrders()
+    const cached = getCache('orders')
+    if (cached) {
+      setOrders(cached.data)
+      setTotalCount(cached.totalCount)
+      setLoading(false)
+      if (!isFresh('orders')) loadOrders(true)
+    } else {
+      loadOrders()
+    }
     loadShops()
   }, [])
 
   useEffect(() => {
-    loadOrders()
+    // Only reload silently if we already have orders
+    loadOrders(orders.length > 0)
   }, [currentPage, searchQuery, selectedStatus, selectedShopId])
 
-  const loadOrders = async () => {
+  const loadOrders = async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError(null)
 
       const response = await ordersService.getAllOrdersAdmin({
@@ -183,11 +194,7 @@ const SuperAdminOrdersPage: React.FC = () => {
       console.log('Orders response.data:', response.data)
 
       if (response.data) {
-        // Handle nested success wrapper: {success: true, data: {...}}
         const responseData = response.data as any
-        console.log('Full response structure:', JSON.stringify(responseData, null, 2))
-
-        // Check for nested data structure: {success: true, data: {results: [...], count: N}}
         let actualData = responseData
         if (responseData.success && responseData.data) {
           actualData = responseData.data
@@ -219,11 +226,14 @@ const SuperAdminOrdersPage: React.FC = () => {
           }
         }
       }
+
+      // Cache the orders
+      setCache('orders', orders, totalCount)
     } catch (err: any) {
       console.error('Erreur API:', err)
-      setError(err.message || 'Erreur lors du chargement des commandes')
+      if (!silent) setError(err.message || 'Erreur lors du chargement des commandes')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -241,7 +251,26 @@ const SuperAdminOrdersPage: React.FC = () => {
   const handleStatusClick = (order: Order) => {
     setOrderToUpdate(order)
     setNewStatus(order.status)
+    setStatusNote('')
     setIsStatusModalOpen(true)
+  }
+
+  // Quick 1-click status change (no modal)
+  const handleQuickStatus = async (order: Order, status: OrderStatus) => {
+    try {
+      setActionLoading(true)
+      await ordersService.updateOrderStatus(order.id, status)
+      // Optimistic update
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status } : o))
+      if (viewingOrder?.id === order.id) {
+        setViewingOrder({ ...viewingOrder, status })
+      }
+      showToast(`Commande #${order.id} → ${statusConfig[status]?.label || status}`, 'success')
+    } catch (err: any) {
+      showToast(err.message || 'Erreur', 'error')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleUpdateStatus = async () => {
@@ -250,17 +279,34 @@ const SuperAdminOrdersPage: React.FC = () => {
     try {
       setActionLoading(true)
       await ordersService.updateOrderStatus(orderToUpdate.id, newStatus)
+
+      // Optimistic update
+      setOrders(prev => prev.map(o => o.id === orderToUpdate.id ? { ...o, status: newStatus } : o))
+      if (viewingOrder?.id === orderToUpdate.id) {
+        setViewingOrder({ ...viewingOrder, status: newStatus })
+      }
+
+      showToast(`Statut mis à jour → ${statusConfig[newStatus]?.label || newStatus}`, 'success')
+      // Auto-close modal
       setIsStatusModalOpen(false)
       setOrderToUpdate(null)
-      setStatusNote('')
-      loadOrders()
-      showToast('Statut mis à jour avec succès', 'success')
     } catch (err: any) {
       showToast(err.message || 'Erreur lors de la mise à jour du statut', 'error')
     } finally {
       setActionLoading(false)
     }
   }
+
+  // Status pipeline config
+  const statusConfig: Record<string, { label: string; icon: any; color: string; bg: string; ring: string }> = {
+    pending: { label: 'En attente', icon: Clock, color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200', ring: 'ring-yellow-400' },
+    confirmed: { label: 'Confirmée', icon: CheckCircle, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', ring: 'ring-blue-400' },
+    processing: { label: 'En préparation', icon: Package, color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200', ring: 'ring-purple-400' },
+    shipped: { label: 'Expédiée', icon: Truck, color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200', ring: 'ring-indigo-400' },
+    delivered: { label: 'Livrée', icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-50 border-green-200', ring: 'ring-green-400' },
+    cancelled: { label: 'Annulée', icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-200', ring: 'ring-red-400' },
+  }
+  const statusOrder: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
 
   const handleTransferClick = async (order: Order) => {
     setOrderToTransfer(order)
@@ -290,14 +336,13 @@ const SuperAdminOrdersPage: React.FC = () => {
       setActionLoading(true)
       await ordersService.transferOrder(orderToTransfer.id, transferShopId, transferReason)
 
-      setIsTransferModalOpen(false)
-      setOrderToTransfer(null)
-      setTransferShopId(null)
-      setTransferReason('')
-      loadOrders()
       showToast('Commande transférée avec succès', 'success')
-    } catch (err: any) {
-      showToast(err.message || 'Erreur lors du transfert de la commande', 'error')
+
+      // Keep modal open, just update state and sync
+      // Note: The order will still exist in the current view unless filtered out
+      loadOrders(true)
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors du transfert', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -407,9 +452,17 @@ const SuperAdminOrdersPage: React.FC = () => {
         showToast(response.error || 'Erreur lors de la modification', 'error')
       } else {
         showToast('Commande modifiée avec succès !', 'success')
-        setIsEditModalOpen(false)
-        setEditingOrder(null)
-        loadOrders()
+
+        if (response.data) {
+          // Sync local states correctly without closing the modal
+          setOrders(prev => prev.map(o => o.id === editingOrder.id ? { ...o, ...(response.data as any) } : o))
+          if (viewingOrder?.id === editingOrder.id) {
+            setViewingOrder({ ...viewingOrder, ...(response.data as any) })
+          }
+        }
+
+        // Background reload
+        loadOrders(true)
       }
     } catch (error: any) {
       showToast(error.message || 'Erreur lors de la modification', 'error')
@@ -492,7 +545,7 @@ const SuperAdminOrdersPage: React.FC = () => {
         </div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           <button
-            onClick={loadOrders}
+            onClick={() => loadOrders()}
             className="px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -579,10 +632,24 @@ const SuperAdminOrdersPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto" />
-              <p className="mt-3 text-gray-500">Chargement des commandes...</p>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-4 border-b border-gray-50 flex space-x-4 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-8"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-24"></div>
+              <div className="h-4 bg-gray-200 rounded w-20"></div>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {[...Array(pageSize)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-4 animate-pulse p-4">
+                  <div className="h-4 bg-gray-100 rounded w-8"></div>
+                  <div className="h-10 bg-gray-100 rounded-lg flex-1"></div>
+                  <div className="h-4 bg-gray-100 rounded w-24 hidden sm:block"></div>
+                  <div className="h-8 bg-gray-200 rounded-full w-24"></div>
+                  <div className="h-4 bg-gray-200 rounded w-20 font-bold"></div>
+                </div>
+              ))}
             </div>
           </div>
         ) : error ? (
@@ -590,7 +657,7 @@ const SuperAdminOrdersPage: React.FC = () => {
             <XCircle className="w-16 h-16 text-red-300 mx-auto mb-4" />
             <p className="text-red-600 font-medium">{error}</p>
             <button
-              onClick={loadOrders}
+              onClick={() => loadOrders()}
               className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
             >
               Réessayer
@@ -945,369 +1012,445 @@ const SuperAdminOrdersPage: React.FC = () => {
       )}
 
       {/* Update Status Modal */}
-      {isStatusModalOpen && orderToUpdate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Modifier le statut</h2>
-              <p className="text-sm text-gray-500">Commande #{orderToUpdate.id}</p>
-            </div>
+      {/* ─── STATUS PIPELINE MODAL ─── */}
+      {isStatusModalOpen && orderToUpdate && (() => {
+        const currentIdx = statusOrder.indexOf(orderToUpdate.status)
+        const selectedIdx = statusOrder.indexOf(newStatus)
 
-            <div className="p-6">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Statut actuel
-                </label>
-                <div>{getStatusBadge(orderToUpdate.status)}</div>
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsStatusModalOpen(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Changer le statut</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Commande #{orderToUpdate.id}</p>
+                </div>
+                <button onClick={() => setIsStatusModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <X size={18} className="text-gray-400" />
+                </button>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nouveau statut
-                </label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              {/* Pipeline visuel */}
+              <div className="p-5 space-y-2">
+                {statusOrder.map((status, idx) => {
+                  const cfg = statusConfig[status]
+                  if (!cfg) return null
+                  const Icon = cfg.icon
+                  const isCurrentStatus = status === orderToUpdate.status
+                  const isSelected = status === newStatus
+                  const isPast = idx < currentIdx
+                  const isDisabled = isPast && !isCurrentStatus
+
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => !isDisabled && setNewStatus(status)}
+                      disabled={isDisabled}
+                      className={`w-full flex items-center gap-4 p-3.5 rounded-xl border-2 transition-all duration-200 text-left group
+                        ${isDisabled
+                          ? 'opacity-35 cursor-not-allowed border-gray-100 bg-gray-50'
+                          : isSelected
+                            ? `${cfg.bg} ${cfg.ring} ring-2 shadow-sm scale-[1.02]`
+                            : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                        }
+                      `}
+                    >
+                      {/* Step indicator */}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors
+                        ${isDisabled ? 'bg-gray-100 text-gray-300' : isSelected ? cfg.bg + ' ' + cfg.color : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}
+                      `}>
+                        <Icon size={20} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-semibold text-sm ${isDisabled ? 'text-gray-300 line-through' : isSelected ? cfg.color : 'text-gray-700'}`}>
+                          {cfg.label}
+                        </div>
+                        {isCurrentStatus && (
+                          <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Statut actuel</span>
+                        )}
+                        {isDisabled && !isCurrentStatus && (
+                          <span className="text-[10px] font-medium text-gray-300 uppercase tracking-wider">Étape passée</span>
+                        )}
+                      </div>
+
+                      {/* Selection indicator */}
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
+                        ${isDisabled ? 'border-gray-200 bg-gray-100' : isSelected ? 'border-current ' + cfg.color + ' bg-current' : 'border-gray-300'}
+                      `}>
+                        {isSelected && !isDisabled && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        {isDisabled && (
+                          <svg className="w-3 h-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+
+                {/* Cancelled - separate */}
+                {(() => {
+                  const cfg = statusConfig.cancelled
+                  const Icon = cfg.icon
+                  const isSelected = newStatus === 'cancelled'
+                  return (
+                    <button
+                      onClick={() => setNewStatus('cancelled')}
+                      className={`w-full flex items-center gap-4 p-3.5 rounded-xl border-2 transition-all duration-200 text-left group mt-3
+                        ${isSelected
+                          ? `${cfg.bg} ${cfg.ring} ring-2 shadow-sm`
+                          : 'border-red-100 hover:border-red-200 hover:bg-red-50/50'
+                        }
+                      `}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-red-100 text-red-600' : 'bg-red-50 text-red-300'}`}>
+                        <Icon size={20} />
+                      </div>
+                      <div className="flex-1">
+                        <div className={`font-semibold text-sm ${isSelected ? 'text-red-700' : 'text-red-400'}`}>Annuler la commande</div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-red-500 bg-red-500' : 'border-red-200'}`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })()}
+              </div>
+
+              {/* Footer */}
+              <div className="p-5 border-t border-gray-100 flex items-center justify-between">
+                <div className="text-xs text-gray-400">
+                  {newStatus !== orderToUpdate.status
+                    ? <span className="flex items-center gap-1"><ArrowRightLeft size={12} /> {statusConfig[orderToUpdate.status]?.label} → <strong className={statusConfig[newStatus]?.color}>{statusConfig[newStatus]?.label}</strong></span>
+                    : 'Sélectionnez un nouveau statut'
+                  }
+                </div>
+                <button
+                  onClick={handleUpdateStatus}
+                  disabled={actionLoading || newStatus === orderToUpdate.status}
+                  className="px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
-                  <option value="pending">En attente</option>
-                  <option value="confirmed">Confirmée</option>
-                  <option value="processing">En préparation</option>
-                  <option value="shipped">Expédiée</option>
-                  <option value="delivered">Livrée</option>
-                  <option value="cancelled">Annulée</option>
-                </select>
+                  {actionLoading ? (
+                    <><Loader2 className="animate-spin" size={14} /> Mise à jour...</>
+                  ) : (
+                    <><CheckCircle size={14} /> Confirmer</>
+                  )}
+                </button>
               </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Note pour le client (optionnel)
-                </label>
-                <textarea
-                  value={statusNote}
-                  onChange={(e) => setStatusNote(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Ajouter une note..."
-                />
-              </div>
-
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Le client sera notifié par email et SMS du changement de statut.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
-              <button
-                onClick={() => setIsStatusModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                disabled={actionLoading}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleUpdateStatus}
-                disabled={actionLoading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {actionLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} />
-                    Mise à jour...
-                  </>
-                ) : (
-                  'Mettre à jour'
-                )}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Transfer Order Modal */}
-      {isTransferModalOpen && orderToTransfer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <ArrowRightLeft className="text-orange-600" size={20} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Transférer la commande</h2>
-                  <p className="text-sm text-gray-500">Commande #{orderToTransfer.id}</p>
+      {
+        isTransferModalOpen && orderToTransfer && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <ArrowRightLeft className="text-orange-600" size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Transférer la commande</h2>
+                    <p className="text-sm text-gray-500">Commande #{orderToTransfer.id}</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="p-6">
-              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="text-yellow-600 flex-shrink-0 mt-0.5" size={18} />
-                  <p className="text-sm text-yellow-800">
-                    Le transfert de commande notifiera le client et la nouvelle boutique.
-                    Cette action est irréversible.
+              <div className="p-6">
+                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="text-yellow-600 flex-shrink-0 mt-0.5" size={18} />
+                    <p className="text-sm text-yellow-800">
+                      Le transfert de commande notifiera le client et la nouvelle boutique.
+                      Cette action est irréversible.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Boutique actuelle
+                  </label>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Store className="text-gray-400" size={18} />
+                    <span className="text-gray-900">
+                      {(orderToTransfer.items?.[0]?.product as any)?.store?.name || 'Non définie'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nouvelle boutique <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={transferShopId || ''}
+                    onChange={(e) => setTransferShopId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">Sélectionner une boutique</option>
+                    {shops
+                      .filter(s => s.is_active)
+                      .filter(s => {
+                        // Exclude the current store from the list
+                        const currentStoreId = orderToTransfer.items?.[0]?.product?.store?.id
+                        return s.id !== currentStoreId
+                      })
+                      .map(shop => (
+                        <option key={shop.id} value={shop.id}>{shop.name}</option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Raison du transfert <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={transferReason}
+                    onChange={(e) => setTransferReason(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Expliquez la raison du transfert au client..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cette raison sera communiquée au client par email et SMS.
                   </p>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Boutique actuelle
-                </label>
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                  <Store className="text-gray-400" size={18} />
-                  <span className="text-gray-900">
-                    {(orderToTransfer.items?.[0]?.product as any)?.store?.name || 'Non définie'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nouvelle boutique <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={transferShopId || ''}
-                  onChange={(e) => setTransferShopId(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setIsTransferModalOpen(false)
+                    setOrderToTransfer(null)
+                    setTransferShopId(null)
+                    setTransferReason('')
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  disabled={actionLoading}
                 >
-                  <option value="">Sélectionner une boutique</option>
-                  {shops
-                    .filter(s => s.is_active)
-                    .filter(s => {
-                      // Exclude the current store from the list
-                      const currentStoreId = orderToTransfer.items?.[0]?.product?.store?.id
-                      return s.id !== currentStoreId
-                    })
-                    .map(shop => (
-                      <option key={shop.id} value={shop.id}>{shop.name}</option>
-                    ))}
-                </select>
+                  Annuler
+                </button>
+                <button
+                  onClick={handleTransferOrder}
+                  disabled={actionLoading || !transferShopId || !transferReason.trim()}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {actionLoading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={16} />
+                      Transfert...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRightLeft size={16} />
+                      Transférer
+                    </>
+                  )}
+                </button>
               </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Raison du transfert <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={transferReason}
-                  onChange={(e) => setTransferReason(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Expliquez la raison du transfert au client..."
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Cette raison sera communiquée au client par email et SMS.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setIsTransferModalOpen(false)
-                  setOrderToTransfer(null)
-                  setTransferShopId(null)
-                  setTransferReason('')
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                disabled={actionLoading}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleTransferOrder}
-                disabled={actionLoading || !transferShopId || !transferReason.trim()}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {actionLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} />
-                    Transfert...
-                  </>
-                ) : (
-                  <>
-                    <ArrowRightLeft size={16} />
-                    Transférer
-                  </>
-                )}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
       {/* Edit Order Items Modal */}
-      {isEditModalOpen && editingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-auto flex flex-col max-h-[95vh]">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <Package size={20} className="text-green-600" />
-                  Modifier la commande #{(editingOrder as any).order_number || editingOrder.id}
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {(editingOrder as any).order_source === 'whatsapp' && '📱 Commande WhatsApp — '}
-                  Modifiez les articles, quantités et infos client
-                </p>
-              </div>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-5 overflow-y-auto flex-1">
-              {/* Items */}
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Articles ({editItems.length})</h3>
-                <div className="space-y-2">
-                  {editItems.map((item, index) => (
-                    <div key={`${item.product_id}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                        {item.product_image ? <img src={item.product_image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-400" size={16} /></div>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
-                        <p className="text-xs text-gray-500">{item.unit_price.toLocaleString()} FCFA / unité</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleEditQuantity(index, -1)} className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100"><Minus size={14} /></button>
-                        <span className="w-10 text-center font-bold text-sm">{item.quantity}</span>
-                        <button onClick={() => handleEditQuantity(index, 1)} className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100"><Plus size={14} /></button>
-                      </div>
-                      <div className="text-right flex-shrink-0 w-24">
-                        <p className="text-sm font-bold">{(item.unit_price * item.quantity).toLocaleString()} FCFA</p>
-                      </div>
-                      <button onClick={() => handleEditRemoveItem(index)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
-                    </div>
-                  ))}
-                  {editItems.length === 0 && (
-                    <div className="text-center py-8 text-gray-400">
-                      <Package size={32} className="mx-auto mb-2" />
-                      <p>Aucun article. Ajoutez des produits ci-dessous.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* Add product search */}
-              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2"><Plus size={16} /> Ajouter un produit</h4>
-                <div className="flex gap-2">
-                  <input type="text" value={addProductSearch} onChange={(e) => setAddProductSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearchProduct()} placeholder="Rechercher un produit..." className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm" />
-                  <button onClick={handleSearchProduct} disabled={addProductLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
-                    {addProductLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />} Chercher
-                  </button>
-                </div>
-                {addProductResults.length > 0 && (
-                  <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
-                    {addProductResults.map((product: any) => {
-                      const price = product.is_on_sale && product.promo_price ? product.promo_price : product.base_price
-                      return (
-                        <button key={product.id} onClick={() => handleAddProduct(product)} className="w-full flex items-center gap-3 p-2 hover:bg-blue-100 rounded-lg text-left">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
-                            <p className="text-xs text-blue-600 font-bold">{parseFloat(price).toLocaleString()} FCFA</p>
-                          </div>
-                          <Plus size={18} className="text-blue-600" />
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-              {/* Delivery fee & notes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {
+        isEditModalOpen && editingOrder && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-auto flex flex-col max-h-[95vh]">
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Frais de livraison (FCFA)</label>
-                  <input type="number" value={editDeliveryFee} onChange={(e) => setEditDeliveryFee(parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                  {editSubtotal >= 50000 && editDeliveryFee > 0 && (
-                    <p className="text-xs text-emerald-600 mt-1 cursor-pointer hover:underline" onClick={() => setEditDeliveryFee(0)}>
-                      ✅ Commande ≥ 50 000 FCFA — Cliquez pour livraison gratuite
-                    </p>
-                  )}
-                  {editSubtotal >= 50000 && editDeliveryFee === 0 && (
-                    <p className="text-xs text-emerald-600 mt-1 font-medium">\u2728 Livraison gratuite appliquée !</p>
-                  )}
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Package size={20} className="text-green-600" />
+                    Modifier la commande #{(editingOrder as any).order_number || editingOrder.id}
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {(editingOrder as any).order_source === 'whatsapp' && '📱 Commande WhatsApp — '}
+                    Modifiez les articles, quantités et infos client
+                  </p>
                 </div>
+                <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                {/* Items */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-                  <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Note..." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                </div>
-              </div>
-              {/* Shipping */}
-              <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
-                <h4 className="font-medium text-orange-900 mb-3 flex items-center gap-2"><MapPin size={16} /> Informations client & livraison</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Nom complet</label>
-                    <input type="text" value={editShippingName} onChange={(e) => setEditShippingName(e.target.value)} placeholder="Nom du client" className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Téléphone</label>
-                    <input type="tel" value={editShippingPhone} onChange={(e) => setEditShippingPhone(e.target.value)} placeholder="Téléphone" className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Commune *</label>
-                    <select
-                      value={editShippingCommune}
-                      onChange={(e) => {
-                        setEditShippingCommune(e.target.value)
-                        setEditShippingQuartier('') // Reset quartier when commune changes
-                      }}
-                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm bg-white"
-                    >
-                      <option value="">Sélectionnez une commune</option>
-                      {Object.keys(BAMAKO_ZONES).map((commune) => (
-                        <option key={commune} value={commune}>{commune}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Quartier *</label>
-                    <select
-                      value={editShippingQuartier}
-                      onChange={(e) => setEditShippingQuartier(e.target.value)}
-                      className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm bg-white"
-                      disabled={!editShippingCommune}
-                    >
-                      <option value="">Sélectionnez un quartier</option>
-                      {editShippingCommune && BAMAKO_ZONES[editShippingCommune]?.quartiers.map((quartier) => (
-                        <option key={quartier} value={quartier}>{quartier}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Détails adresse</label>
-                    <input type="text" value={editShippingDetails} onChange={(e) => setEditShippingDetails(e.target.value)} placeholder="Rue, repère, indications..." className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
+                  <h3 className="font-semibold text-gray-900 mb-3">Articles ({editItems.length})</h3>
+                  <div className="space-y-2">
+                    {editItems.map((item, index) => (
+                      <div key={`${item.product_id}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                          {item.product_image ? <img src={item.product_image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-400" size={16} /></div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
+                          <p className="text-xs text-gray-500">{item.unit_price.toLocaleString()} FCFA / unité</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleEditQuantity(index, -1)} className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100"><Minus size={14} /></button>
+                          <span className="w-10 text-center font-bold text-sm">{item.quantity}</span>
+                          <button onClick={() => handleEditQuantity(index, 1)} className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100"><Plus size={14} /></button>
+                        </div>
+                        <div className="text-right flex-shrink-0 w-24">
+                          <p className="text-sm font-bold">{(item.unit_price * item.quantity).toLocaleString()} FCFA</p>
+                        </div>
+                        <button onClick={() => handleEditRemoveItem(index)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                      </div>
+                    ))}
+                    {editItems.length === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        <Package size={32} className="mx-auto mb-2" />
+                        <p>Aucun article. Ajoutez des produits ci-dessous.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-              {/* Totals */}
-              <div className={`rounded-xl p-4 border ${editSubtotal >= 50000 && editDeliveryFee === 0 ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200' : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'}`}>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span className="text-gray-600">Sous-total</span><span className="font-medium">{editSubtotal.toLocaleString()} FCFA</span></div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Livraison</span>
-                    <span className={`font-medium ${editDeliveryFee === 0 ? 'text-emerald-600' : ''}`}>
-                      {editDeliveryFee === 0 ? 'GRATUIT' : `${editDeliveryFee.toLocaleString()} FCFA`}
-                    </span>
+                {/* Add product search */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2"><Plus size={16} /> Ajouter un produit</h4>
+                  <div className="flex gap-2">
+                    <input type="text" value={addProductSearch} onChange={(e) => setAddProductSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearchProduct()} placeholder="Rechercher un produit..." className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm" />
+                    <button onClick={handleSearchProduct} disabled={addProductLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                      {addProductLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />} Chercher
+                    </button>
                   </div>
-                  <div className="border-t border-green-200 pt-2 flex justify-between"><span className="font-bold text-green-900 text-lg">Total</span><span className="font-bold text-green-700 text-lg">{editTotal.toLocaleString()} FCFA</span></div>
+                  {addProductResults.length > 0 && (
+                    <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+                      {addProductResults.map((product: any) => {
+                        const price = product.is_on_sale && product.promo_price ? product.promo_price : product.base_price
+                        return (
+                          <button key={product.id} onClick={() => handleAddProduct(product)} className="w-full flex items-center gap-3 p-2 hover:bg-blue-100 rounded-lg text-left">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                              <p className="text-xs text-blue-600 font-bold">{parseFloat(price).toLocaleString()} FCFA</p>
+                            </div>
+                            <Plus size={18} className="text-blue-600" />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+                {/* Delivery fee & notes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Frais de livraison (FCFA)</label>
+                    <input type="number" value={editDeliveryFee} onChange={(e) => setEditDeliveryFee(parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                    {editSubtotal >= 50000 && editDeliveryFee > 0 && (
+                      <p className="text-xs text-emerald-600 mt-1 cursor-pointer hover:underline" onClick={() => setEditDeliveryFee(0)}>
+                        ✅ Commande ≥ 50 000 FCFA — Cliquez pour livraison gratuite
+                      </p>
+                    )}
+                    {editSubtotal >= 50000 && editDeliveryFee === 0 && (
+                      <p className="text-xs text-emerald-600 mt-1 font-medium">\u2728 Livraison gratuite appliquée !</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                    <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Note..." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                </div>
+                {/* Shipping */}
+                <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                  <h4 className="font-medium text-orange-900 mb-3 flex items-center gap-2"><MapPin size={16} /> Informations client & livraison</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Nom complet</label>
+                      <input type="text" value={editShippingName} onChange={(e) => setEditShippingName(e.target.value)} placeholder="Nom du client" className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Téléphone 🇲🇱</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 select-none">+223</span>
+                        <input
+                          type="tel"
+                          value={editShippingPhone.replace(/^\+?223/, '').replace(/(\d{2})(?=\d)/g, '$1 ').trim()}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 8)
+                            setEditShippingPhone(digits.length > 0 ? `+223${digits}` : '')
+                          }}
+                          placeholder="70 00 00 00"
+                          maxLength={11}
+                          className="w-full pl-14 pr-3 py-2 border border-orange-200 rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Commune *</label>
+                      <select
+                        value={editShippingCommune}
+                        onChange={(e) => {
+                          setEditShippingCommune(e.target.value)
+                          setEditShippingQuartier('') // Reset quartier when commune changes
+                        }}
+                        className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm bg-white"
+                      >
+                        <option value="">Sélectionnez une commune</option>
+                        {Object.keys(BAMAKO_ZONES).map((commune) => (
+                          <option key={commune} value={commune}>{commune}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Quartier *</label>
+                      <select
+                        value={editShippingQuartier}
+                        onChange={(e) => setEditShippingQuartier(e.target.value)}
+                        className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm bg-white"
+                        disabled={!editShippingCommune}
+                      >
+                        <option value="">Sélectionnez un quartier</option>
+                        {editShippingCommune && BAMAKO_ZONES[editShippingCommune]?.quartiers.map((quartier) => (
+                          <option key={quartier} value={quartier}>{quartier}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Détails adresse</label>
+                      <input type="text" value={editShippingDetails} onChange={(e) => setEditShippingDetails(e.target.value)} placeholder="Rue, repère, indications..." className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm" />
+                    </div>
+                  </div>
+                </div>
+                {/* Totals */}
+                <div className={`rounded-xl p-4 border ${editSubtotal >= 50000 && editDeliveryFee === 0 ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200' : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'}`}>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm"><span className="text-gray-600">Sous-total</span><span className="font-medium">{editSubtotal.toLocaleString()} FCFA</span></div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Livraison</span>
+                      <span className={`font-medium ${editDeliveryFee === 0 ? 'text-emerald-600' : ''}`}>
+                        {editDeliveryFee === 0 ? 'GRATUIT' : `${editDeliveryFee.toLocaleString()} FCFA`}
+                      </span>
+                    </div>
+                    <div className="border-t border-green-200 pt-2 flex justify-between"><span className="font-bold text-green-900 text-lg">Total</span><span className="font-bold text-green-700 text-lg">{editTotal.toLocaleString()} FCFA</span></div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50 rounded-b-xl flex-shrink-0">
-              <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-white text-sm" disabled={editSaving}>Annuler</button>
-              <button onClick={handleSaveEditOrder} disabled={editSaving || editItems.length === 0} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 text-sm font-medium">
-                {editSaving ? (<><Loader2 className="animate-spin" size={16} />Enregistrement...</>) : (<><Save size={16} />Enregistrer</>)}
-              </button>
+              <div className="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50 rounded-b-xl flex-shrink-0">
+                <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-white text-sm" disabled={editSaving}>Annuler</button>
+                <button onClick={handleSaveEditOrder} disabled={editSaving || editItems.length === 0} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 text-sm font-medium">
+                  {editSaving ? (<><Loader2 className="animate-spin" size={16} />Enregistrement...</>) : (<><Save size={16} />Enregistrer</>)}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   )
 }
 

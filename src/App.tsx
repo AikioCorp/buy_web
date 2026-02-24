@@ -9,7 +9,13 @@ import { AuthLayout } from './components/AuthLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ProtectedRouteByRole } from './components/ProtectedRouteByRole'
 import { DashboardWelcomePopup } from './components/DashboardWelcomePopup'
+import { usePageTracking } from './hooks/useAnalytics'
 import { HomePage } from './pages/HomePage'
+
+function AnalyticsTracker() {
+  usePageTracking()
+  return null
+}
 import { ShopsPage } from './pages/ShopsPage'
 import { ShopDetailPage } from './pages/ShopDetailPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
@@ -70,28 +76,21 @@ import { AdminDashboardLayout } from './components/dashboard/admin'
 // Import du Layout Dashboard SuperAdmin
 import { SuperAdminDashboardLayout } from './components/dashboard/superadmin'
 
-// Import des pages dashboard admin
+// Import des pages dashboard admin/superadmin (partagées via permissions)
 import {
   AdminDashboardPage,
   SuperAdminDashboardPage,
-  AdminUsersPage,
-  AdminReportsPage,
   SuperAdminReportsPage,
   AdminModerationPage,
-  AdminAnalyticsPage,
   HomepageManagementPage,
   FlashSalesManagementPage
 } from './pages/dashboard/admin'
-import AdminShopsPage from './pages/dashboard/admin/AdminShopsPage'
-import AdminProductsPage from './pages/dashboard/admin/AdminProductsPage'
-import AdminOrdersPage from './pages/dashboard/admin/AdminOrdersPage'
 import SuperAdminUsersPage from './pages/dashboard/admin/SuperAdminUsersPage'
 import SuperAdminShopsPage from './pages/dashboard/admin/SuperAdminShopsPage'
 import SuperAdminCategoriesPage from './pages/dashboard/admin/SuperAdminCategoriesPage'
 import SuperAdminProductsPage from './pages/dashboard/admin/SuperAdminProductsPage'
 import SuperAdminOrdersPage from './pages/dashboard/admin/SuperAdminOrdersPage'
 import SuperAdminRestaurantsPage from './pages/dashboard/admin/SuperAdminRestaurantsPage'
-import SuperAdminPermissionsPage from './pages/dashboard/admin/SuperAdminPermissionsPage'
 import PermissionsManagementPage from './pages/dashboard/admin/PermissionsManagementPage'
 import SuperAdminAnalyticsPage from './pages/dashboard/admin/SuperAdminAnalyticsPage'
 import AdminProfilePage from './pages/dashboard/admin/AdminProfilePage'
@@ -99,7 +98,6 @@ import AdminReviewsPage from './pages/dashboard/admin/AdminReviewsPage'
 import AdminMessagesPage from './pages/dashboard/admin/AdminMessagesPage'
 import AdminNotificationsPage from './pages/dashboard/admin/AdminNotificationsPage'
 import SuperAdminShopRequestsPage from './pages/dashboard/admin/SuperAdminShopRequestsPage'
-import AdminCategoriesPage from './pages/dashboard/admin/AdminCategoriesPage'
 import AdminRevenuePage from './pages/dashboard/admin/AdminRevenuePage'
 import NotFoundPage from './pages/NotFoundPage'
 import { useAuthStore } from './stores/authStore'
@@ -115,6 +113,7 @@ function App() {
       <ConfirmProvider>
         <div className="pb-20 md:pb-0"> {/* Padding-bottom pour la navbar mobile */}
           <Router>
+            <AnalyticsTracker />
             <ScrollToTop />
             <BackToTop />
             <DashboardWelcomePopup />
@@ -200,7 +199,7 @@ function App() {
                 <Route path="orders" element={<SuperAdminOrdersPage />} />
                 <Route path="categories" element={<SuperAdminCategoriesPage />} />
                 <Route path="shop-requests" element={<SuperAdminShopRequestsPage />} />
-                <Route path="reports" element={<AdminReportsPage />} />
+                <Route path="reports" element={<SuperAdminReportsPage />} />
                 <Route path="moderation" element={<AdminModerationPage />} />
                 <Route path="reviews" element={<AdminReviewsPage />} />
                 <Route path="messages" element={<AdminMessagesPage />} />
@@ -231,7 +230,6 @@ function App() {
                 <Route path="reviews" element={<AdminReviewsPage />} />
                 <Route path="messages" element={<AdminMessagesPage />} />
                 <Route path="notifications" element={<AdminNotificationsPage />} />
-                <Route path="categories" element={<AdminCategoriesPage />} />
                 <Route path="analytics" element={<SuperAdminAnalyticsPage />} />
                 <Route path="reports" element={<SuperAdminReportsPage />} />
                 <Route path="permissions" element={<PermissionsManagementPage />} />

@@ -6,6 +6,7 @@ import { shopsService, Shop } from '../../../lib/api/shopsService'
 import ProductFormModal, { ProductFormData } from '../../../components/admin/ProductFormModal'
 import { useToast } from '../../../components/Toast'
 import { usePermissions } from '../../../hooks/usePermissions'
+import { useAdminCacheStore } from '../../../stores/adminCacheStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -35,14 +36,19 @@ const SuperAdminProductsPage: React.FC = () => {
     canModerateProducts,
     isSuperAdmin
   } = usePermissions()
+  // Cache store
+  const { setCache, getCache, isFresh } = useAdminCacheStore()
+
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false) // silent refresh indicator
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [selectedShop, setSelectedShop] = useState<number | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -54,20 +60,40 @@ const SuperAdminProductsPage: React.FC = () => {
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null)
   const [formData, setFormData] = useState<Partial<Product>>({})
   const [actionLoading, setActionLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [isStockModalOpen, setIsStockModalOpen] = useState(false)
   const [stockProduct, setStockProduct] = useState<Product | null>(null)
   const [stockValue, setStockValue] = useState<number>(0)
 
-  const pageSize = 50
+  const pageSize = 200  // Charger plus pour éviter le problème count=results.length
   const isDev = import.meta.env.DEV
 
   useEffect(() => {
+    // Essayer d'utiliser le cache d'abord
+    const filtersKey = JSON.stringify({ search: searchQuery, cat: selectedCategory, shop: selectedShop })
+    const cached = getCache('products', filtersKey)
+    if (cached) {
+      setProducts(cached.data)
+      setTotalCount(cached.totalCount)
+      setHasMore(cached.data.length >= pageSize)
+      setLoading(false)
+      // Refresh silencieux en arrière-plan
+      if (!isFresh('products')) {
+        setRefreshing(true)
+        loadProducts(true)
+      }
+    } else {
+      loadProducts()
+    }
     loadInitialData()
   }, [])
 
+  // Quand les filtres changent → reset page 1 et recharger
   useEffect(() => {
+    setCurrentPage(1)
+    setProducts([])
     loadProducts()
-  }, [currentPage, searchQuery, selectedCategory, selectedShop])
+  }, [searchQuery, selectedCategory, selectedShop])
 
   const loadInitialData = async () => {
     try {
@@ -76,7 +102,7 @@ const SuperAdminProductsPage: React.FC = () => {
       if (catResponse.data) {
         setCategories(Array.isArray(catResponse.data) ? catResponse.data : [])
       }
-      
+
       // Load shops
       const shopResponse = await shopsService.getAllShops()
       if (shopResponse.data) {
@@ -91,67 +117,71 @@ const SuperAdminProductsPage: React.FC = () => {
     }
   }
 
-  const loadProducts = async () => {
+  const loadProducts = async (silent = false, append = false, pageOverride?: number) => {
     try {
-      setLoading(true)
+      if (append) {
+        setLoadingMore(true)
+      } else if (!silent) {
+        setLoading(true)
+      }
       setError(null)
-      
+
+      const page = pageOverride || (append ? currentPage : 1)
       const response = await productsService.getAllProductsAdmin({
-        page: currentPage,
+        page,
         page_size: pageSize,
         search: searchQuery || undefined,
         category_id: selectedCategory || undefined,
         store_id: selectedShop || undefined
       })
 
-      if (isDev) {
-        console.log('Products response:', response)
-        console.log('Response data type:', Array.isArray(response.data) ? 'Array' : typeof response.data)
-        console.log('Response data count:', response.data?.count, 'results length:', response.data?.results?.length)
-      }
+      let newProducts: Product[] = []
+      let newCount = 0
 
       if (response.data) {
         if (Array.isArray(response.data)) {
-          if (isDev) {
-            console.log('⚠️ Backend returned array (no pagination support), length:', response.data.length)
-          }
-          setProducts(response.data)
-          setTotalCount(response.data.length)
+          newProducts = response.data
+          newCount = response.data.length
         } else if (response.data.results) {
-          if (isDev) {
-            console.log('✅ Backend returned paginated response, count:', response.data.count, 'results:', response.data.results.length)
-          }
-          setProducts(response.data.results)
-          setTotalCount(response.data.count || response.data.results.length)
-        } else {
-          setProducts([])
-          setTotalCount(0)
+          newProducts = response.data.results
+          newCount = response.data.count || response.data.results.length
         }
       }
+
+      if (append) {
+        // Append mode : ajouter les nouveaux produits aux existants
+        setProducts(prev => {
+          const existingIds = new Set(prev.map(p => p.id))
+          const uniqueNew = newProducts.filter(p => !existingIds.has(p.id))
+          return [...prev, ...uniqueNew]
+        })
+      } else {
+        setProducts(newProducts)
+      }
+      setTotalCount(newCount)
+      setHasMore(newProducts.length >= pageSize)
+
+      // Mettre en cache (seulement page 1)
+      if (!append) {
+        const filtersKey = JSON.stringify({ search: searchQuery, cat: selectedCategory, shop: selectedShop })
+        setCache('products', newProducts, newCount, filtersKey)
+      }
+
+      if (isDev) console.log(`📦 Products page ${page}: ${newProducts.length} chargés (append=${append}), hasMore=${newProducts.length >= pageSize}`)
     } catch (err: any) {
       console.error('Erreur API:', err)
-      // Fallback to public endpoint
-      try {
-        const publicResponse = await productsService.getProducts({
-          page: currentPage,
-          search: searchQuery || undefined,
-          category_id: selectedCategory || undefined
-        })
-        if (publicResponse.data) {
-          if (Array.isArray(publicResponse.data)) {
-            setProducts(publicResponse.data)
-            setTotalCount(publicResponse.data.length)
-          } else if (publicResponse.data.results) {
-            setProducts(publicResponse.data.results)
-            setTotalCount(publicResponse.data.count)
-          }
-        }
-      } catch {
-        setError(err.message || 'Erreur lors du chargement des produits')
-      }
+      if (!silent) setError(err.message || 'Erreur lors du chargement des produits')
     } finally {
       setLoading(false)
+      setRefreshing(false)
+      setLoadingMore(false)
     }
+  }
+
+  const handleLoadMore = () => {
+    const nextPage = currentPage + 1
+    setCurrentPage(nextPage)
+    loadProducts(false, true, nextPage)
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -178,7 +208,7 @@ const SuperAdminProductsPage: React.FC = () => {
 
   const handleSaveProduct = async () => {
     if (!editingProduct) return
-    
+
     try {
       setActionLoading(true)
       await productsService.updateProductAdmin(editingProduct.id, {
@@ -205,7 +235,7 @@ const SuperAdminProductsPage: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (!productToDelete) return
-    
+
     try {
       setActionLoading(true)
       await productsService.deleteProductAdmin(productToDelete.id)
@@ -260,7 +290,7 @@ const SuperAdminProductsPage: React.FC = () => {
     }
   }
 
-  const totalPages = Math.ceil(totalCount / pageSize)
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   // Flatten categories for select
   const flattenCategoriesForSelect = (cats: Category[], prefix: string = ''): Array<{ id: number; name: string }> => {
@@ -283,7 +313,7 @@ const SuperAdminProductsPage: React.FC = () => {
   const handleSaveNewProduct = async (data: ProductFormData) => {
     try {
       setActionLoading(true)
-      
+
       console.log('Creating product with data:', {
         name: data.name,
         slug: data.slug,
@@ -291,7 +321,7 @@ const SuperAdminProductsPage: React.FC = () => {
         store_id: data.store_id,
         stock: data.stock_quantity
       })
-      
+
       // 1. Créer le produit
       const result = await productsService.createProductAdmin({
         name: data.name,
@@ -312,7 +342,7 @@ const SuperAdminProductsPage: React.FC = () => {
         meta_description: data.meta_description,
         tags: data.tags
       })
-      
+
       // 2. Uploader les images si présentes
       if (result.data?.id && data.images && data.images.length > 0) {
         try {
@@ -322,7 +352,7 @@ const SuperAdminProductsPage: React.FC = () => {
           // On continue même si l'upload échoue
         }
       }
-      
+
       setIsCreateModalOpen(false)
       loadProducts()
       showToast('Produit créé avec succès', 'success')
@@ -335,10 +365,10 @@ const SuperAdminProductsPage: React.FC = () => {
 
   const handleSaveEditProduct = async (data: ProductFormData) => {
     if (!editingProduct) return
-    
+
     try {
       setActionLoading(true)
-      
+
       // 1. Update product data
       await productsService.updateProductAdmin(editingProduct.id, {
         name: data.name,
@@ -360,7 +390,7 @@ const SuperAdminProductsPage: React.FC = () => {
         tags: data.tags,
         images_to_delete: (data as any).images_to_delete || []
       })
-      
+
       // 2. Upload new images if any
       if (data.images && data.images.length > 0) {
         try {
@@ -371,7 +401,7 @@ const SuperAdminProductsPage: React.FC = () => {
           // Continue even if image upload fails
         }
       }
-      
+
       setIsEditModalOpen(false)
       setEditingProduct(null)
       loadProducts()
@@ -393,10 +423,13 @@ const SuperAdminProductsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Gestion des Produits</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+            Gestion des Produits
+            {refreshing && <span className="ml-2 inline-block w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin align-middle" />}
+          </h1>
           <p className="text-gray-500 mt-1">Gérez votre catalogue de produits</p>
         </div>
-        <button 
+        <button
           onClick={handleCreateProduct}
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-medium hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg shadow-green-500/25"
         >
@@ -469,7 +502,7 @@ const SuperAdminProductsPage: React.FC = () => {
                 />
               </div>
             </form>
-            
+
             <div className="flex flex-wrap gap-3">
               <select
                 value={selectedCategory || ''}
@@ -502,7 +535,7 @@ const SuperAdminProductsPage: React.FC = () => {
           </div>
         </div>
 
-        {loading ? (
+        {loading && products.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           </div>
@@ -510,7 +543,7 @@ const SuperAdminProductsPage: React.FC = () => {
           <div className="p-6 text-center">
             <p className="text-red-600">{error}</p>
             <button
-              onClick={loadProducts}
+              onClick={() => loadProducts()}
               className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               Réessayer
@@ -523,7 +556,7 @@ const SuperAdminProductsPage: React.FC = () => {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-1">Aucun produit trouvé</h3>
             <p className="text-gray-500 mb-4">Commencez par ajouter votre premier produit</p>
-            <button 
+            <button
               onClick={handleCreateProduct}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
@@ -540,26 +573,26 @@ const SuperAdminProductsPage: React.FC = () => {
                 const isActive = product.is_active !== false
                 const stockLevel = product.stock ?? 0
                 const stockStatus = stockLevel === 0 ? 'out' : stockLevel <= 5 ? 'low' : 'ok'
-                
+
                 return (
-                  <div 
-                    key={product.id} 
+                  <div
+                    key={product.id}
                     className="group bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-green-200 transition-all duration-300"
                   >
                     {/* Image */}
                     <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
                       {imageUrl ? (
-                        <img 
-                          src={imageUrl} 
-                          alt={product.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        <img
+                          src={imageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Package size={40} className="text-gray-300" />
                         </div>
                       )}
-                      
+
                       {/* Status badges */}
                       <div className="absolute top-2 left-2 flex flex-col gap-1">
                         {!isActive && (
@@ -581,21 +614,21 @@ const SuperAdminProductsPage: React.FC = () => {
 
                       {/* Quick actions overlay */}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <button 
+                        <button
                           onClick={() => handleViewProduct(product)}
                           className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
                           title="Voir"
                         >
                           <Eye size={18} className="text-gray-700" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleEditProduct(product)}
                           className="p-2 bg-white rounded-full hover:bg-green-50 transition-colors"
                           title="Modifier"
                         >
                           <Edit2 size={18} className="text-green-600" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteClick(product)}
                           className="p-2 bg-white rounded-full hover:bg-red-50 transition-colors"
                           title="Supprimer"
@@ -642,11 +675,10 @@ const SuperAdminProductsPage: React.FC = () => {
                       <div className="flex gap-2 pt-2 border-t border-gray-100">
                         <button
                           onClick={() => handleToggleInStock(product)}
-                          className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                            stockLevel > 0 
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
-                          }`}
+                          className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${stockLevel > 0
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            }`}
                           title={stockLevel > 0 ? 'Marquer en rupture' : 'Marquer en stock'}
                         >
                           {stockLevel > 0 ? (
@@ -676,30 +708,47 @@ const SuperAdminProductsPage: React.FC = () => {
               })}
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-4 py-4 border-t border-gray-100 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Page {currentPage} sur {totalPages} • {totalCount} produits
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Précédent
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Suivant
-                  </button>
-                </div>
+            {/* Pagination + Load More */}
+            <div className="px-4 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-sm text-gray-500">
+                {products.length} produit{products.length > 1 ? 's' : ''} affiché{products.length > 1 ? 's' : ''}
+                {totalCount > products.length && ` sur ${totalCount}`}
               </div>
-            )}
+              <div className="flex gap-2">
+                {totalPages > 1 && (
+                  <>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Précédent
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Suivant
+                    </button>
+                  </>
+                )}
+                {hasMore && (
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg text-sm font-medium hover:from-green-700 hover:to-emerald-700 transition-all shadow-sm flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {loadingMore ? (
+                      <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Package size={16} />
+                    )}
+                    {loadingMore ? 'Chargement...' : 'Charger plus de produits'}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -717,7 +766,7 @@ const SuperAdminProductsPage: React.FC = () => {
         const mainImage = getProductImageUrl(viewingProduct.media, viewingProduct.images)
         const stockStatus = (viewingProduct as any).track_inventory === false ? 'illimité' : `${viewingProduct.stock ?? 0} unités`
         const isInStock = (viewingProduct as any).track_inventory === false || (viewingProduct.stock ?? 0) > 0
-        
+
         return (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -730,96 +779,96 @@ const SuperAdminProductsPage: React.FC = () => {
                   <X size={24} />
                 </button>
               </div>
-            
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Image Section */}
-                <div>
-                  <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden">
-                    {mainImage ? (
-                      <img src={mainImage} alt={viewingProduct.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-300" size={64} /></div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Image Section */}
+                  <div>
+                    <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden">
+                      {mainImage ? (
+                        <img src={mainImage} alt={viewingProduct.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-300" size={64} /></div>
+                      )}
+                    </div>
+                    {allImages.length > 1 && (
+                      <div className="grid grid-cols-4 gap-2 mt-3">
+                        {allImages.slice(0, 4).map((imgUrl, idx) => (
+                          <div key={idx} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                            <img src={imgUrl} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  {allImages.length > 1 && (
-                    <div className="grid grid-cols-4 gap-2 mt-3">
-                      {allImages.slice(0, 4).map((imgUrl, idx) => (
-                        <div key={idx} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                          <img src={imgUrl} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                  {/* Info Section */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-xl font-bold text-gray-900">{viewingProduct.name}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${viewingProduct.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {viewingProduct.is_active !== false ? 'Actif' : 'Inactif'}
+                        </span>
+                      </div>
+                      <p className="text-gray-500 text-sm font-mono">{viewingProduct.slug}</p>
+                      <p className="text-gray-400 text-xs">ID: {viewingProduct.id}</p>
+                    </div>
+                    <div className="bg-indigo-50 rounded-xl p-4">
+                      <p className="text-xs text-gray-500">Prix</p>
+                      <span className="text-2xl font-bold text-indigo-600">{formatPrice(viewingProduct.base_price)}</span>
+                    </div>
+                    <div className={`rounded-xl p-4 ${isInStock ? 'bg-green-50' : 'bg-red-50'}`}>
+                      <div className="flex items-center gap-2">
+                        {isInStock ? <CheckCircle className="text-green-600" size={20} /> : <AlertTriangle className="text-red-600" size={20} />}
+                        <div>
+                          <p className={`font-medium ${isInStock ? 'text-green-700' : 'text-red-700'}`}>{isInStock ? 'En stock' : 'Rupture'}</p>
+                          <p className="text-xs text-gray-600">Stock: {stockStatus}</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* Info Section */}
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-xl font-bold text-gray-900">{viewingProduct.name}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${viewingProduct.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {viewingProduct.is_active !== false ? 'Actif' : 'Inactif'}
-                      </span>
-                    </div>
-                    <p className="text-gray-500 text-sm font-mono">{viewingProduct.slug}</p>
-                    <p className="text-gray-400 text-xs">ID: {viewingProduct.id}</p>
-                  </div>
-                  <div className="bg-indigo-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500">Prix</p>
-                    <span className="text-2xl font-bold text-indigo-600">{formatPrice(viewingProduct.base_price)}</span>
-                  </div>
-                  <div className={`rounded-xl p-4 ${isInStock ? 'bg-green-50' : 'bg-red-50'}`}>
-                    <div className="flex items-center gap-2">
-                      {isInStock ? <CheckCircle className="text-green-600" size={20} /> : <AlertTriangle className="text-red-600" size={20} />}
-                      <div>
-                        <p className={`font-medium ${isInStock ? 'text-green-700' : 'text-red-700'}`}>{isInStock ? 'En stock' : 'Rupture'}</p>
-                        <p className="text-xs text-gray-600">Stock: {stockStatus}</p>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1 mb-1"><Store size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Boutique</span></div>
+                        <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.shop?.name || viewingProduct.store?.name || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1 mb-1"><Tag size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Catégorie</span></div>
+                        <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.category?.name || '-'}</p>
+                      </div>
+                    </div>
+                    {(viewingProduct as any).tags && (viewingProduct as any).tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(viewingProduct as any).tags.map((tag: string, idx: number) => (
+                          <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">#{tag}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-center gap-1 mb-1"><Store size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Boutique</span></div>
-                      <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.shop?.name || viewingProduct.store?.name || '-'}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-center gap-1 mb-1"><Tag size={14} className="text-gray-400" /><span className="text-xs text-gray-500">Catégorie</span></div>
-                      <p className="font-medium text-gray-900 text-sm truncate">{viewingProduct.category?.name || '-'}</p>
-                    </div>
-                  </div>
-                  {(viewingProduct as any).tags && (viewingProduct as any).tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {(viewingProduct as any).tags.map((tag: string, idx: number) => (
-                        <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">#{tag}</span>
-                      ))}
-                    </div>
-                  )}
                 </div>
+                {viewingProduct.description && (
+                  <div className="mt-6 bg-gray-50 rounded-xl p-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Description</h4>
+                    <p className="text-gray-600 text-sm whitespace-pre-wrap">{viewingProduct.description}</p>
+                  </div>
+                )}
+                {((viewingProduct as any).meta_title || (viewingProduct as any).meta_description) && (
+                  <div className="mt-4 bg-purple-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-purple-600 mb-2">SEO</p>
+                    {(viewingProduct as any).meta_title && <p className="text-sm text-gray-700"><strong>Titre:</strong> {(viewingProduct as any).meta_title}</p>}
+                    {(viewingProduct as any).meta_description && <p className="text-sm text-gray-600 mt-1"><strong>Description:</strong> {(viewingProduct as any).meta_description}</p>}
+                  </div>
+                )}
               </div>
-              {viewingProduct.description && (
-                <div className="mt-6 bg-gray-50 rounded-xl p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                  <p className="text-gray-600 text-sm whitespace-pre-wrap">{viewingProduct.description}</p>
-                </div>
-              )}
-              {((viewingProduct as any).meta_title || (viewingProduct as any).meta_description) && (
-                <div className="mt-4 bg-purple-50 rounded-xl p-4">
-                  <p className="text-xs font-medium text-purple-600 mb-2">SEO</p>
-                  {(viewingProduct as any).meta_title && <p className="text-sm text-gray-700"><strong>Titre:</strong> {(viewingProduct as any).meta_title}</p>}
-                  {(viewingProduct as any).meta_description && <p className="text-sm text-gray-600 mt-1"><strong>Description:</strong> {(viewingProduct as any).meta_description}</p>}
-                </div>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-              <button onClick={() => { setIsViewModalOpen(false); handleEditProduct(viewingProduct) }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2">
-                <Edit2 size={16} /> Modifier
-              </button>
-              <button onClick={() => setIsViewModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                Fermer
-              </button>
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                <button onClick={() => { setIsViewModalOpen(false); handleEditProduct(viewingProduct) }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2">
+                  <Edit2 size={16} /> Modifier
+                </button>
+                <button onClick={() => setIsViewModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                  Fermer
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         )
       })()}
 
@@ -836,7 +885,7 @@ const SuperAdminProductsPage: React.FC = () => {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
@@ -923,7 +972,7 @@ const SuperAdminProductsPage: React.FC = () => {
                   <p className="text-sm text-gray-600">Cette action est irréversible</p>
                 </div>
               </div>
-              
+
               <p className="text-gray-700 mb-6">
                 Êtes-vous sûr de vouloir supprimer le produit <strong>{productToDelete.name}</strong> ?
               </p>
@@ -985,24 +1034,24 @@ const SuperAdminProductsPage: React.FC = () => {
             category_ids: (() => {
               // Try multiple extraction strategies
               let ids: number[] = []
-              
+
               // Strategy 1: categories array with nested category objects
               if ((editingProduct as any).categories && Array.isArray((editingProduct as any).categories)) {
                 ids = (editingProduct as any).categories
                   .map((c: any) => c.category?.id || c.category_id || c.id)
                   .filter((id: any) => id != null)
               }
-              
+
               // Strategy 2: single category object
               if (ids.length === 0 && editingProduct.category?.id) {
                 ids = [editingProduct.category.id]
               }
-              
+
               // Strategy 3: category_id field
               if (ids.length === 0 && (editingProduct as any).category_id) {
                 ids = [(editingProduct as any).category_id]
               }
-              
+
               return ids
             })(),
             store_id: editingProduct.store?.id || editingProduct.shop?.id || (editingProduct as any).store_id || null,
@@ -1049,13 +1098,13 @@ const SuperAdminProductsPage: React.FC = () => {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-2">Produit:</p>
                 <p className="font-medium text-gray-900">{stockProduct.name}</p>
               </div>
-              
+
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Quantité en stock
@@ -1090,7 +1139,7 @@ const SuperAdminProductsPage: React.FC = () => {
                   Normal (100)
                 </button>
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => {

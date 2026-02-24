@@ -1,343 +1,336 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  TrendingUp, DollarSign, Users, ShoppingBag, Store, Package,
-  Settings, Download, Activity, ArrowUp, RefreshCw
+  DollarSign, Users, ShoppingBag, Store, Package,
+  RefreshCw, Activity, Eye, ShoppingCart, Clock,
+  CheckCircle, XCircle, BarChart3, Zap, Globe
 } from 'lucide-react'
 import { useDashboardCache } from '../../../hooks/useDashboardCache'
+import { useAuthStore } from '../../../stores/authStore'
 
-interface DashboardStats {
-  totalUsers: number
-  totalOrders: number
-  totalShops: number
-  totalProducts: number
-  totalRevenue: number
-  pendingOrders: number
-  activeVendors: number
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  pending: { label: 'En attente', color: 'text-amber-600 bg-amber-50', icon: Clock },
+  confirmed: { label: 'Confirmée', color: 'text-blue-600 bg-blue-50', icon: CheckCircle },
+  processing: { label: 'En cours', color: 'text-violet-600 bg-violet-50', icon: Activity },
+  shipped: { label: 'Expédiée', color: 'text-indigo-600 bg-indigo-50', icon: ShoppingCart },
+  delivered: { label: 'Livrée', color: 'text-emerald-600 bg-emerald-50', icon: CheckCircle },
+  cancelled: { label: 'Annulée', color: 'text-red-600 bg-red-50', icon: XCircle },
 }
 
-const MetricCard = ({ title, value, change, icon, color, loading }: any) => (
-  <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-gray-600 text-sm font-medium">{title}</p>
-        <h3 className="text-3xl font-bold mt-2">{loading ? '...' : value}</h3>
-        <div className={`text-sm font-medium mt-2 flex items-center gap-1 ${change?.startsWith('+') ? 'text-green-600' : 'text-gray-500'}`}>
-          {change?.startsWith('+') && <ArrowUp size={14} />}
-          {change || ''}
-        </div>
-      </div>
-      <div className="p-3 rounded-lg" style={{ background: color }}>{icon}</div>
-    </div>
-  </div>
-)
-
-const SuperAdminDashboardPage: React.FC = () => {
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month')
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  
-  // Utiliser le hook de cache
-  const { data, loading, error, loadDashboardData, refreshStats, isDataStale } = useDashboardCache()
-  
-  const stats = data?.stats || {
-    totalUsers: 0,
-    totalOrders: 0,
-    totalShops: 0,
-    totalProducts: 0,
-    totalRevenue: 0,
-    pendingOrders: 0,
-    activeVendors: 0
-  }
-  
-  const recentOrders = data?.recentOrders || []
-  
-  // Rafraîchir rapidement les stats sans recharger la page
-  const handleQuickRefresh = async () => {
-    setIsRefreshing(true)
-    await refreshStats()
-    setIsRefreshing(false)
-  }
-  
-  // Forcer un rechargement complet
-  const handleFullRefresh = async () => {
-    await loadDashboardData(true)
-  }
-
-  const formatCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(1)}M`
-    }
-    if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(0)}K`
-    }
-    return amount.toString()
-  }
-
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG['pending']
+  const Icon = cfg.icon
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tableau de Bord Super Admin</h1>
-          <div className="flex items-center gap-3 mt-1">
-            <p className="text-gray-600">Vue complète de la plateforme et analytiques globales</p>
-            {data && (
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                isDataStale ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
-              }`}>
-                {isDataStale ? '⚠️ Cache expiré' : '✓ Cache actif'}
-              </span>
-            )}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
+      <Icon size={11} />{cfg.label}
+    </span>
+  )
+}
+
+function formatCurrency(amount: number) {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`
+  return amount.toLocaleString('fr-FR')
+}
+
+function KpiCard({ title, value, sub, icon: Icon, gradient, loading }: {
+  title: string; value: string; sub?: string; icon: any; gradient: string; loading: boolean
+}) {
+  return (
+    <div className={`${gradient} rounded-2xl p-5 text-white shadow-lg relative overflow-hidden`}>
+      <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium opacity-90">{title}</span>
+          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+            <Icon size={18} />
           </div>
         </div>
-        <div className="mt-4 md:mt-0 flex items-center gap-2">
-          <button 
-            onClick={handleQuickRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            title="Rafraîchir les statistiques"
-          >
-            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
-            {isRefreshing ? 'Rafraîchissement...' : 'Rafraîchir'}
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-            <Download size={18} />
-            Exporter
-          </button>
+        {loading ? (
+          <div className="h-8 w-24 bg-white/20 rounded animate-pulse" />
+        ) : (
+          <p className="text-3xl font-black">{value}</p>
+        )}
+        {sub && <p className="text-xs mt-1.5 opacity-75">{sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+const SuperAdminDashboardPage: React.FC = () => {
+  const { user } = useAuthStore()
+  const navigate = useNavigate()
+  const { data, loading, isDataStale, refreshStats, loadDashboardData } = useDashboardCache()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  const stats = data?.stats || {
+    totalUsers: 0, totalOrders: 0, totalShops: 0, totalProducts: 0,
+    totalRevenue: 0, pendingOrders: 0, activeVendors: 0
+  }
+  const recentOrders = data?.recentOrders || []
+
+  // Charger les analytics
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true)
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) { setAnalyticsLoading(false); return }
+      const res = await fetch(`${API_BASE_URL}/api/analytics/summary?period=7d`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setAnalyticsData(json.data || null)
+      }
+    } catch {
+      // Analytics pas encore déployé — silencieux
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadAnalytics() }, [loadAnalytics])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await Promise.all([refreshStats(), loadAnalytics()])
+    setIsRefreshing(false)
+  }
+
+  const kpiVisitors = analyticsData?.kpis?.unique_visitors ?? '—'
+  const kpiConversion = analyticsData?.kpis?.conversion_rate ?? '—'
+  const kpiProductViews = analyticsData?.kpis?.product_views ?? '—'
+  const topProducts = analyticsData?.top_products || []
+  const topSearches = analyticsData?.top_searches || []
+
+  // Distribution commandes pour le petit graphique
+  const statusCounts = Object.entries(STATUS_CONFIG).map(([k, v]) => ({
+    key: k, label: v.label,
+    count: recentOrders.filter((o: any) => o.status === k).length,
+    color: k === 'pending' ? '#f59e0b' : k === 'delivered' ? '#10b981' : k === 'cancelled' ? '#ef4444' : k === 'confirmed' ? '#3b82f6' : '#8b5cf6'
+  })).filter(d => d.count > 0)
+  const maxStatusCount = Math.max(...statusCounts.map(s => s.count), 1)
+
+  return (
+    <div className="space-y-6">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-gray-900">
+            Bonjour, {user?.first_name || 'Super Admin'} 👑
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Vue globale de la plateforme BuyMore
+            {isDataStale && <span className="ml-2 text-amber-500 text-xs">⚠️ Cache expiré</span>}
+          </p>
         </div>
+        <button onClick={handleRefresh} disabled={isRefreshing}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all text-sm shadow-sm">
+          <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+          {isRefreshing ? 'Sync...' : 'Actualiser'}
+        </button>
       </div>
 
-      {/* Period Selector */}
-      <div className="mb-8 flex gap-2">
-        {(['day', 'week', 'month', 'year'] as const).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              period === p
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {p === 'day' ? 'Jour' : p === 'week' ? 'Semaine' : p === 'month' ? 'Mois' : 'Année'}
-          </button>
+      {/* ─── KPI Cards ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard title="Revenu Récent" value={`${formatCurrency(stats.totalRevenue)} F`}
+          sub={`sur ${stats.totalOrders} commandes`}
+          icon={DollarSign} gradient="bg-gradient-to-br from-emerald-500 to-teal-600" loading={loading} />
+        <KpiCard title="Utilisateurs" value={stats.totalUsers.toLocaleString()}
+          sub={`dont ${stats.activeVendors} vendeurs`}
+          icon={Users} gradient="bg-gradient-to-br from-blue-500 to-indigo-600" loading={loading} />
+        <KpiCard title="Boutiques" value={stats.totalShops.toLocaleString()}
+          sub={`${stats.totalProducts} produits`}
+          icon={Store} gradient="bg-gradient-to-br from-purple-500 to-violet-600" loading={loading} />
+        <KpiCard title="En Attente" value={stats.pendingOrders.toString()}
+          sub="commandes à traiter"
+          icon={Clock} gradient="bg-gradient-to-br from-amber-500 to-orange-600" loading={loading} />
+      </div>
+
+      {/* ─── Analytics KPIs ─── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Visiteurs Uniques', value: typeof kpiVisitors === 'number' ? kpiVisitors.toLocaleString() : kpiVisitors, icon: Globe, color: 'bg-sky-50 text-sky-700 border-sky-200' },
+          { label: 'Vues Produits', value: typeof kpiProductViews === 'number' ? kpiProductViews.toLocaleString() : kpiProductViews, icon: Eye, color: 'bg-violet-50 text-violet-700 border-violet-200' },
+          { label: 'Taux Conversion', value: typeof kpiConversion === 'number' ? `${kpiConversion}%` : kpiConversion, icon: Zap, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        ].map(kpi => (
+          <div key={kpi.label} className={`rounded-xl border p-4 flex items-center gap-4 ${kpi.color}`}>
+            <div className="w-10 h-10 rounded-xl bg-white/60 flex items-center justify-center">
+              <kpi.icon size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-medium opacity-75">{kpi.label}</p>
+              {analyticsLoading ? (
+                <div className="h-6 w-16 bg-current opacity-20 rounded animate-pulse mt-1" />
+              ) : (
+                <p className="text-xl font-black">{kpi.value}</p>
+              )}
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Top Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <MetricCard
-          title="Revenu Total"
-          value={`${formatCurrency(stats.totalRevenue)} FCFA`}
-          change="+24% vs dernière période"
-          icon={<DollarSign size={24} className="text-white" />}
-          color="bg-green-500"
-          loading={loading}
-        />
-        <MetricCard
-          title="Total Utilisateurs"
-          value={stats.totalUsers.toLocaleString()}
-          change="+8.2% croissance"
-          icon={<Users size={24} className="text-white" />}
-          color="bg-blue-500"
-          loading={loading}
-        />
-        <MetricCard
-          title="Nombre Commandes"
-          value={stats.totalOrders.toLocaleString()}
-          change={`${stats.pendingOrders} en attente`}
-          icon={<ShoppingBag size={24} className="text-white" />}
-          color="bg-purple-500"
-          loading={loading}
-        />
-        <MetricCard
-          title="Boutiques"
-          value={stats.totalShops.toLocaleString()}
-          change={`${stats.totalProducts} produits`}
-          icon={<TrendingUp size={24} className="text-white" />}
-          color="bg-orange-500"
-          loading={loading}
-        />
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Revenue Chart */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Évolution du Revenu</h2>
-          <div className="h-64 flex items-end justify-between gap-2 p-4">
-            {[4200, 3800, 4500, 5200, 4700, 5500, 5900, 6200, 6100, 6800, 7100, 7500].map((value, idx) => (
-              <div key={idx} className="flex-1 flex flex-col items-center group">
-                <div
-                  className="w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t hover:from-green-600 hover:to-green-500 transition-all cursor-pointer relative group"
-                  style={{ height: `${(value / 8000) * 240}px` }}
-                >
-                  <div className="hidden group-hover:block absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                    {(value / 1000).toFixed(1)}k
+      {/* ─── Main Grid ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Commandes récentes & Status chart */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Distribution des statuts */}
+          {statusCounts.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <BarChart3 size={18} className="text-indigo-600" />
+                Distribution des commandes
+              </h2>
+              <div className="space-y-2">
+                {statusCounts.map(item => (
+                  <div key={item.key} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 w-20 flex-shrink-0">{item.label}</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500 flex items-center justify-end px-2"
+                        style={{ width: `${Math.max((item.count / maxStatusCount) * 100, 15)}%`, backgroundColor: item.color }}>
+                        <span className="text-[10px] text-white font-bold">{item.count}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <span className="text-xs text-gray-500 mt-2">M{idx + 1}</span>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* User Distribution Pie */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Distribution Utilisateurs</h2>
-          <div className="space-y-4">
-            {[
-              { label: 'Clients', value: 35420, percent: 78 },
-              { label: 'Vendeurs', value: 8230, percent: 18 },
-              { label: 'Admins', value: 580, percent: 4 }
-            ].map((item, idx) => (
-              <div key={idx}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-sm">{item.label}</span>
-                  <span className="text-sm text-gray-600">{item.value.toLocaleString()}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${['bg-blue-500', 'bg-purple-500', 'bg-orange-500'][idx]}`}
-                    style={{ width: `${item.percent}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Top Shops */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Top 10 Boutiques</h2>
-          <div className="space-y-3">
-            {[
-              { name: 'Samsung Shop', revenue: '8.5M XOF', orders: 2345, rating: 4.9 },
-              { name: 'Electronics Hub', revenue: '7.2M XOF', orders: 1876, rating: 4.8 },
-              { name: 'Tech Store', revenue: '6.8M XOF', orders: 1654, rating: 4.7 },
-              { name: 'Mobile Paradise', revenue: '5.4M XOF', orders: 1342, rating: 4.6 },
-              { name: 'Digital World', revenue: '4.9M XOF', orders: 1125, rating: 4.5 }
-            ].map((shop, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 font-bold flex items-center justify-center text-sm">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{shop.name}</p>
-                    <p className="text-xs text-gray-500">{shop.orders} commandes</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-green-600 text-sm">{shop.revenue}</p>
-                  <p className="text-xs text-gray-500">⭐ {shop.rating}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* System Health */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Santé du Système</h2>
-          <div className="space-y-4">
-            {[
-              { name: 'Serveur Principal', status: 'healthy', usage: 45 },
-              { name: 'Base de Données', status: 'healthy', usage: 62 },
-              { name: 'Stockage', status: 'healthy', usage: 78 },
-              { name: 'Cache Redis', status: 'healthy', usage: 38 },
-              { name: 'CDN', status: 'warning', usage: 92 }
-            ].map((item, idx) => (
-              <div key={idx}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-sm">{item.name}</span>
-                  <span className={`text-xs font-medium px-2 py-1 rounded ${
-                    item.status === 'healthy' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {item.status === 'healthy' ? '✓ OK' : '⚠ Alerte'}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${
-                      item.usage > 80 ? 'bg-red-500' : item.usage > 70 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
-                    style={{ width: `${item.usage}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{item.usage}% d'utilisation</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Transactions */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 className="text-lg font-bold text-gray-900 mb-6">Transactions Récentes</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Txn</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Méthode</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {[
-                { id: 'TXN-001', amount: '125,000 XOF', status: 'completed', method: 'Orange Money', date: 'Il y a 2 min' },
-                { id: 'TXN-002', amount: '85,500 XOF', status: 'completed', method: 'Wave', date: 'Il y a 5 min' },
-                { id: 'TXN-003', amount: '250,000 XOF', status: 'pending', method: 'Bank Transfer', date: 'Il y a 15 min' },
-                { id: 'TXN-004', amount: '45,200 XOF', status: 'completed', method: 'Card', date: 'Il y a 1 heure' },
-              ].map((txn, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{txn.id}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-green-600">{txn.amount}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      txn.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {txn.status === 'completed' ? 'Complétée' : 'En attente'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{txn.method}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{txn.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* System Configuration */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900">Configuration Système</h2>
-          <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-            <Settings size={20} className="text-gray-600" />
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { label: 'Version Plateforme', value: 'v2.4.1' },
-            { label: 'Base de Données', value: 'PostgreSQL 15.2' },
-            { label: 'Dernière Sauvegarde\', value: \'Aujourd\'hui à 02:30 AM' },
-            { label: 'Uptime', value: '99.98%' },
-            { label: 'Utilisateurs Connectés', value: '3,245' },
-            { label: 'Requêtes/min', value: '12,543' }
-          ].map((item, idx) => (
-            <div key={idx} className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">{item.label}</p>
-              <p className="font-bold text-gray-900">{item.value}</p>
             </div>
-          ))}
+          )}
+
+          {/* Commandes récentes - CLIQUABLES */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+              <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                <ShoppingCart size={18} className="text-purple-600" />
+                Commandes Récentes
+              </h2>
+              <Link to="/superadmin/orders" className="text-xs text-purple-600 hover:text-purple-700 font-medium">
+                Voir tout →
+              </Link>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <div key={i} className="p-4 flex items-center gap-3 animate-pulse">
+                    <div className="w-9 h-9 rounded-full bg-gray-100" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                      <div className="h-3 bg-gray-100 rounded w-1/4" />
+                    </div>
+                    <div className="h-5 bg-gray-100 rounded-full w-20" />
+                  </div>
+                ))
+              ) : recentOrders.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  <ShoppingBag size={32} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Aucune commande récente</p>
+                </div>
+              ) : (
+                recentOrders.map((order: any, idx: number) => (
+                  <button key={order.id || idx}
+                    onClick={() => navigate(`/superadmin/orders`)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-indigo-50/50 transition-colors text-left cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                        {String(order.id || idx + 1).slice(-2)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">
+                          #{order.order_number || order.id}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {order.user?.username || order.customer_name || 'Client'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900 text-sm">
+                        {parseFloat(order.total_amount || '0').toLocaleString('fr-FR')} F
+                      </p>
+                      <StatusBadge status={order.status || 'pending'} />
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Top produits vus */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Eye size={16} className="text-sky-600" />
+              Top Produits Vus
+            </h3>
+            {analyticsLoading ? (
+              <div className="space-y-2">{[...Array(5)].map((_, i) => (
+                <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />
+              ))}</div>
+            ) : topProducts.length > 0 ? (
+              <div className="space-y-2">
+                {topProducts.slice(0, 5).map((p: any, i: number) => (
+                  <div key={p.product_id || i} className="flex items-center gap-2.5">
+                    <span className="w-5 h-5 rounded bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 text-sm text-gray-800 truncate">{p.product_name}</span>
+                    <span className="text-xs font-semibold text-indigo-600">{p.view_count}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-3">Données insuffisantes</p>
+            )}
+          </div>
+
+          {/* Top recherches */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <BarChart3 size={16} className="text-emerald-600" />
+              Top Recherches
+            </h3>
+            {analyticsLoading ? (
+              <div className="space-y-2">{[...Array(5)].map((_, i) => (
+                <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />
+              ))}</div>
+            ) : topSearches.length > 0 ? (
+              <div className="space-y-2">
+                {topSearches.slice(0, 5).map((s: any, i: number) => (
+                  <div key={s.query || i} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700 truncate max-w-[150px]">"{s.query}"</span>
+                    <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded-full">{s.count}×</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-3">Données insuffisantes</p>
+            )}
+          </div>
+
+          {/* Quick links */}
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 text-white">
+            <h3 className="font-bold mb-3">Accès Rapide</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { to: '/superadmin/users', icon: Users, label: 'Utilisateurs' },
+                { to: '/superadmin/orders', icon: ShoppingCart, label: 'Commandes' },
+                { to: '/superadmin/businesses', icon: Store, label: 'Boutiques' },
+                { to: '/superadmin/products', icon: Package, label: 'Produits' },
+              ].map(item => (
+                <Link key={item.to} to={item.to}
+                  className="p-3 bg-white/10 hover:bg-white/20 rounded-xl flex flex-col items-center gap-1 transition-colors">
+                  <item.icon size={20} />
+                  <span className="text-xs font-medium">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

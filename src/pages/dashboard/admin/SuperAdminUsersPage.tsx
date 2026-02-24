@@ -9,6 +9,7 @@ import { useToast } from '../../../components/Toast'
 import { useConfirm } from '../../../components/ConfirmModal'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { UserInfoModal } from './SuperAdminUsersPage_InfoModal'
+import { useAdminCacheStore } from '../../../stores/adminCacheStore'
 
 const SuperAdminUsersPage: React.FC = () => {
   const { showToast } = useToast()
@@ -23,11 +24,16 @@ const SuperAdminUsersPage: React.FC = () => {
     canSendNotifications,
     isSuperAdmin
   } = usePermissions()
+  const { setCache, getCache, isFresh } = useAdminCacheStore()
   const [users, setUsers] = useState<UserData[]>([])
   const [allUsers, setAllUsers] = useState<UserData[]>([]) // Cache de tous les utilisateurs
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMoreUsers, setHasMoreUsers] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'client' | 'vendor' | 'admin' | 'super_admin'>('all')
@@ -56,7 +62,7 @@ const SuperAdminUsersPage: React.FC = () => {
     is_active: true
   })
   const [actionLoading, setActionLoading] = useState(false)
-  
+
   // Notification state
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false)
   const [userToNotify, setUserToNotify] = useState<UserData | null>(null)
@@ -77,50 +83,110 @@ const SuperAdminUsersPage: React.FC = () => {
 
   const pageSize = 100
 
+  // Handle Search Debounce
   useEffect(() => {
-    loadUsers()
-  }, [currentPage, searchQuery]) // Removed selectedFilter - filtering is now local
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+      if (searchQuery.trim() !== debouncedSearchQuery.trim()) {
+        setCurrentPage(1)
+      }
+    }, 400) // 400ms delay for performance
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
-  const loadUsers = async () => {
+  useEffect(() => {
+    // Si pas de recherche -> cache par défaut immédiat, puis refresh en arrière-plan
+    if (!debouncedSearchQuery.trim() && currentPage === 1) {
+      const cached = getCache('users')
+      if (cached) {
+        setAllUsers(cached.data)
+        setUsers(cached.data)
+        setTotalCount(cached.totalCount)
+        setHasMoreUsers(cached.data.length >= pageSize)
+        setLoading(false)
+        if (!isFresh('users')) {
+          setRefreshing(true)
+          loadUsers(true)
+        }
+      } else {
+        loadUsers()
+      }
+    } else {
+      // S'il y a une recherche, on charge via l'API (le filtrage client-side est déjà en cours instantanément)
+      loadUsers()
+    }
+  }, [debouncedSearchQuery])
+
+  const loadUsers = async (silent = false, append = false, pageOverride?: number) => {
     try {
-      setLoading(true)
+      if (append) {
+        setLoadingMore(true)
+      } else if (!silent) {
+        setLoading(true)
+      }
       setError(null)
 
+      const page = pageOverride || currentPage
       let response
-      if (searchQuery.trim()) {
-        response = await usersService.searchUsers(searchQuery, currentPage, pageSize)
+      if (debouncedSearchQuery.trim()) {
+        response = await usersService.searchUsers(debouncedSearchQuery.trim(), page, pageSize)
       } else {
-        response = await usersService.getAllUsers(currentPage, pageSize)
+        response = await usersService.getAllUsers(page, pageSize)
       }
-
-      console.log('API Response:', response)
 
       if (response.data) {
         let loadedUsers: UserData[] = []
-        // L'API peut retourner directement un tableau ou un objet paginé
+        let count = 0
         if (Array.isArray(response.data)) {
           loadedUsers = response.data
-          setTotalCount(response.data.length)
+          count = response.data.length
         } else if (response.data.results) {
           loadedUsers = response.data.results
-          setTotalCount(response.data.count)
-        } else {
-          // Si la réponse est un objet avec les utilisateurs directement
-          console.log('Format de réponse inattendu:', response.data)
-          loadedUsers = []
-          setTotalCount(0)
+          count = response.data.count || response.data.results.length
         }
-        
-        // Store in cache
-        setAllUsers(loadedUsers)
-        setUsers(loadedUsers)
+
+        setTotalCount(count)
+        setHasMoreUsers(loadedUsers.length >= pageSize)
+
+        if (append && loadedUsers.length > 0) {
+          // Compute merged list without nested setState
+          const prevUsers = allUsers
+          const existingIds = new Set(prevUsers.map(u => u.id))
+          const uniqueNew = loadedUsers.filter(u => !existingIds.has(u.id))
+          const merged = [...prevUsers, ...uniqueNew]
+          setAllUsers(merged)
+          setUsers(merged)
+          if (!debouncedSearchQuery.trim()) setCache('users', merged, count)
+        } else if (append && loadedUsers.length === 0) {
+          // No more users, rewind page
+          setHasMoreUsers(false)
+          setCurrentPage(p => Math.max(1, p - 1))
+        } else {
+          setAllUsers(loadedUsers)
+          setUsers(loadedUsers)
+          if (!debouncedSearchQuery.trim()) setCache('users', loadedUsers, count)
+        }
       }
     } catch (err: any) {
       console.error('Erreur chargement utilisateurs:', err)
-      setError(err.message || 'Erreur lors du chargement des utilisateurs')
+      if (append) {
+        // API returned error (e.g. 400 for invalid page) — stop loading more
+        setHasMoreUsers(false)
+        setCurrentPage(p => Math.max(1, p - 1))
+      } else if (!silent) {
+        setError(err.message || 'Erreur lors du chargement des utilisateurs')
+      }
     } finally {
       setLoading(false)
+      setRefreshing(false)
+      setLoadingMore(false)
     }
+  }
+
+  const handleLoadMoreUsers = () => {
+    const nextPage = currentPage + 1
+    setCurrentPage(nextPage)
+    loadUsers(false, true, nextPage)
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -364,30 +430,70 @@ const SuperAdminUsersPage: React.FC = () => {
     setUserToView(user)
     setUserShop(null)
     setIsInfoModalOpen(true)
-    
+
     // Load shop if user is a vendor
     if (user.is_seller) {
       try {
         setLoadingShop(true)
-        const response = await shopsService.getAllShops(1, 200)
+        // Use admin endpoint which includes inactive shops and more fields
+        const response = await shopsService.getAllShopsAdmin({ page: 1 })
         if (response.data) {
-          const shops = Array.isArray(response.data) ? response.data : response.data.results || []
-          console.log('🔍 Looking for shop for user:', user.id, user.username)
-          console.log('📦 Total shops loaded:', shops.length)
-          console.log('🏪 First shop example:', shops[0])
-          
-          // Try multiple matching strategies
-          let vendorShop = shops.find((shop: any) => shop.owner_id === user.id)
+          const shopsList = Array.isArray(response.data) ? response.data : response.data.results || []
+
+          if (import.meta.env.DEV) {
+            console.log('🔍 Looking for shop for user:', user.id, user.username, user.email)
+            console.log('📦 Total shops loaded:', shopsList.length)
+            if (shopsList[0]) {
+              console.log('🏪 Shop fields available:', Object.keys(shopsList[0]))
+              console.log('🏪 First shop owner fields:', {
+                owner_id: shopsList[0].owner_id,
+                owner_name: shopsList[0].owner_name,
+                owner_email: shopsList[0].owner_email,
+                owner: (shopsList[0] as any).owner,
+                user_id: (shopsList[0] as any).user_id,
+                user: (shopsList[0] as any).user,
+              })
+            }
+          }
+
+          const userId = String(user.id)
+
+          // Try multiple matching strategies with String() conversion
+          let vendorShop = shopsList.find((shop: any) => String(shop.owner_id) === userId)
           if (!vendorShop) {
-            // Fallback: try matching by user_id field
-            vendorShop = shops.find((shop: any) => shop.user_id === user.id)
+            vendorShop = shopsList.find((shop: any) => String(shop.user_id) === userId)
           }
           if (!vendorShop) {
-            // Fallback: try matching by owner field
-            vendorShop = shops.find((shop: any) => shop.owner === user.id)
+            vendorShop = shopsList.find((shop: any) => String(shop.owner) === userId)
           }
-          
-          console.log('✅ Shop found:', vendorShop ? vendorShop.name : 'None')
+          if (!vendorShop) {
+            // Try nested owner object
+            vendorShop = shopsList.find((shop: any) =>
+              shop.owner && typeof shop.owner === 'object' && String(shop.owner.id) === userId
+            )
+          }
+          if (!vendorShop) {
+            // Try nested user object
+            vendorShop = shopsList.find((shop: any) =>
+              shop.user && typeof shop.user === 'object' && String(shop.user.id) === userId
+            )
+          }
+          if (!vendorShop && user.email) {
+            // Fallback: match by email
+            vendorShop = shopsList.find((shop: any) =>
+              shop.owner_email === user.email || shop.email === user.email
+            )
+          }
+          if (!vendorShop && user.username) {
+            // Fallback: match by owner_name containing username
+            vendorShop = shopsList.find((shop: any) =>
+              shop.owner_name && shop.owner_name.toLowerCase().includes(user.username.toLowerCase())
+            )
+          }
+
+          if (import.meta.env.DEV) {
+            console.log('✅ Shop found:', vendorShop ? vendorShop.name : 'None')
+          }
           setUserShop(vendorShop || null)
         }
       } catch (err) {
@@ -472,23 +578,36 @@ const SuperAdminUsersPage: React.FC = () => {
     })
   }
 
-  // Filter from cache (allUsers) instead of users to avoid API reload
-  const filteredUsers = selectedFilter === 'all'
-    ? (allUsers || [])
-    : (allUsers || []).filter(user => {
-      if (selectedFilter === 'super_admin') return user.is_superuser
-      if (selectedFilter === 'admin') return user.is_staff && !user.is_superuser
-      if (selectedFilter === 'vendor') return user.is_seller
-      if (selectedFilter === 'client') return !user.is_seller && !user.is_staff && !user.is_superuser
-      return true
-    })
+  // Instant Zero-Latency Client-Side Filtering
+  const filteredUsers = (allUsers || []).filter(user => {
+    // 1. Role Filter
+    if (selectedFilter === 'super_admin' && !user.is_superuser) return false
+    if (selectedFilter === 'admin' && !(user.is_staff && !user.is_superuser)) return false
+    if (selectedFilter === 'vendor' && !user.is_seller) return false
+    if (selectedFilter === 'client' && (user.is_seller || user.is_staff || user.is_superuser)) return false
+
+    // 2. Real-time Search Match (before API resolves new matches)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      const searchMatch =
+        user.username?.toLowerCase().includes(q) ||
+        user.email?.toLowerCase().includes(q) ||
+        (user.first_name && user.first_name.toLowerCase().includes(q)) ||
+        (user.last_name && user.last_name.toLowerCase().includes(q)) ||
+        (user.phone && user.phone.includes(q))
+
+      if (!searchMatch) return false
+    }
+
+    return true
+  })
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
-  // Calculs pour les stats rapides
-  const activeUsersCount = users.filter(u => u.is_active).length
-  const vendorsCount = users.filter(u => u.is_seller).length
-  const adminsCount = users.filter(u => u.is_staff || u.is_superuser).length
+  // Calculs pour les stats rapides basées sur tous les utilisateurs chargés
+  const activeUsersCount = allUsers.filter(u => u.is_active).length
+  const vendorsCount = allUsers.filter(u => u.is_seller).length
+  const adminsCount = allUsers.filter(u => u.is_staff || u.is_superuser).length
 
   // Helper pour les couleurs de rôle
   const getRoleColor = (user: UserData) => {
@@ -513,6 +632,7 @@ const SuperAdminUsersPage: React.FC = () => {
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 mb-2">
             Utilisateurs
+            {refreshing && <span className="ml-2 inline-block w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin align-middle" />}
           </h1>
           <p className="text-lg text-gray-500 font-medium">
             Gérez l'accès et les permissions de votre écosystème.
@@ -614,7 +734,7 @@ const SuperAdminUsersPage: React.FC = () => {
       </div>
 
       {/* --- CONTENT SECTION --- */}
-      {loading ? (
+      {loading && allUsers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32">
           <div className="relative w-20 h-20">
             <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
@@ -673,7 +793,7 @@ const SuperAdminUsersPage: React.FC = () => {
 
                   {/* Actions Overlay - Single Eye Icon */}
                   <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10">
-                    <button 
+                    <button
                       onClick={() => handleOpenInfoModal(user)}
                       className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl shadow-lg p-4 flex items-center justify-center gap-3 transition-all transform hover:scale-105"
                       title="Voir tous les détails et actions"
@@ -731,8 +851,8 @@ const SuperAdminUsersPage: React.FC = () => {
                       {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Jamais'}
                     </td>
                     <td className="px-8 py-4 whitespace-nowrap text-right">
-                      <button 
-                        onClick={() => handleOpenInfoModal(user)} 
+                      <button
+                        onClick={() => handleOpenInfoModal(user)}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all transform hover:scale-105"
                         title="Voir tous les détails et actions"
                       >
@@ -748,16 +868,36 @@ const SuperAdminUsersPage: React.FC = () => {
         </div>
       )}
 
-      {/* --- PAGINATION --- */}
-      {totalPages > 1 && (
-        <div className="flex justify-center pt-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 flex items-center gap-2">
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 hover:bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50">Précédent</button>
-            <span className="px-4 text-sm font-bold text-gray-900">Page {currentPage} / {totalPages}</span>
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-4 py-2 hover:bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50">Suivant</button>
-          </div>
+      {/* --- PAGINATION / LOAD MORE --- */}
+      <div className="flex flex-col items-center gap-4 pt-8">
+        <div className="text-sm text-gray-500">
+          {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} affiché{filteredUsers.length > 1 ? 's' : ''}
+          {totalCount > allUsers.length && ` sur ${totalCount} au total`}
         </div>
-      )}
+        <div className="flex items-center gap-3">
+          {totalPages > 1 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 flex items-center gap-2">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 hover:bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50">Précédent</button>
+              <span className="px-4 text-sm font-bold text-gray-900">Page {currentPage} / {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-4 py-2 hover:bg-gray-50 rounded-xl text-sm font-medium disabled:opacity-50">Suivant</button>
+            </div>
+          )}
+          {hasMoreUsers && (
+            <button
+              onClick={handleLoadMoreUsers}
+              disabled={loadingMore}
+              className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl text-sm font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-200 flex items-center gap-2 disabled:opacity-60"
+            >
+              {loadingMore ? (
+                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <UserIcon size={16} />
+              )}
+              {loadingMore ? 'Chargement...' : 'Charger plus d\'utilisateurs'}
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Edit User Modal */}
       {isEditModalOpen && editingUser && (
@@ -1155,16 +1295,16 @@ const SuperAdminUsersPage: React.FC = () => {
                       className="w-full px-4 py-2 pr-24 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                       {newPassword && (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={handleCopyPassword}
                           className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
                           title="Copier"
@@ -1174,7 +1314,7 @@ const SuperAdminUsersPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <button 
+                  <button
                     type="button"
                     onClick={handleGeneratePassword}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
@@ -1185,7 +1325,7 @@ const SuperAdminUsersPage: React.FC = () => {
                   <p className="text-xs text-gray-500">
                     Le mot de passe doit contenir au moins 8 caractères
                   </p>
-                  
+
                   {/* Option envoi lien par email */}
                   <label className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
                     <input
@@ -1265,11 +1405,10 @@ const SuperAdminUsersPage: React.FC = () => {
                     <button
                       key={t.value}
                       onClick={() => setNotifData({ ...notifData, type: t.value as any })}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                        notifData.type === t.value
-                          ? t.color + ' ring-2 ring-offset-2 ring-purple-300'
-                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                      }`}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${notifData.type === t.value
+                        ? t.color + ' ring-2 ring-offset-2 ring-purple-300'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
                     >
                       {t.label}
                     </button>

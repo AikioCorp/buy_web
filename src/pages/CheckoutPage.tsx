@@ -7,19 +7,20 @@ import { ordersService } from '@/lib/api/ordersService'
 import { formatPrice } from '@/lib/utils'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
-import { 
-  ShoppingBag, MapPin, CreditCard, Truck, CheckCircle, 
+import {
+  ShoppingBag, MapPin, CreditCard, Truck, CheckCircle,
   ArrowLeft, Loader2, AlertCircle, Phone, User, Mail, Save
 } from 'lucide-react'
+import analytics from '@/lib/analytics/tracker'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 // Fonction pour obtenir l'URL de l'image du produit
 const getProductImageUrl = (product: any): string | null => {
   if (!product) return null
-  
+
   let url: string | null = null
-  
+
   // Check different image sources
   // 1. media array (new format)
   if (product.media && product.media.length > 0) {
@@ -43,14 +44,14 @@ const getProductImageUrl = (product: any): string | null => {
   else if (product.thumbnail) {
     url = product.thumbnail
   }
-  
+
   if (!url) return null
-  
+
   // Fix protocol
   if (url.startsWith('http://')) {
     url = url.replace('http://', 'https://')
   }
-  
+
   // Return full URL
   if (url.startsWith('https://') || url.startsWith('data:')) return url
   return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
@@ -104,30 +105,30 @@ export function CheckoutPage() {
   const { items, getTotal, clearCart } = useCartStore()
   const { user, isAuthenticated } = useAuthStore()
   const { savedAddress, saveAddress } = useShippingStore()
-  
+
   const [currentStep, setCurrentStep] = useState<Step>('shipping')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [orderId, setOrderId] = useState<number | null>(null)
   const [saveAddressForLater, setSaveAddressForLater] = useState(true)
-  
+
   // Shipping form - Priorité: données utilisateur connecté > adresse sauvegardée > vide
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(() => {
     // Ne pas afficher l'email généré automatiquement
     const userEmail = user?.email && !user.email.includes('@phone.buymore.ml') ? user.email : ''
-    
+
     // Si l'utilisateur est connecté, toujours utiliser ses données
     if (user) {
       // Si une adresse est sauvegardée ET appartient à cet utilisateur, utiliser commune/quartier/détails
-      const useSavedLocation = savedAddress && 
-        savedAddress.phone === user.phone && 
-        savedAddress.commune && 
+      const useSavedLocation = savedAddress &&
+        savedAddress.phone === user.phone &&
+        savedAddress.commune &&
         savedAddress.quartier
-      
+
       return {
-        full_name: user.first_name && user.last_name 
-          ? `${user.first_name} ${user.last_name}` 
+        full_name: user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
           : user.username || '',
         phone: user.phone || '',
         email: userEmail,
@@ -138,7 +139,7 @@ export function CheckoutPage() {
         is_default: true
       }
     }
-    
+
     // Si pas d'utilisateur connecté mais une adresse sauvegardée, l'utiliser
     if (savedAddress) {
       return {
@@ -146,7 +147,7 @@ export function CheckoutPage() {
         is_default: true
       }
     }
-    
+
     // Sinon, formulaire vide
     return {
       full_name: '',
@@ -159,24 +160,24 @@ export function CheckoutPage() {
       is_default: true
     }
   })
-  
+
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_money'>('cash_on_delivery')
   const [mobileMoneyProvider, setMobileMoneyProvider] = useState<'wave' | 'orange_money' | 'sama' | 'moov'>('wave')
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('')
-  
+
   // Calcul automatique des frais de livraison en fonction de la commune
   const getDeliveryFee = (): number => {
     const subtotal = getTotal()
     // Livraison gratuite pour les commandes >= 50000 XOF
     if (subtotal >= 50000) return 0
-    
+
     if (!shippingAddress.commune) return 1000 // Frais par défaut
     return BAMAKO_ZONES[shippingAddress.commune]?.frais_livraison || 1000
   }
-  
+
   // Quartiers disponibles en fonction de la commune sélectionnée
-  const availableQuartiers = shippingAddress.commune 
+  const availableQuartiers = shippingAddress.commune
     ? BAMAKO_ZONES[shippingAddress.commune]?.quartiers || []
     : []
 
@@ -191,6 +192,9 @@ export function CheckoutPage() {
   useEffect(() => {
     if (items.length === 0 && !orderSuccess) {
       navigate('/cart')
+    } else if (items.length > 0 && !orderSuccess) {
+      const itemsCount = items.reduce((acc, item) => acc + item.quantity, 0)
+      analytics.checkoutStarted(itemsCount, getTotal())
     }
   }, [items, navigate, orderSuccess])
 
@@ -270,7 +274,7 @@ export function CheckoutPage() {
         console.log('🛒 Creating order with data:', orderData)
         const response = await ordersService.createOrder(orderData)
         console.log('📦 Order creation response:', response)
-        
+
         if (response.error) {
           console.error('❌ Order error:', response.error)
           // Extraire le message d'erreur si c'est un objet
@@ -284,6 +288,12 @@ export function CheckoutPage() {
         if (response.data) {
           console.log('✅ Order created successfully:', response.data)
           setOrderId(response.data.id)
+
+          // Track order created
+          const orderTotal = getTotal() + getDeliveryFee()
+          const itemsCount = items.reduce((acc, item) => acc + item.quantity, 0)
+          analytics.orderCreated(response.data.id, orderTotal, itemsCount, 'website')
+
           setOrderSuccess(true)
           clearCart()
           console.log('✅ Order success state set, should show success page')
@@ -348,7 +358,7 @@ export function CheckoutPage() {
       <div className="container mx-auto px-4 max-w-6xl">
         {/* Header */}
         <div className="mb-8">
-          <button 
+          <button
             onClick={() => navigate('/cart')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
@@ -367,26 +377,23 @@ export function CheckoutPage() {
               { key: 'confirmation', label: 'Confirmation', icon: CheckCircle }
             ].map((step, index) => (
               <div key={step.key} className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                  currentStep === step.key 
-                    ? 'bg-[#0f4c2b] text-white' 
-                    : index < ['shipping', 'payment', 'confirmation'].indexOf(currentStep)
-                      ? 'bg-green-100 text-green-600'
-                      : 'bg-gray-200 text-gray-500'
-                }`}>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${currentStep === step.key
+                  ? 'bg-[#0f4c2b] text-white'
+                  : index < ['shipping', 'payment', 'confirmation'].indexOf(currentStep)
+                    ? 'bg-green-100 text-green-600'
+                    : 'bg-gray-200 text-gray-500'
+                  }`}>
                   <step.icon className="h-5 w-5" />
                 </div>
-                <span className={`ml-2 text-sm font-medium ${
-                  currentStep === step.key ? 'text-[#0f4c2b]' : 'text-gray-500'
-                }`}>
+                <span className={`ml-2 text-sm font-medium ${currentStep === step.key ? 'text-[#0f4c2b]' : 'text-gray-500'
+                  }`}>
                   {step.label}
                 </span>
                 {index < 2 && (
-                  <div className={`w-16 h-1 mx-4 ${
-                    index < ['shipping', 'payment', 'confirmation'].indexOf(currentStep)
-                      ? 'bg-green-500'
-                      : 'bg-gray-200'
-                  }`} />
+                  <div className={`w-16 h-1 mx-4 ${index < ['shipping', 'payment', 'confirmation'].indexOf(currentStep)
+                    ? 'bg-green-500'
+                    : 'bg-gray-200'
+                    }`} />
                 )}
               </div>
             ))}
@@ -412,7 +419,7 @@ export function CheckoutPage() {
                     <MapPin className="h-5 w-5 mr-2 text-[#0f4c2b]" />
                     Adresse de livraison
                   </h2>
-                  
+
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -424,7 +431,7 @@ export function CheckoutPage() {
                           <input
                             type="text"
                             value={shippingAddress.full_name}
-                            onChange={(e) => setShippingAddress({...shippingAddress, full_name: e.target.value})}
+                            onChange={(e) => setShippingAddress({ ...shippingAddress, full_name: e.target.value })}
                             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent"
                             placeholder="Amadou Traoré"
                           />
@@ -439,7 +446,7 @@ export function CheckoutPage() {
                           <input
                             type="tel"
                             value={shippingAddress.phone}
-                            onChange={(e) => setShippingAddress({...shippingAddress, phone: e.target.value})}
+                            onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
                             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent"
                             placeholder="+223 70 12 34 56"
                           />
@@ -456,7 +463,7 @@ export function CheckoutPage() {
                         <input
                           type="email"
                           value={shippingAddress.email}
-                          onChange={(e) => setShippingAddress({...shippingAddress, email: e.target.value})}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, email: e.target.value })}
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent"
                           placeholder="email@exemple.com"
                         />
@@ -472,7 +479,7 @@ export function CheckoutPage() {
                         <select
                           value={shippingAddress.commune}
                           onChange={(e) => setShippingAddress({
-                            ...shippingAddress, 
+                            ...shippingAddress,
                             commune: e.target.value,
                             quartier: '' // Reset quartier when commune changes
                           })}
@@ -490,7 +497,7 @@ export function CheckoutPage() {
                         </label>
                         <select
                           value={shippingAddress.quartier}
-                          onChange={(e) => setShippingAddress({...shippingAddress, quartier: e.target.value})}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, quartier: e.target.value })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent bg-white"
                           disabled={!shippingAddress.commune}
                         >
@@ -509,7 +516,7 @@ export function CheckoutPage() {
                       <input
                         type="text"
                         value={shippingAddress.address_details}
-                        onChange={(e) => setShippingAddress({...shippingAddress, address_details: e.target.value})}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, address_details: e.target.value })}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent"
                         placeholder="Près de la mosquée, à côté de la pharmacie..."
                       />
@@ -560,7 +567,7 @@ export function CheckoutPage() {
                         <>
                           {shippingAddress.commune && (
                             <p className="text-sm text-green-600 mt-2">
-                              {shippingAddress.commune === 'Commune VI' 
+                              {shippingAddress.commune === 'Commune VI'
                                 ? 'Zone périphérique - Délai de livraison: 24-48h'
                                 : 'Zone centrale - Délai de livraison: sous 24h'
                               }
@@ -597,9 +604,8 @@ export function CheckoutPage() {
 
                   <div className="space-y-4">
                     {/* Cash on Delivery */}
-                    <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors ${
-                      paymentMethod === 'cash_on_delivery' ? 'border-[#0f4c2b] bg-green-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
+                    <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'cash_on_delivery' ? 'border-[#0f4c2b] bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}>
                       <input
                         type="radio"
                         name="payment"
@@ -701,9 +707,9 @@ export function CheckoutPage() {
                         <div key={item.product.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                           <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                             {getProductImageUrl(item.product) ? (
-                              <img 
-                                src={getProductImageUrl(item.product)!} 
-                                alt={item.product.name} 
+                              <img
+                                src={getProductImageUrl(item.product)!}
+                                alt={item.product.name}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
@@ -728,8 +734,8 @@ export function CheckoutPage() {
                     <Button variant="outline" onClick={() => setCurrentStep('payment')}>
                       Retour
                     </Button>
-                    <Button 
-                      onClick={handlePlaceOrder} 
+                    <Button
+                      onClick={handlePlaceOrder}
                       size="lg"
                       disabled={isLoading}
                     >
@@ -755,19 +761,19 @@ export function CheckoutPage() {
             <Card className="sticky top-4">
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold mb-4">Résumé</h2>
-                
+
                 {/* Items count */}
                 <p className="text-sm text-gray-600 mb-4">{items.length} article(s)</p>
-                
+
                 {/* Items list */}
                 <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
                   {items.map((item) => (
                     <div key={item.product.id} className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                         {getProductImageUrl(item.product) ? (
-                          <img 
-                            src={getProductImageUrl(item.product)!} 
-                            alt={item.product.name} 
+                          <img
+                            src={getProductImageUrl(item.product)!}
+                            alt={item.product.name}
                             className="w-full h-full object-cover"
                           />
                         ) : (

@@ -10,6 +10,8 @@ import { LoginPopup } from '@/components/LoginPopup'
 import { Button } from '@/components/Button'
 import { SmartBackButton } from '@/components/SmartBackButton'
 import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight, Star, Truck, Shield, RefreshCw, Check, MessageCircle, X, ZoomIn } from 'lucide-react'
+import { useProductTracking } from '@/hooks/useAnalytics'
+import analytics from '@/lib/analytics/tracker'
 
 // Cache système pour les produits
 const productCache = new Map<string, { data: Product; timestamp: number }>()
@@ -57,6 +59,9 @@ export function ProductDetailPage() {
   const user = useAuthStore((state) => state.user)
   const { showToast } = useToast()
   const navigate = useNavigate()
+
+  // Track product view
+  useProductTracking(product)
 
   useEffect(() => {
     if (id) {
@@ -168,12 +173,14 @@ export function ProductDetailPage() {
   const handleAddToCart = () => {
     if (product) {
       addItem(product, quantity)
+      analytics.addToCart(product.id, product.name, quantity, getPrice())
       showToast(`${product.name} ajouté au panier !`, 'success')
     }
   }
 
   const handleBuyNow = () => {
     if (product) {
+      analytics.addToCart(product.id, product.name, quantity, getPrice())
       addItem(product, quantity)
       if (!user) {
         setShowLoginPopup(true)
@@ -231,6 +238,9 @@ export function ProductDetailPage() {
       const deliveryLabel = deliveryFee === 0 ? 'GRATUIT \u2728' : `${formatPrice(deliveryFee)} FCFA`
       const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Sous-total:* ${formatPrice(productTotal)} FCFA\n*Livraison:* ${deliveryLabel}\n*Total global:* ${formatPrice(totalWithDelivery)} FCFA\n\n*Lien du produit:* ${productUrl}${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
       const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
+
+      analytics.whatsAppOrder([product.id], totalWithDelivery)
+
       window.open(whatsappUrl, '_blank')
       setWhatsappLoading(false)
     }

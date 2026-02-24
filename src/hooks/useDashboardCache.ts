@@ -5,6 +5,16 @@ import { ordersService } from '../lib/api/ordersService'
 import { shopsService } from '../lib/api/shopsService'
 import { productsService } from '../lib/api/productsService'
 
+/**
+ * Hook optimisé pour charger et cacher les données du dashboard Admin & SuperAdmin.
+ * 
+ * Stratégie de récupération :
+ * - 5 requêtes parallèles (Promise.allSettled) pour une rapidité maximale
+ * - Requête séparée pour les commandes "pending" afin d'avoir le count exact
+ * - page_size par défaut (pas de page_size=1 car l'API renvoie count = results.length)
+ * - Cache via Zustand store avec TTL de staleness
+ * - Logs détaillés en dev pour le debugging
+ */
 export const useDashboardCache = () => {
   const {
     data,
@@ -19,78 +29,97 @@ export const useDashboardCache = () => {
     updateRecentOrders
   } = useDashboardStore()
 
+  /**
+   * Extraire les données d'une réponse API normalisée
+   */
+  const extractData = (res: any) => {
+    if (!res?.data) return { list: [], count: 0 }
+    const raw = res.data
+    // L'API peut renvoyer {data: {results, count}} ou {results, count} ou un Array
+    const inner = raw?.data || raw
+    if (Array.isArray(inner)) {
+      return { list: inner, count: inner.length }
+    }
+    const list = inner.results || []
+    // Utiliser count de l'API, mais si count === list.length ET list est plein,
+    // c'est probablement un count par page, pas le total global
+    const count = inner.count || list.length
+    return { list, count }
+  }
+
   // Charger les données du dashboard
   const loadDashboardData = useCallback(async (forceRefresh = false) => {
-    // Si les données sont en cache et pas obsolètes, ne pas recharger
     if (!forceRefresh && data && !isDataStale()) {
-      console.log('📦 Utilisation du cache dashboard')
+      if (import.meta.env.DEV) console.log('📦 Utilisation du cache dashboard')
       return
     }
 
     try {
       setLoading(true)
       setError(null)
-      
-      console.log('🔄 Chargement des données dashboard...')
-      
-      const [usersRes, ordersRes, shopsRes, productsRes] = await Promise.allSettled([
-        usersService.getAllUsers(1, 1),
-        ordersService.getAllOrdersAdmin({ page: 1 }),
-        shopsService.getAllShopsAdmin({ page: 1 }),
-        productsService.getAllProductsAdmin({ page: 1 })
+
+      if (import.meta.env.DEV) console.log('🔄 Chargement des données dashboard...')
+
+      // 5 requêtes parallèles — aucune n'attend les autres
+      const [usersRes, ordersRes, pendingRes, shopsRes, productsRes] = await Promise.allSettled([
+        usersService.getAllUsers(1, 50),                              // 50 users pour compter les vendeurs
+        ordersService.getAllOrdersAdmin({ page: 1 }),                 // Commandes récentes + count total
+        ordersService.getAllOrdersAdmin({ page: 1, status: 'pending' as any }), // Count exact des pending
+        shopsService.getAllShopsAdmin({ page: 1 }),                   // Boutiques + count
+        productsService.getAllProductsAdmin({ page: 1 }),             // Produits (page_size défaut)
       ])
 
-      let totalUsers = 0
-      let totalOrders = 0
-      let totalShops = 0
-      let totalProducts = 0
-      let totalRevenue = 0
-      let pendingOrders = 0
-      let activeVendors = 0
+      let totalUsers = 0, totalOrders = 0, totalShops = 0, totalProducts = 0
+      let totalRevenue = 0, pendingOrders = 0, activeVendors = 0
       let recentOrders: any[] = []
 
-      if (usersRes.status === 'fulfilled' && usersRes.value.data) {
-        totalUsers = usersRes.value.data.count || 0
-        if (usersRes.value.data.results) {
-          activeVendors = usersRes.value.data.results.filter((u: any) => u.is_seller && u.is_active).length
-        }
+      // ── Users ──
+      if (usersRes.status === 'fulfilled') {
+        const { list, count } = extractData(usersRes.value)
+        totalUsers = count
+        activeVendors = list.filter((u: any) => u.is_seller && u.is_active !== false).length
+        if (import.meta.env.DEV) console.log(`👥 Users: ${totalUsers} total, ${activeVendors} vendeurs (sur ${list.length} chargés)`)
       }
 
-      if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
-        const ordersData = ordersRes.value.data
-        totalOrders = ordersData.count || 0
-        if (ordersData.results) {
-          totalRevenue = ordersData.results.reduce((sum: number, order: any) => 
-            sum + parseFloat(order.total_amount || '0'), 0
-          )
-          pendingOrders = ordersData.results.filter((o: any) => o.status === 'pending').length
-          recentOrders = ordersData.results.slice(0, 5)
-        }
+      // ── Orders (toutes) ──
+      if (ordersRes.status === 'fulfilled') {
+        const { list, count } = extractData(ordersRes.value)
+        totalOrders = count
+        totalRevenue = list.reduce((sum: number, o: any) => {
+          const amt = parseFloat(o.total_amount || '0')
+          return sum + (isNaN(amt) ? 0 : amt)
+        }, 0)
+        recentOrders = list.slice(0, 10)
+        if (import.meta.env.DEV) console.log(`🛒 Orders: ${totalOrders} total, revenu=${totalRevenue} (${list.length} chargées)`)
       }
 
-      if (shopsRes.status === 'fulfilled' && shopsRes.value.data) {
-        const shopsData = shopsRes.value.data
-        totalShops = shopsData.count || (Array.isArray(shopsData) ? shopsData.length : 0)
+      // ── Commandes en attente ──
+      if (pendingRes.status === 'fulfilled') {
+        const { list, count } = extractData(pendingRes.value)
+        pendingOrders = count > 0 ? count : list.length
+        if (import.meta.env.DEV) console.log(`⏳ Pending: ${pendingOrders}`)
       }
 
-      if (productsRes.status === 'fulfilled' && productsRes.value.data) {
-        totalProducts = productsRes.value.data.count || 0
+      // ── Shops ──
+      if (shopsRes.status === 'fulfilled') {
+        const { count } = extractData(shopsRes.value)
+        totalShops = count
+        if (import.meta.env.DEV) console.log(`🏪 Shops: ${totalShops}`)
+      }
+
+      // ── Products ──
+      if (productsRes.status === 'fulfilled') {
+        const { count } = extractData(productsRes.value)
+        totalProducts = count
+        if (import.meta.env.DEV) console.log(`📦 Products: ${totalProducts}`)
       }
 
       setData({
-        stats: {
-          totalUsers,
-          totalOrders,
-          totalShops,
-          totalProducts,
-          totalRevenue,
-          pendingOrders,
-          activeVendors
-        },
+        stats: { totalUsers, totalOrders, totalShops, totalProducts, totalRevenue, pendingOrders, activeVendors },
         recentOrders
       })
 
-      console.log('✅ Données dashboard chargées et mises en cache')
+      if (import.meta.env.DEV) console.log('✅ Dashboard chargé', { totalUsers, totalOrders, totalShops, totalProducts, totalRevenue, pendingOrders })
     } catch (err) {
       console.error('❌ Erreur chargement dashboard:', err)
       setError('Erreur lors du chargement des données')
@@ -99,55 +128,56 @@ export const useDashboardCache = () => {
     }
   }, [data, isDataStale, setData, setLoading, setError])
 
-  // Rafraîchir uniquement les statistiques (plus rapide)
+  // Rafraîchissement rapide (sans afficher le loading)
   const refreshStats = useCallback(async () => {
     try {
-      console.log('🔄 Rafraîchissement rapide des stats...')
-      
-      const [usersRes, ordersRes, shopsRes, productsRes] = await Promise.allSettled([
-        usersService.getAllUsers(1, 1),
+      if (import.meta.env.DEV) console.log('🔄 Refresh rapide...')
+
+      const [usersRes, ordersRes, pendingRes, shopsRes, productsRes] = await Promise.allSettled([
+        usersService.getAllUsers(1, 50),
         ordersService.getAllOrdersAdmin({ page: 1 }),
+        ordersService.getAllOrdersAdmin({ page: 1, status: 'pending' as any }),
         shopsService.getAllShopsAdmin({ page: 1 }),
-        productsService.getAllProductsAdmin({ page: 1 })
+        productsService.getAllProductsAdmin({ page: 1 }),
       ])
 
       const newStats: any = {}
 
-      if (usersRes.status === 'fulfilled' && usersRes.value.data) {
-        newStats.totalUsers = usersRes.value.data.count || 0
-        if (usersRes.value.data.results) {
-          newStats.activeVendors = usersRes.value.data.results.filter((u: any) => u.is_seller && u.is_active).length
-        }
+      if (usersRes.status === 'fulfilled') {
+        const { list, count } = extractData(usersRes.value)
+        newStats.totalUsers = count
+        newStats.activeVendors = list.filter((u: any) => u.is_seller && u.is_active !== false).length
       }
-
-      if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
-        const ordersData = ordersRes.value.data
-        newStats.totalOrders = ordersData.count || 0
-        if (ordersData.results) {
-          newStats.totalRevenue = ordersData.results.reduce((sum: number, order: any) => 
-            sum + parseFloat(order.total_amount || '0'), 0
-          )
-          newStats.pendingOrders = ordersData.results.filter((o: any) => o.status === 'pending').length
-        }
+      if (ordersRes.status === 'fulfilled') {
+        const { list, count } = extractData(ordersRes.value)
+        newStats.totalOrders = count
+        newStats.totalRevenue = list.reduce((s: number, o: any) => {
+          const amt = parseFloat(o.total_amount || '0')
+          return s + (isNaN(amt) ? 0 : amt)
+        }, 0)
+        if (list.length > 0) updateRecentOrders(list.slice(0, 10))
       }
-
-      if (shopsRes.status === 'fulfilled' && shopsRes.value.data) {
-        const shopsData = shopsRes.value.data
-        newStats.totalShops = shopsData.count || (Array.isArray(shopsData) ? shopsData.length : 0)
+      if (pendingRes.status === 'fulfilled') {
+        const { list, count } = extractData(pendingRes.value)
+        newStats.pendingOrders = count > 0 ? count : list.length
       }
-
-      if (productsRes.status === 'fulfilled' && productsRes.value.data) {
-        newStats.totalProducts = productsRes.value.data.count || 0
+      if (shopsRes.status === 'fulfilled') {
+        const { count } = extractData(shopsRes.value)
+        newStats.totalShops = count
+      }
+      if (productsRes.status === 'fulfilled') {
+        const { count } = extractData(productsRes.value)
+        newStats.totalProducts = count
       }
 
       updateStats(newStats)
-      console.log('✅ Stats rafraîchies')
+      if (import.meta.env.DEV) console.log('✅ Stats rafraîchies:', newStats)
     } catch (err) {
-      console.error('❌ Erreur rafraîchissement stats:', err)
+      console.error('❌ Erreur refresh stats:', err)
     }
-  }, [updateStats])
+  }, [updateStats, updateRecentOrders])
 
-  // Charger automatiquement au montage si nécessaire
+  // Chargement auto au montage
   useEffect(() => {
     if (!data || isDataStale()) {
       loadDashboardData()

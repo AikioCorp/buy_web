@@ -92,12 +92,12 @@ export function ProductsPage() {
       } else {
         setLoadingMore(true)
       }
-      
+
       const category = searchParams.get('category') || ''
       const search = searchParams.get('search') || ''
       setSelectedCategory(category)
       setSearchQuery(search)
-      
+
       // Utiliser le service de cache avec pagination
       const filters: any = {}
       if (search) filters.search = search
@@ -105,19 +105,22 @@ export function ProductsPage() {
         // Utiliser directement le slug de la catégorie
         filters.category_slug = category
       }
-      
+
       const response = await productCacheService.getProductsPage(page, filters)
-      
+
       if (page === 0) {
         setProducts(response.results as any)
         setTotalCount(response.count)
       } else {
         setProducts(prev => [...prev, ...response.results] as any)
+        setTotalCount(prev => prev + response.results.length)
       }
-      
-      setHasMore(response.results.length === 100)
+
+      // L'API renvoie count = nombre de résultats par page, pas le total global
+      // On a plus de pages si on a reçu exactement BATCH_SIZE (100) résultats
+      setHasMore(response.results.length >= 100)
       setCurrentPage(page)
-      
+
     } catch (error) {
       console.error('Error loading products:', error)
       if (page === 0) {
@@ -218,7 +221,7 @@ export function ProductsPage() {
             <p className="text-lg text-white/80 mb-8">
               Découvrez notre sélection de produits de qualité à prix compétitifs
             </p>
-            
+
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="relative max-w-xl mx-auto">
               <input
@@ -238,9 +241,9 @@ export function ProductsPage() {
             </form>
           </div>
         </div>
-        
+
         {/* Wave */}
-        <div className="h-12 bg-gray-50" style={{ 
+        <div className="h-12 bg-gray-50" style={{
           clipPath: 'ellipse(70% 100% at 50% 100%)',
           marginTop: '-1px'
         }}></div>
@@ -275,27 +278,25 @@ export function ProductsPage() {
                       <Tag size={18} className="text-[#0f4c2b]" />
                       <h4 className="font-semibold text-gray-900">Catégories</h4>
                     </div>
-                    {showCategorySection ? 
-                      <ChevronUp size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" /> : 
+                    {showCategorySection ?
+                      <ChevronUp size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" /> :
                       <ChevronDown size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" />
                     }
                   </button>
-                  
+
                   {showCategorySection && (
                     <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
                       <button
                         onClick={() => handleCategoryChange('')}
-                        className={`group w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-[1.02] ${
-                          !selectedCategory 
-                            ? 'bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white shadow-lg shadow-green-500/30' 
-                            : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 text-gray-700 border border-gray-200 hover:border-[#0f4c2b]/30'
-                        }`}
+                        className={`group w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-[1.02] ${!selectedCategory
+                          ? 'bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white shadow-lg shadow-green-500/30'
+                          : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 text-gray-700 border border-gray-200 hover:border-[#0f4c2b]/30'
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${
-                              !selectedCategory ? 'bg-white' : 'bg-gray-400 group-hover:bg-[#0f4c2b]'
-                            }`}></span>
+                            <span className={`w-2 h-2 rounded-full ${!selectedCategory ? 'bg-white' : 'bg-gray-400 group-hover:bg-[#0f4c2b]'
+                              }`}></span>
                             Toutes les catégories
                           </span>
                           {!selectedCategory && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full animate-pulse">✓</span>}
@@ -305,17 +306,15 @@ export function ProductsPage() {
                         <button
                           key={cat.id}
                           onClick={() => handleCategoryChange(cat.slug)}
-                          className={`group w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-[1.02] ${
-                            selectedCategory === cat.slug 
-                              ? 'bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white shadow-lg shadow-green-500/30' 
-                              : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 text-gray-700 border border-gray-200 hover:border-[#0f4c2b]/30'
-                          }`}
+                          className={`group w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-[1.02] ${selectedCategory === cat.slug
+                            ? 'bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white shadow-lg shadow-green-500/30'
+                            : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 text-gray-700 border border-gray-200 hover:border-[#0f4c2b]/30'
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full transition-all ${
-                                selectedCategory === cat.slug ? 'bg-white' : 'bg-gray-400 group-hover:bg-[#0f4c2b]'
-                              }`}></span>
+                              <span className={`w-2 h-2 rounded-full transition-all ${selectedCategory === cat.slug ? 'bg-white' : 'bg-gray-400 group-hover:bg-[#0f4c2b]'
+                                }`}></span>
                               {cat.name}
                             </span>
                             {selectedCategory === cat.slug && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full animate-pulse">✓</span>}
@@ -325,7 +324,7 @@ export function ProductsPage() {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Price Range Section */}
                 <div>
                   <button
@@ -336,12 +335,12 @@ export function ProductsPage() {
                       <DollarSign size={18} className="text-[#0f4c2b]" />
                       <h4 className="font-semibold text-gray-900">Fourchette de prix</h4>
                     </div>
-                    {showPriceSection ? 
-                      <ChevronUp size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" /> : 
+                    {showPriceSection ?
+                      <ChevronUp size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" /> :
                       <ChevronDown size={18} className="text-gray-400 group-hover:text-[#0f4c2b] transition-colors" />
                     }
                   </button>
-                  
+
                   {showPriceSection && (
                     <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
                       <div className="flex items-center gap-3">
@@ -367,7 +366,7 @@ export function ProductsPage() {
                           />
                         </div>
                       </div>
-                      
+
                       {/* Quick price filters */}
                       <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2 font-medium">Filtres rapides:</p>
@@ -432,7 +431,7 @@ export function ProductsPage() {
                   Filtres
                 </button>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 {/* Sort */}
                 <select
@@ -445,7 +444,7 @@ export function ProductsPage() {
                   <option value="price-desc">Prix décroissant</option>
                   <option value="name">Nom A-Z</option>
                 </select>
-                
+
                 {/* View Mode */}
                 <div className="flex items-center gap-1">
                   <button
@@ -526,16 +525,15 @@ export function ProductsPage() {
                           <Package className="w-8 h-8 text-gray-300" />
                         </div>
                       )}
-                      
+
                       {/* Quick Actions */}
                       <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          className={`p-1.5 rounded-full shadow ${
-                            isFavorite(product.id) 
-                              ? 'bg-red-500 text-white' 
-                              : 'bg-white/90 hover:bg-red-50 hover:text-red-500'
-                          }`}
-                          onClick={(e) => { 
+                        <button
+                          className={`p-1.5 rounded-full shadow ${isFavorite(product.id)
+                            ? 'bg-red-500 text-white'
+                            : 'bg-white/90 hover:bg-red-50 hover:text-red-500'
+                            }`}
+                          onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             const added = toggleFavorite(product);
@@ -544,9 +542,9 @@ export function ProductsPage() {
                         >
                           <Heart size={14} className={isFavorite(product.id) ? 'fill-current' : ''} />
                         </button>
-                        <button 
+                        <button
                           className="p-1.5 rounded-full shadow bg-white/90 hover:bg-green-500 hover:text-white transition-colors"
-                          onClick={(e) => { 
+                          onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             const { addItem } = useCartStore.getState();
@@ -565,7 +563,7 @@ export function ProductsPage() {
                         </span>
                       )}
                     </div>
-                    
+
                     {/* Content - More compact */}
                     <div className="p-2.5">
                       {product.store && (
@@ -576,7 +574,7 @@ export function ProductsPage() {
                       <h3 className="font-medium text-gray-900 text-sm line-clamp-2 leading-tight group-hover:text-[#0f4c2b] transition-colors">
                         {product.name}
                       </h3>
-                      
+
                       {/* Price */}
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <span className="font-bold text-sm text-[#0f4c2b]">
@@ -610,7 +608,7 @@ export function ProductsPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Content */}
                     <div className="flex-1 p-4 flex flex-col justify-center">
                       {product.category && (
@@ -624,12 +622,12 @@ export function ProductsPage() {
                       {product.description && (
                         <p className="text-sm text-gray-600 line-clamp-1 mt-1">{product.description}</p>
                       )}
-                      
+
                       <div className="flex items-center justify-between mt-3">
                         <span className="font-bold text-xl text-[#0f4c2b]">
                           {formatPrice(getPrice(product))}
                         </span>
-                        
+
                         <button className="px-4 py-2 bg-[#0f4c2b] text-white rounded-lg font-medium hover:bg-[#1a5f3a] transition-colors flex items-center gap-2">
                           <ShoppingCart size={18} />
                           Ajouter
@@ -641,16 +639,28 @@ export function ProductsPage() {
               </div>
             )}
 
-            {/* Infinite Scroll Loader */}
+            {/* Load More Section */}
             {!loading && hasMore && (
-              <div ref={observerTarget} className="py-8 text-center">
+              <div ref={observerTarget} className="py-8 text-center space-y-4">
                 {loadingMore ? (
                   <div className="flex flex-col items-center gap-3">
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0f4c2b]"></div>
                     <p className="text-gray-600">Chargement de plus de produits...</p>
                   </div>
                 ) : (
-                  <div className="h-20"></div>
+                  <div className="flex flex-col items-center gap-3">
+                    <p className="text-sm text-gray-500">
+                      {sortedProducts.length} produit{sortedProducts.length > 1 ? 's' : ''} affiché{sortedProducts.length > 1 ? 's' : ''}
+                      {totalCount > 0 && ` sur ${totalCount}`}
+                    </p>
+                    <button
+                      onClick={loadMoreProducts}
+                      className="px-8 py-3 bg-gradient-to-r from-[#0f4c2b] to-[#1a5f3a] text-white rounded-full font-semibold hover:shadow-lg hover:scale-[1.03] transition-all flex items-center gap-2"
+                    >
+                      <Package size={18} />
+                      Charger plus de produits
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -678,16 +688,15 @@ export function ProductsPage() {
                 <X size={24} />
               </button>
             </div>
-            
+
             {/* Categories */}
             <div className="mb-6">
               <h4 className="font-medium text-gray-900 mb-3">Catégories</h4>
               <div className="space-y-2">
                 <button
                   onClick={() => { handleCategoryChange(''); setShowFilters(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                    !selectedCategory ? 'bg-[#0f4c2b] text-white' : 'hover:bg-gray-100'
-                  }`}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${!selectedCategory ? 'bg-[#0f4c2b] text-white' : 'hover:bg-gray-100'
+                    }`}
                 >
                   Toutes les catégories
                 </button>
@@ -695,9 +704,8 @@ export function ProductsPage() {
                   <button
                     key={cat.id}
                     onClick={() => { handleCategoryChange(cat.slug); setShowFilters(false); }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      selectedCategory === cat.slug ? 'bg-[#0f4c2b] text-white' : 'hover:bg-gray-100'
-                    }`}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === cat.slug ? 'bg-[#0f4c2b] text-white' : 'hover:bg-gray-100'
+                      }`}
                   >
                     {cat.name}
                   </button>
