@@ -680,10 +680,21 @@ export function HomePage() {
         'laitier', 'alimentaire', 'comestible', 'food', 'drink',
       ];
       const nonFoodKeywords = [
+        // Électronique
         'téléphone', 'telephone', 'phone', 'smartphone', 'iphone', 'samsung galaxy',
         'ordinateur', 'laptop', 'tablette', 'tablet', 'écouteur', 'ecouteur', 'casque audio',
+        'rasoir électrique', 'rasoir electrique', 'tondeuse', 'epilateur', 'épilateur',
+        'veet', 'beauty styler', 'trimmer', 'shaver', 'electric',
+        // Mode et accessoires
         'chaussure', 'robe', 'pantalon', 'chemise', 'jupe', 'sac', 'montre', 'bijou',
+        'bracelet', 'collier', 'bague', 'swarovski', 'luxe', 'mademoiselle',
+        // Cosmétiques et soins
         'parfum', 'maquillage', 'crème visage', 'shampooing', 'shampoing',
+        'lait corps', 'lait corporel', 'body lotion', 'lotion', 'soin corps', 'soin peau',
+        'crème corps', 'creme corps', 'hydratant', 'moisturizer', 'dove', 'nivea', 'vaseline',
+        'déodorant', 'deodorant', 'gel douche', 'savon', 'dentifrice', 'brosse à dent',
+        'nourishing', 'nourishment', 'skincare', 'bodycare', 'sensitive', 'precision',
+        // Maison et meubles
         'meuble', 'canapé', 'canape', 'lit', 'matelas', 'rideau', 'tapis',
         'jouet', 'peluche', 'poupée', 'poupee',
       ];
@@ -693,9 +704,12 @@ export function HomePage() {
         CATEGORY_IDS.FRAIS_SURGELES, CATEGORY_IDS.BOISSONS_SNACKING,
         CATEGORY_IDS.CAFE_THE, CATEGORY_IDS.PRODUITS_LAITIERS, CATEGORY_IDS.VIANDES_POISSONS,
       ];
-      const fromSpecific = allProducts.filter((p: any) =>
-        p.category_id && specificFoodCatIds.includes(p.category_id)
-      );
+      const fromSpecific = allProducts.filter((p: any) => {
+        if (!p.category_id || !specificFoodCatIds.includes(p.category_id)) return false;
+        // Exclure les produits cosmétiques même dans les sous-catégories alimentaires
+        const text = `${p.name || ''} ${p.meta_title || ''} ${p.meta_description || ''}`.toLowerCase();
+        return !nonFoodKeywords.some(k => text.includes(k));
+      });
       // La catégorie parente large nécessite un filtrage par mots-clés
       const fromParent = allProducts.filter((p: any) => {
         if (p.category_id !== CATEGORY_IDS.ALIMENTATION) return false;
@@ -711,6 +725,56 @@ export function HomePage() {
 
   const beautyProducts = useMemo(
     () => getProductsByCategoryIds(SECTION_CATEGORIES.beaute),
+    [allProducts]
+  );
+
+  // Section Ramadan - Produits alimentaires aléatoires
+  const ramadanProducts = useMemo(
+    () => {
+      // Catégories alimentaires
+      const foodCategoryIds = [
+        CATEGORY_IDS.ALIMENTATION,
+        CATEGORY_IDS.EPICERIE_SALEE, 
+        CATEGORY_IDS.EPICERIE_SUCREE,
+        CATEGORY_IDS.FRAIS_SURGELES, 
+        CATEGORY_IDS.BOISSONS_SNACKING,
+        CATEGORY_IDS.PRODUITS_LAITIERS, 
+        CATEGORY_IDS.VIANDES_POISSONS,
+      ];
+      
+      // Exclusions strictes - produits NON alimentaires
+      const excludeKeywords = [
+        'gel douche', 'shampooing', 'shampoing', 'savon', 'crème', 'lotion',
+        'hydratant', 'moisturizer', 'body', 'lait corps', 'lait corporel',
+        'soin', 'beauté', 'beauty', 'skincare', 'vaseline', 'dove', 'nivea',
+        'déodorant', 'deodorant', 'parfum', 'maquillage', 'cosmétique',
+        'téléphone', 'phone', 'ordinateur', 'rasoir', 'tondeuse', 'veet',
+        'chaussure', 'robe', 'bijou', 'bracelet', 'montre', 'sac à main',
+        'biberon', 'couche', 'bébé', 'jouet', 'peluche',
+        'fleur', 'bouquet', 'rose', 'malifleurs',
+        'tasse', 'mug', 'faïence', 'théière', 'cafetière', 'ustensile',
+      ];
+      
+      // Filtrer uniquement les produits alimentaires
+      const foodProducts = allProducts.filter((p: any) => {
+        // Doit être dans une catégorie alimentaire
+        if (!p.category_id || !foodCategoryIds.includes(p.category_id)) return false;
+        
+        const text = `${p.name || ''} ${p.meta_title || ''} ${p.meta_description || ''}`.toLowerCase();
+        
+        // Exclure les produits non-alimentaires
+        return !excludeKeywords.some(k => text.includes(k));
+      });
+      
+      // Mélange aléatoire stable (Fisher-Yates shuffle)
+      const shuffled = [...foodProducts];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      
+      return shuffled.slice(0, 20);
+    },
     [allProducts]
   );
 
@@ -1395,6 +1459,74 @@ export function HomePage() {
         </section>
       )}
 
+      {/* Section Ramadan - Affichée seulement si des produits existent */}
+      <LazySection>
+      {(() => {
+        if (!productsLoading && ramadanProducts.length === 0) return null;
+        
+        return (
+          <section className="py-10 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-4 left-8 text-white/10 text-8xl select-none">☪</div>
+            <div className="absolute bottom-4 right-12 text-white/10 text-7xl select-none">🌙</div>
+            <div className="absolute top-1/2 left-1/4 text-white/5 text-9xl select-none">✨</div>
+
+            <div className="container mx-auto px-4 relative z-10">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
+                  <span className="text-xl">🌙</span>
+                  <span className="text-white font-semibold text-sm">Spécial Ramadan</span>
+                  <span className="text-xl">☪</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">Ramadan Mubarak</h2>
+                <p className="text-emerald-100 text-lg">Préparez votre mois sacré avec nos produits essentiels</p>
+              </div>
+
+              <div className="relative group">
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('ramadan-scroll')
+                    el?.scrollBy({ left: -300, behavior: 'smooth' })
+                  }}
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronLeft className="w-6 h-6 text-emerald-600" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('ramadan-scroll')
+                    el?.scrollBy({ left: 300, behavior: 'smooth' })
+                  }}
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronRight className="w-6 h-6 text-emerald-600" />
+                </button>
+
+                <div id="ramadan-scroll" className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+                  {productsLoading ? (
+                    <SectionSkeleton count={6} />
+                  ) : (
+                    ramadanProducts.map((product: any, index: number) => (
+                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                        <ProductCard product={product} index={index} showDiscount dark />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center mt-6">
+                <Link to="/products?category=alimentation" className="inline-flex items-center gap-2 px-8 py-3 bg-white text-emerald-600 rounded-full font-bold hover:shadow-lg hover:scale-105 transition-all">
+                  Voir tous les produits Ramadan <span className="text-xl">🌙</span>
+                </Link>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+      </LazySection>
+
       {/* Flash Deals */}
       {(activeFlashSale || dealProducts.length > 0) && (
         <section className={`py-6 bg-gradient-to-r ${activeFlashSale?.flashSale?.bg_color || 'from-red-500 to-orange-500'}`}>
@@ -1510,78 +1642,6 @@ export function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Section Saint-Valentin - Saison de l'amour */}
-      <LazySection>
-      <section className="py-10 bg-gradient-to-br from-red-600 via-rose-600 to-pink-600 relative overflow-hidden">
-        {/* Decorative hearts */}
-        <div className="absolute top-4 left-8 text-white/10 text-8xl select-none">❤</div>
-        <div className="absolute bottom-4 right-12 text-white/10 text-7xl select-none">❤</div>
-        <div className="absolute top-1/2 left-1/3 text-white/5 text-9xl select-none">❤</div>
-
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
-              <Heart className="w-5 h-5 text-white fill-white" />
-              <span className="text-white font-semibold text-sm">Spécial Saint-Valentin</span>
-              <Heart className="w-5 h-5 text-white fill-white" />
-            </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">Saison de l'Amour</h2>
-            <p className="text-pink-100 text-lg">Trouvez le cadeau parfait pour votre moitié</p>
-          </div>
-
-          <div className="relative group">
-            <button
-              onClick={() => {
-                const el = document.getElementById('valentine-scroll')
-                el?.scrollBy({ left: -300, behavior: 'smooth' })
-              }}
-              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
-            >
-              <ChevronLeft className="w-6 h-6 text-red-600" />
-            </button>
-
-            <button
-              onClick={() => {
-                const el = document.getElementById('valentine-scroll')
-                el?.scrollBy({ left: 300, behavior: 'smooth' })
-              }}
-              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
-            >
-              <ChevronRight className="w-6 h-6 text-red-600" />
-            </button>
-
-            <div id="valentine-scroll" className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {productsLoading ? (
-                <SectionSkeleton count={6} />
-              ) : (
-                (() => {
-                  const giftKeywords = ['bouquet', 'fleur', 'glace', 'flower', 'flora'];
-                  const giftProducts = apiProducts.filter((p: any) => {
-                    const text = `${p.name || ''} ${p.meta_title || ''} ${p.meta_description || ''}`.toLowerCase();
-                    return giftKeywords.some(k => text.includes(k));
-                  });
-                  return [...giftProducts, ...promoProducts, ...beautyProducts, ...modeBaseProducts.filter(isWomenProduct)]
-                    .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
-                    .slice(0, 20)
-                    .map((product: any, index: number) => (
-                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                        <ProductCard product={product} index={index} showDiscount dark />
-                      </div>
-                    ));
-                })()
-              )}
-            </div>
-          </div>
-
-          <div className="text-center mt-6">
-            <Link to="/products?sort=bestsellers" className="inline-flex items-center gap-2 px-8 py-3 bg-white text-red-600 rounded-full font-bold hover:shadow-lg hover:scale-105 transition-all">
-              Voir les idées cadeaux <Heart className="w-5 h-5 fill-red-600" />
-            </Link>
-          </div>
-        </div>
-      </section>
-      </LazySection>
 
       {/* Section Hommes - Creative Design with Slider */}
       <LazySection>

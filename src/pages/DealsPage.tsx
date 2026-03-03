@@ -32,6 +32,38 @@ const getPrice = (product: Product): number => {
   return parseFloat(product.base_price) || 0
 }
 
+// Helper to get promo_price
+const getPromoPrice = (product: Product): number => {
+  return parseFloat((product as any).promo_price) || 0
+}
+
+// Helper to check if product has a real discount (promo_price < base_price) and promo is active
+const hasRealDiscount = (product: Product): boolean => {
+  const basePrice = getPrice(product)
+  const promoPrice = getPromoPrice(product)
+  if (promoPrice <= 0 || promoPrice >= basePrice) return false
+  
+  // Check promo date validity
+  const now = new Date()
+  const startDate = (product as any).promo_start_date ? new Date((product as any).promo_start_date) : null
+  const endDate = (product as any).promo_end_date ? new Date((product as any).promo_end_date) : null
+  
+  if (startDate && now < startDate) return false
+  if (endDate && now > endDate) return false
+  
+  return true
+}
+
+// Helper to calculate discount percentage
+const getDiscountPercent = (product: Product): number => {
+  const basePrice = getPrice(product)
+  const promoPrice = getPromoPrice(product)
+  if (promoPrice > 0 && promoPrice < basePrice) {
+    return Math.round(((basePrice - promoPrice) / basePrice) * 100)
+  }
+  return 0
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
 // Helper to get image URL
@@ -60,18 +92,41 @@ export function DealsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true)
-      const response = await productsService.getProducts({ page: 1, light: true })
+      // Charger plus de produits pour avoir assez de promos (sans light pour avoir promo_price)
+      const response = await productsService.getProducts({ page: 1, limit: 100 })
+      let allProducts: Product[] = []
+      
       if (response.data?.results && response.data.results.length > 0) {
-        setProducts(response.data.results)
+        allProducts = response.data.results
       } else if (Array.isArray(response.data) && response.data.length > 0) {
-        setProducts(response.data)
+        allProducts = response.data
+      }
+      
+      // Debug: log pour voir si promo_price est présent
+      if (import.meta.env.DEV && allProducts.length > 0) {
+        console.log('🔍 DealsPage - Sample product:', {
+          name: allProducts[0].name,
+          base_price: allProducts[0].base_price,
+          promo_price: (allProducts[0] as any).promo_price,
+          hasPromo: hasRealDiscount(allProducts[0])
+        })
+        const promoProducts = allProducts.filter(p => (p as any).promo_price)
+        console.log(`🔍 DealsPage - Products with promo_price field: ${promoProducts.length}/${allProducts.length}`)
+      }
+      
+      // Filtrer UNIQUEMENT les produits avec une vraie réduction
+      const discountedProducts = allProducts.filter(hasRealDiscount)
+      
+      if (discountedProducts.length > 0) {
+        setProducts(discountedProducts)
       } else {
-        // Fallback sur les produits fictifs
-        setProducts(mockDealsProducts as Product[])
+        // Aucun produit en promo - afficher liste vide
+        setProducts([])
       }
     } catch (error) {
-      // Fallback sur les produits fictifs
-      setProducts(mockDealsProducts as Product[])
+      console.error('DealsPage error:', error)
+      // En cas d'erreur - afficher liste vide
+      setProducts([])
     } finally {
       setLoading(false)
     }
@@ -235,9 +290,10 @@ export function DealsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {products.slice(0, 10).map((product, index) => {
-              const fakeDiscount = [30, 40, 50, 60, 70][index % 5]
-              const originalPrice = getPrice(product) * (100 / (100 - fakeDiscount))
+            {products.slice(0, 10).map((product) => {
+              const discount = getDiscountPercent(product)
+              const originalPrice = getPrice(product) // base_price est le prix original
+              const promoPrice = getPromoPrice(product) // promo_price est le prix réduit
               
               return (
                 <Link
@@ -261,13 +317,13 @@ export function DealsPage() {
                     
                     {/* Discount Badge */}
                     <div className="absolute top-2 left-2 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
-                      -{fakeDiscount}%
+                      -{discount}%
                     </div>
                     
                     {/* Timer Badge */}
                     <div className="absolute bottom-2 left-2 right-2 px-2 py-1 bg-black/70 text-white text-xs rounded-lg flex items-center justify-center gap-1">
                       <Clock size={12} />
-                      <span>23:59:59</span>
+                      <span>Offre limitée</span>
                     </div>
                   </div>
                   
@@ -280,24 +336,18 @@ export function DealsPage() {
                     {/* Price */}
                     <div className="mt-2">
                       <span className="font-bold text-lg text-red-500">
-                        {formatPrice(getPrice(product))}
+                        {formatPrice(promoPrice)}
                       </span>
                       <span className="text-sm text-gray-400 line-through ml-2">
                         {formatPrice(originalPrice)}
                       </span>
                     </div>
                     
-                    {/* Progress Bar */}
-                    <div className="mt-3">
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full"
-                          style={{ width: `${Math.random() * 40 + 60}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {Math.floor(Math.random() * 50 + 10)} vendus
-                      </p>
+                    {/* Savings */}
+                    <div className="mt-2">
+                      <span className="text-xs text-green-600 font-medium">
+                        Économisez {formatPrice(originalPrice - promoPrice)}
+                      </span>
                     </div>
                   </div>
                 </Link>
@@ -346,8 +396,10 @@ export function DealsPage() {
 
         {!loading && products.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {products.map((product, index) => {
-              const fakeDiscount = [20, 25, 30, 35, 40, 45, 50][index % 7]
+            {products.map((product) => {
+              const discount = getDiscountPercent(product)
+              const originalPrice = getPrice(product) // base_price est le prix original
+              const promoPrice = getPromoPrice(product) // promo_price est le prix réduit
               
               return (
                 <Link
@@ -368,7 +420,7 @@ export function DealsPage() {
                       </div>
                     )}
                     <div className="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
-                      -{fakeDiscount}%
+                      -{discount}%
                     </div>
                   </div>
                   
@@ -381,9 +433,12 @@ export function DealsPage() {
                     <h3 className="font-medium text-gray-900 line-clamp-2 mt-1 text-sm group-hover:text-[#0f4c2b] transition-colors">
                       {product.name}
                     </h3>
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center gap-2">
                       <span className="font-bold text-[#0f4c2b]">
-                        {formatPrice(getPrice(product))}
+                        {formatPrice(promoPrice)}
+                      </span>
+                      <span className="text-sm text-gray-400 line-through">
+                        {formatPrice(originalPrice)}
                       </span>
                     </div>
                   </div>
@@ -396,3 +451,5 @@ export function DealsPage() {
     </div>
   )
 }
+
+export default DealsPage

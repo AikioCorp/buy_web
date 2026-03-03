@@ -27,6 +27,8 @@ export interface ProductFormData {
   description: string
   base_price: string
   promo_price?: string
+  promo_start_date?: string
+  promo_end_date?: string
   category_id: number | null
   category_ids?: number[]
   store_id: number | null
@@ -71,6 +73,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     description: '',
     base_price: '',
     promo_price: '',
+    promo_start_date: '',
+    promo_end_date: '',
     category_id: null,
     category_ids: [],
     store_id: null,
@@ -110,6 +114,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: initialData.description || '',
         base_price: initialData.base_price || '',
         promo_price: initialData.promo_price || '',
+        promo_start_date: (initialData as any).promo_start_date || '',
+        promo_end_date: (initialData as any).promo_end_date || '',
         category_id: initialData.category_id || null,
         category_ids: initialData.category_ids || [],
         store_id: initialData.store_id || null,
@@ -514,6 +520,36 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     <p className="text-xs text-gray-500 mt-1">Laissez vide si pas de promotion</p>
                   )}
                 </div>
+
+                {/* Dates de promotion (optionnel) */}
+                {formData.promo_price && Number(formData.promo_price) > 0 && (
+                  <div className="col-span-2 grid grid-cols-2 gap-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Début de la promo (optionnel)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formData.promo_start_date || ''}
+                        onChange={(e) => setFormData({ ...formData, promo_start_date: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Laissez vide pour commencer immédiatement</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fin de la promo (optionnel)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formData.promo_end_date || ''}
+                        onChange={(e) => setFormData({ ...formData, promo_end_date: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Laissez vide pour une promo sans limite</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Stock */}
                 <div>

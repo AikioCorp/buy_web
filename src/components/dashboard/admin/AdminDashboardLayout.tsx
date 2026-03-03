@@ -2,12 +2,15 @@ import React, { ReactNode, useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import AdminDashboardSidebar from './AdminDashboardSidebar'
 import AdminDashboardHeader from './AdminDashboardHeader'
+import { useOrderNotificationAlert } from '../../../hooks/useOrderNotificationAlert'
 
 type AdminDashboardLayoutProps = {
   children?: ReactNode
 }
 
 const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({ children }) => {
+  useOrderNotificationAlert()
+
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       // On desktop, always default to open
@@ -18,7 +21,7 @@ const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({ children })
     }
     return true
   })
-  
+
   // Auto-open sidebar on desktop when resizing from mobile
   useEffect(() => {
     const handleResize = () => {
@@ -29,7 +32,7 @@ const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({ children })
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-  
+
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev)
   }
@@ -45,10 +48,10 @@ const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({ children })
       )}
 
       <AdminDashboardSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
-      
+
       <div className="flex flex-col flex-1 w-full min-w-0">
         <AdminDashboardHeader toggleSidebar={toggleSidebar} isSidebarOpen={sidebarOpen} />
-        
+
         <main className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50">
           {children || <Outlet />}
         </main>

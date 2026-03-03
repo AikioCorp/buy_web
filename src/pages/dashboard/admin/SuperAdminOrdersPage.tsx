@@ -806,11 +806,15 @@ const SuperAdminOrdersPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Commande #{viewingOrder.id}</h2>
-                <p className="text-sm text-gray-500">{formatDate(viewingOrder.created_at)}</p>
-                {(viewingOrder as any).order_source === 'whatsapp' && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold mt-1">📱 Commande WhatsApp</span>
-                )}
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold text-gray-900">Commande #{viewingOrder.id}</h2>
+                  {(viewingOrder as any).order_source === 'whatsapp' && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-bold shadow-sm">
+                      📱 WhatsApp
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-1">{formatDate(viewingOrder.created_at)}</p>
               </div>
               <button
                 onClick={() => setIsViewModalOpen(false)}
@@ -1274,12 +1278,18 @@ const SuperAdminOrdersPage: React.FC = () => {
             <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-auto flex flex-col max-h-[95vh]">
               <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <Package size={20} className="text-green-600" />
-                    Modifier la commande #{(editingOrder as any).order_number || editingOrder.id}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <Package size={20} className="text-green-600" />
+                      Modifier la commande #{(editingOrder as any).order_number || editingOrder.id}
+                    </h2>
+                    {(editingOrder as any).order_source === 'whatsapp' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-bold shadow-sm">
+                        📱 WhatsApp
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 mt-1">
-                    {(editingOrder as any).order_source === 'whatsapp' && '📱 Commande WhatsApp — '}
                     Modifiez les articles, quantités et infos client
                   </p>
                 </div>

@@ -46,6 +46,7 @@ const SuperAdminProductsPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false) // silent refresh indicator
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -68,9 +69,11 @@ const SuperAdminProductsPage: React.FC = () => {
   const pageSize = 200  // Charger plus pour éviter le problème count=results.length
   const isDev = import.meta.env.DEV
 
+  const isInitialMount = React.useRef(true)
+
   useEffect(() => {
-    // Essayer d'utiliser le cache d'abord
-    const filtersKey = JSON.stringify({ search: searchQuery, cat: selectedCategory, shop: selectedShop })
+    // Essayer d'utiliser le cache d'abord (use empty string for initial mount)
+    const filtersKey = JSON.stringify({ search: '', cat: selectedCategory, shop: selectedShop })
     const cached = getCache('products', filtersKey)
     if (cached) {
       setProducts(cached.data)
@@ -88,12 +91,24 @@ const SuperAdminProductsPage: React.FC = () => {
     loadInitialData()
   }, [])
 
-  // Quand les filtres changent → reset page 1 et recharger
+  // Debounce search query to avoid too many API calls
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Quand les filtres changent → reset page 1 et recharger (skip initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
     setCurrentPage(1)
     setProducts([])
     loadProducts()
-  }, [searchQuery, selectedCategory, selectedShop])
+  }, [debouncedSearch, selectedCategory, selectedShop])
 
   const loadInitialData = async () => {
     try {
@@ -130,7 +145,7 @@ const SuperAdminProductsPage: React.FC = () => {
       const response = await productsService.getAllProductsAdmin({
         page,
         page_size: pageSize,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         category_id: selectedCategory || undefined,
         store_id: selectedShop || undefined
       })
@@ -163,7 +178,7 @@ const SuperAdminProductsPage: React.FC = () => {
 
       // Mettre en cache (seulement page 1)
       if (!append) {
-        const filtersKey = JSON.stringify({ search: searchQuery, cat: selectedCategory, shop: selectedShop })
+        const filtersKey = JSON.stringify({ search: debouncedSearch, cat: selectedCategory, shop: selectedShop })
         setCache('products', newProducts, newCount, filtersKey)
       }
 
@@ -328,6 +343,9 @@ const SuperAdminProductsPage: React.FC = () => {
         slug: data.slug,
         description: data.description,
         base_price: data.base_price,
+        promo_price: data.promo_price || null,
+        promo_start_date: data.promo_start_date || null,
+        promo_end_date: data.promo_end_date || null,
         category_id: data.category_ids && data.category_ids.length > 0 ? data.category_ids[0] : undefined,
         category_ids: data.category_ids || [],
         store_id: data.store_id || undefined,
@@ -375,6 +393,9 @@ const SuperAdminProductsPage: React.FC = () => {
         slug: data.slug,
         description: data.description,
         base_price: data.base_price,
+        promo_price: data.promo_price || null,
+        promo_start_date: data.promo_start_date || null,
+        promo_end_date: data.promo_end_date || null,
         category_id: data.category_ids && data.category_ids.length > 0 ? data.category_ids[0] : undefined,
         category_ids: data.category_ids || [],
         store_id: data.store_id || undefined,
@@ -1030,6 +1051,9 @@ const SuperAdminProductsPage: React.FC = () => {
             slug: editingProduct.slug,
             description: editingProduct.description || '',
             base_price: editingProduct.base_price,
+            promo_price: (editingProduct as any).promo_price || '',
+            promo_start_date: (editingProduct as any).promo_start_date || '',
+            promo_end_date: (editingProduct as any).promo_end_date || '',
             category_id: editingProduct.category?.id || (editingProduct as any).category_id || null,
             category_ids: (() => {
               // Try multiple extraction strategies

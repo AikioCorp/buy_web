@@ -10,6 +10,10 @@ export interface Product {
   slug: string;
   description?: string;
   base_price: string;
+  promo_price?: string;
+  promo_start_date?: string;
+  promo_end_date?: string;
+  compare_at_price?: string;
   stock?: number;
   track_inventory?: boolean;
   low_stock_threshold?: number;
@@ -99,6 +103,9 @@ export interface CreateProductData {
   slug: string;
   description: string;
   base_price: string;
+  promo_price?: string | null;
+  promo_start_date?: string | null;
+  promo_end_date?: string | null;
   category?: number;
   category_id?: number;
   category_ids?: number[];

@@ -2,12 +2,15 @@ import React, { ReactNode, useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import SuperAdminDashboardSidebar from './SuperAdminDashboardSidebar'
 import SuperAdminDashboardHeader from './SuperAdminDashboardHeader'
+import { useOrderNotificationAlert } from '../../../hooks/useOrderNotificationAlert'
 
 type SuperAdminDashboardLayoutProps = {
   children?: ReactNode
 }
 
 const SuperAdminDashboardLayout: React.FC<SuperAdminDashboardLayoutProps> = ({ children }) => {
+  useOrderNotificationAlert()
+
   // Load sidebar state from localStorage or default based on screen size
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -24,14 +27,14 @@ const SuperAdminDashboardLayout: React.FC<SuperAdminDashboardLayoutProps> = ({ c
     }
     return true
   })
-  
+
   // Save sidebar state to localStorage only on mobile
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       localStorage.setItem('superadmin-sidebar-open', String(sidebarOpen))
     }
   }, [sidebarOpen])
-  
+
   // Auto-open sidebar on desktop when resizing from mobile
   useEffect(() => {
     const handleResize = () => {
@@ -39,11 +42,11 @@ const SuperAdminDashboardLayout: React.FC<SuperAdminDashboardLayoutProps> = ({ c
         setSidebarOpen(true)
       }
     }
-    
+
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-  
+
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev)
   }
@@ -59,10 +62,10 @@ const SuperAdminDashboardLayout: React.FC<SuperAdminDashboardLayoutProps> = ({ c
       )}
 
       <SuperAdminDashboardSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
-      
+
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <SuperAdminDashboardHeader toggleSidebar={toggleSidebar} isSidebarOpen={sidebarOpen} />
-        
+
         <main className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50">
           {children || <Outlet />}
         </main>

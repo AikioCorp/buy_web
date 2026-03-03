@@ -41,9 +41,29 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
   
   const isLiked = isFavorite(product.id)
 
-  const price = parseFloat(product.base_price) || 0
-  const originalPrice = price * 1.3 // Simulated original price for discount
-  const discount = showDiscount ? Math.round((1 - price / originalPrice) * 100) : 0
+  const basePrice = parseFloat(product.base_price) || 0
+  const promoPrice = parseFloat(product.promo_price) || 0
+  
+  // Vérifier si la promo est active (dans la période de validité)
+  const isPromoActive = () => {
+    if (promoPrice <= 0 || promoPrice >= basePrice) return false
+    
+    const now = new Date()
+    const startDate = product.promo_start_date ? new Date(product.promo_start_date) : null
+    const endDate = product.promo_end_date ? new Date(product.promo_end_date) : null
+    
+    // Si date de début définie et pas encore atteinte
+    if (startDate && now < startDate) return false
+    // Si date de fin définie et dépassée
+    if (endDate && now > endDate) return false
+    
+    return true
+  }
+  
+  const hasPromo = isPromoActive()
+  const price = hasPromo ? promoPrice : basePrice
+  const originalPrice = hasPromo ? basePrice : 0
+  const discount = hasPromo ? Math.round(((basePrice - promoPrice) / basePrice) * 100) : 0
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -85,8 +105,8 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
         
-        {/* Discount Badge */}
-        {showDiscount && discount > 0 && (
+        {/* Discount Badge - Afficher si vraie promo */}
+        {hasPromo && (
           <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
             -{discount}%
           </div>
@@ -156,10 +176,10 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
         
         {/* Price */}
         <div className="mt-2 flex items-center gap-2">
-          <span className={`text-lg font-bold ${dark ? 'text-white' : 'text-[#0f4c2b]'}`}>
+          <span className={`text-lg font-bold ${hasPromo ? 'text-red-500' : dark ? 'text-white' : 'text-[#0f4c2b]'}`}>
             {formatPrice(price)} FCFA
           </span>
-          {showDiscount && (
+          {hasPromo && (
             <span className={`text-sm line-through ${dark ? 'text-white/50' : 'text-gray-400'}`}>
               {formatPrice(originalPrice)} FCFA
             </span>

@@ -46,6 +46,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     description: '',
     base_price: '',
     promo_price: '',
+    promo_start_date: '',
+    promo_end_date: '',
     stock: '',
     low_stock_threshold: '10',
     category: '',
@@ -81,6 +83,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           description: product.description || '',
           base_price: product.base_price || '',
           promo_price: (product as any).promo_price || '',
+          promo_start_date: (product as any).promo_start_date || '',
+          promo_end_date: (product as any).promo_end_date || '',
           stock: product.stock?.toString() || '0',
           low_stock_threshold: product.low_stock_threshold?.toString() || '10',
           category: product.category?.id?.toString() || '',
@@ -116,6 +120,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           description: '',
           base_price: '',
           promo_price: '',
+          promo_start_date: '',
+          promo_end_date: '',
           stock: '',
           low_stock_threshold: '10',
           category: '',
@@ -312,12 +318,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       // Déterminer le stock basé sur la gestion
       const stockValue = showStockInput ? (parseInt(formData.stock) || 0) : (isInStock ? 999999 : 0)
       
-      const productData: CreateProductData & { stock?: number; low_stock_threshold?: number; is_active?: boolean; promo_price?: string; track_inventory?: boolean; category_ids?: number[]; meta_title?: string; meta_description?: string; tags?: string[] } = {
+      const productData: CreateProductData & { stock?: number; low_stock_threshold?: number; is_active?: boolean; promo_price?: string; promo_start_date?: string; promo_end_date?: string; track_inventory?: boolean; category_ids?: number[]; meta_title?: string; meta_description?: string; tags?: string[] } = {
         name: formData.name,
         slug: formData.slug || generateSlug(formData.name),
         description: formData.description,
         base_price: formData.base_price,
         promo_price: formData.promo_price || undefined,
+        promo_start_date: formData.promo_start_date || undefined,
+        promo_end_date: formData.promo_end_date || undefined,
         category: categoryIds.length > 0 ? categoryIds[0] : parseInt(formData.category),
         category_ids: categoryIds.length > 0 ? categoryIds : (formData.category ? [parseInt(formData.category)] : []),
         stock: stockValue,
@@ -615,6 +623,36 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     <p className="text-xs text-gray-500 mt-1">Laissez vide si pas de promotion</p>
                   )}
                 </div>
+
+                {/* Dates de promotion (optionnel) */}
+                {formData.promo_price && Number(formData.promo_price) > 0 && (
+                  <div className="col-span-2 grid grid-cols-2 gap-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Début de la promo (optionnel)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formData.promo_start_date || ''}
+                        onChange={(e) => setFormData({ ...formData, promo_start_date: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Laissez vide pour commencer immédiatement</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fin de la promo (optionnel)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formData.promo_end_date || ''}
+                        onChange={(e) => setFormData({ ...formData, promo_end_date: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Laissez vide pour une promo sans limite</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Stock - Gestion avancée */}
                 <div>

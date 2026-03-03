@@ -165,9 +165,61 @@ export function ProductDetailPage() {
     }).filter(Boolean) as string[]
   }
 
-  // Get product price
-  const getPrice = () => {
+  // Get product price (returns promo_price if available, otherwise base_price)
+  const getBasePrice = () => {
     return parseFloat(product?.base_price || '0')
+  }
+  
+  const getPromoPrice = () => {
+    return parseFloat((product as any)?.promo_price || '0')
+  }
+  
+  // Vérifier si la promo est active (dans la période de validité)
+  const isPromoActive = () => {
+    const base = getBasePrice()
+    const promo = getPromoPrice()
+    if (promo <= 0 || promo >= base) return false
+    
+    const now = new Date()
+    const startDate = (product as any)?.promo_start_date ? new Date((product as any).promo_start_date) : null
+    const endDate = (product as any)?.promo_end_date ? new Date((product as any).promo_end_date) : null
+    
+    if (startDate && now < startDate) return false
+    if (endDate && now > endDate) return false
+    
+    return true
+  }
+  
+  const hasPromo = () => isPromoActive()
+  
+  const getPromoEndDate = () => {
+    return (product as any)?.promo_end_date ? new Date((product as any).promo_end_date) : null
+  }
+  
+  const getPromoTimeRemaining = () => {
+    const endDate = getPromoEndDate()
+    if (!endDate || !hasPromo()) return null
+    
+    const now = new Date()
+    const diff = endDate.getTime() - now.getTime()
+    if (diff <= 0) return null
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    
+    if (days > 0) return `${days}j ${hours}h restants`
+    if (hours > 0) return `${hours}h ${minutes}min restants`
+    return `${minutes} min restants`
+  }
+  
+  const getPrice = () => {
+    return hasPromo() ? getPromoPrice() : getBasePrice()
+  }
+  
+  const getDiscountPercent = () => {
+    if (!hasPromo()) return 0
+    return Math.round(((getBasePrice() - getPromoPrice()) / getBasePrice()) * 100)
   }
 
   const handleAddToCart = () => {
@@ -460,9 +512,9 @@ export function ProductDetailPage() {
 
                 {/* Badges - Enhanced */}
                 <div className="absolute top-6 left-6 flex flex-col gap-3 z-10">
-                  {(product as any).compare_at_price && parseFloat((product as any).compare_at_price) > getPrice() && (
+                  {hasPromo() && (
                     <span className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-bold rounded-full shadow-lg backdrop-blur-sm animate-pulse">
-                      -{Math.round((1 - getPrice() / parseFloat((product as any).compare_at_price)) * 100)}% OFF
+                      -{getDiscountPercent()}% OFF
                     </span>
                   )}
                   {(product.stock ?? 0) > 0 && (
@@ -527,19 +579,30 @@ export function ProductDetailPage() {
             )}
 
             {/* Price */}
-            <div className="flex items-baseline gap-3 py-4 border-y border-gray-200">
-              <span className="text-3xl font-black text-[#0f4c2b]">
-                {formatPrice(getPrice())}
-              </span>
-              {(product as any).compare_at_price && parseFloat((product as any).compare_at_price) > getPrice() && (
-                <>
-                  <span className="text-lg text-gray-400 line-through">
-                    {formatPrice(parseFloat((product as any).compare_at_price))}
-                  </span>
-                  <span className="px-2 py-1 bg-red-100 text-red-600 text-sm font-bold rounded">
-                    -{Math.round((1 - getPrice() / parseFloat((product as any).compare_at_price)) * 100)}%
-                  </span>
-                </>
+            <div className="py-4 border-y border-gray-200">
+              <div className="flex items-baseline gap-3">
+                <span className={`text-3xl font-black ${hasPromo() ? 'text-red-500' : 'text-[#0f4c2b]'}`}>
+                  {formatPrice(getPrice())}
+                </span>
+                {hasPromo() && (
+                  <>
+                    <span className="text-lg text-gray-400 line-through">
+                      {formatPrice(getBasePrice())}
+                    </span>
+                    <span className="px-2 py-1 bg-red-100 text-red-600 text-sm font-bold rounded">
+                      -{getDiscountPercent()}%
+                    </span>
+                  </>
+                )}
+              </div>
+              {/* Promo countdown */}
+              {hasPromo() && getPromoTimeRemaining() && (
+                <div className="mt-2 flex items-center gap-2 text-orange-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-medium">Offre limitée : {getPromoTimeRemaining()}</span>
+                </div>
               )}
             </div>
 

@@ -5,12 +5,15 @@ import DashboardSidebar from './DashboardSidebar'
 import DashboardHeader from './DashboardHeader'
 import { useAuthStore } from '../../stores/authStore'
 import { shopsService, Shop } from '../../lib/api/shopsService'
+import { useOrderNotificationAlert } from '../../hooks/useOrderNotificationAlert'
 
 type DashboardLayoutProps = {
   children?: ReactNode
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+  useOrderNotificationAlert()
+
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       // On desktop, always default to open
@@ -23,7 +26,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   })
   const [shop, setShop] = useState<Shop | null>(null)
   const { user } = useAuthStore()
-  
+
   useEffect(() => {
     if (user?.id) {
       loadShop()
@@ -51,7 +54,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.error('Error loading shop:', error)
     }
   }
-  
+
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev)
   }
@@ -64,17 +67,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     <div className="flex h-screen bg-gray-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden" 
-          onClick={closeSidebar} 
+        <div
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          onClick={closeSidebar}
         />
       )}
 
       <DashboardSidebar isOpen={sidebarOpen} shop={shop} onClose={closeSidebar} />
-      
+
       <div className="flex flex-col flex-1 w-full min-w-0">
         <DashboardHeader toggleSidebar={toggleSidebar} />
-        
+
         <main className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50">
           {children || <Outlet />}
         </main>

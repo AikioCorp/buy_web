@@ -649,22 +649,23 @@ const SuperAdminUsersPage: React.FC = () => {
         </button>
       </div>
 
-      {/* --- STATS CARDS --- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* --- PREMIUM STATS CARDS --- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {[
-          { icon: UserIcon, label: "Total Utilisateurs", value: totalCount, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { icon: ShieldCheck, label: "Comptes Actifs", value: activeUsersCount, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { icon: Store, label: "Vendeurs", value: vendorsCount, color: "text-blue-600", bg: "bg-blue-50" },
-          { icon: Shield, label: "Administrateurs", value: adminsCount, color: "text-purple-600", bg: "bg-purple-50" }
+          { icon: UserIcon, label: "Total Utilisateurs", value: totalCount, color: "text-indigo-600", bg: "bg-indigo-50", ring: "ring-indigo-100", glow: "from-indigo-500/10 to-purple-500/10" },
+          { icon: ShieldCheck, label: "Comptes Actifs", value: activeUsersCount, color: "text-emerald-600", bg: "bg-emerald-50", ring: "ring-emerald-100", glow: "from-emerald-500/10 to-teal-500/10" },
+          { icon: Store, label: "Vendeurs", value: vendorsCount, color: "text-blue-600", bg: "bg-blue-50", ring: "ring-blue-100", glow: "from-blue-500/10 to-cyan-500/10" },
+          { icon: Shield, label: "Administrateurs", value: adminsCount, color: "text-purple-600", bg: "bg-purple-50", ring: "ring-purple-100", glow: "from-purple-500/10 to-pink-500/10" }
         ].map((stat, idx) => (
-          <div key={idx} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className={`p-3.5 rounded-2xl ${stat.bg} ${stat.color}`}>
-                <stat.icon size={24} />
-              </div>
+          <div key={idx} className="relative group bg-white/70 backdrop-blur-2xl p-6 rounded-[2rem] shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden ring-1 ring-black/5 hover:-translate-y-1">
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.glow} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{stat.label}</p>
-                <h3 className="text-2xl font-black text-gray-900 mt-0.5">{stat.value}</h3>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">{stat.label}</p>
+                <h3 className="text-4xl font-black text-gray-900 tracking-tight">{stat.value}</h3>
+              </div>
+              <div className={`p-4 rounded-2xl ${stat.bg} ${stat.color} ring-4 ${stat.ring} shadow-lg shadow-${stat.color.split('-')[1]}-200/50 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500`}>
+                <stat.icon size={28} strokeWidth={2.5} />
               </div>
             </div>
           </div>
@@ -672,26 +673,26 @@ const SuperAdminUsersPage: React.FC = () => {
       </div>
 
       {/* --- TOOLBAR SECTION --- */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-2 sm:p-3">
+      <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] shadow-sm ring-1 ring-black/5 p-3 sm:p-4 transition-all hover:bg-white/80">
         <div className="flex flex-col xl:flex-row gap-4 justify-between items-center">
 
           {/* Search Bar */}
           <div className="w-full xl:max-w-md relative group">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400 group-focus-within:text-indigo-600 transition-colors">
-              <Search size={20} />
+            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-gray-400 group-focus-within:text-indigo-600 transition-colors">
+              <Search size={20} strokeWidth={2.5} />
             </div>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher..."
-              className="pl-12 pr-4 py-3.5 w-full bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all font-medium text-gray-700 placeholder-gray-400"
+              placeholder="Rechercher par nom, email..."
+              className="pl-14 pr-6 py-4 w-full bg-gray-100/50 hover:bg-gray-100 focus:bg-white border-transparent focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl transition-all font-semibold text-gray-700 placeholder-gray-400 shadow-inner"
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
-            {/* Filter Tabs */}
-            <div className="flex p-1.5 bg-gray-100/80 rounded-2xl w-full sm:w-auto overflow-x-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+            {/* Filter Segmented Control */}
+            <div className="flex p-1.5 bg-gray-100/80 rounded-2xl w-full sm:w-auto overflow-x-auto shadow-inner">
               {(['all', 'client', 'vendor', 'admin'] as const).map((filter) => (
                 <button
                   key={filter}
@@ -699,9 +700,9 @@ const SuperAdminUsersPage: React.FC = () => {
                     setSelectedFilter(filter as any)
                     setCurrentPage(1)
                   }}
-                  className={`flex-1 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${selectedFilter === filter
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                  className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 whitespace-nowrap ${selectedFilter === filter
+                    ? 'bg-white text-indigo-900 shadow-md ring-1 ring-black/5 transform scale-100'
+                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-200/50 scale-95 hover:scale-100'
                     }`}
                 >
                   {filter === 'all' && 'Tous'}
@@ -715,18 +716,18 @@ const SuperAdminUsersPage: React.FC = () => {
             <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
 
             {/* View Toggle */}
-            <div className="flex p-1 bg-gray-100 rounded-xl">
+            <div className="flex p-1.5 bg-gray-100/80 rounded-2xl shadow-inner">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'grid' ? 'bg-white shadow-md text-indigo-600 ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200/50'}`}
               >
-                <LayoutGrid size={20} />
+                <LayoutGrid size={20} strokeWidth={2.5} />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'list' ? 'bg-white shadow-md text-indigo-600 ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200/50'}`}
               >
-                <List size={20} />
+                <List size={20} strokeWidth={2.5} />
               </button>
             </div>
           </div>
@@ -751,55 +752,63 @@ const SuperAdminUsersPage: React.FC = () => {
           <p className="text-gray-400 mt-2">Essayez de modifier vos filtres</p>
         </div>
       ) : viewMode === 'grid' ? (
-        /* --- GRID VIEW --- */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        /* --- GRID VIEW (Modern) --- */
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredUsers.map((user) => {
             const roleInfo = getRoleLabel(user)
             const gradient = getRoleColor(user)
 
             return (
-              <div key={user.id} className="group relative bg-white rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 overflow-hidden">
-                {/* Header Gradient */}
-                <div className={`h-24 bg-gradient-to-r ${gradient} opacity-90 group-hover:opacity-100 transition-opacity`}></div>
+              <div key={user.id} className="group relative bg-white/70 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.1)] hover:-translate-y-2 transition-all duration-500 border border-white/80 overflow-hidden">
+                {/* Dynamic Header Glow */}
+                <div className={`absolute top-0 inset-x-0 h-32 bg-gradient-to-br ${gradient} opacity-20 group-hover:opacity-40 transition-opacity duration-700 blur-2xl`}></div>
+
+                {/* Header Gradient Arc */}
+                <div className={`h-32 bg-gradient-to-br ${gradient} relative`}>
+                  {/* Decorative Elements inside header */}
+                  <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md rounded-full px-3 py-1 text-white text-[10px] font-black tracking-widest uppercase border border-white/20">
+                    <span className="flex items-center gap-1"><roleInfo.icon size={12} /> {roleInfo.label}</span>
+                  </div>
+                </div>
 
                 {/* Main Content */}
-                <div className="px-6 pb-6 -mt-12 relative flex flex-col items-center">
-                  <div className="w-24 h-24 rounded-2xl bg-white p-1.5 shadow-lg mb-4">
-                    <div className="w-full h-full rounded-xl bg-gray-50 flex items-center justify-center text-3xl font-black text-gray-800 uppercase tracking-tighter">
-                      {user.username?.substring(0, 2) || 'UK'}
+                <div className="px-6 pb-6 -mt-16 relative flex flex-col items-center">
+                  <div className="relative group-hover:scale-110 group-hover:-translate-y-2 transition-transform duration-500">
+                    <div className="absolute inset-0 bg-white rounded-full blur-md opacity-50"></div>
+                    <div className="w-28 h-28 rounded-[2rem] bg-white p-2 shadow-xl mb-4 relative z-10 rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                      <div className={`w-full h-full rounded-[1.5rem] bg-gradient-to-br ${gradient} flex items-center justify-center text-4xl font-black text-white uppercase tracking-tighter shadow-inner`}>
+                        {user.username?.substring(0, 2) || 'UK'}
+                      </div>
                     </div>
                   </div>
 
-                  <h3 className="text-xl font-bold text-gray-900 text-center">{user.username}</h3>
-                  <p className="text-sm font-medium text-gray-400 text-center mb-4">{user.email}</p>
+                  <h3 className="text-2xl font-black text-gray-900 text-center tracking-tight truncate w-full">{user.username}</h3>
+                  <p className="text-sm font-bold text-gray-400 text-center mb-6 truncate w-full">{user.email}</p>
 
-                  <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${roleInfo.bg} mb-6 flex items-center gap-2`}>
-                    <roleInfo.icon size={14} />
-                    {roleInfo.label}
-                  </div>
-
-                  <div className="w-full grid grid-cols-2 gap-2 text-center text-xs font-semibold text-gray-500 py-4 border-t border-gray-100">
-                    <div>
-                      <p className="text-gray-300 mb-1">STATUT</p>
-                      <span className={user.is_active ? 'text-green-600' : 'text-red-500'}>
+                  <div className="w-full grid grid-cols-2 gap-3 text-center text-xs font-semibold py-4 bg-gray-50/50 rounded-2xl border border-gray-100/50 mb-2">
+                    <div className="flex flex-col items-center justify-center border-r border-gray-200/50">
+                      <p className="text-gray-400 mb-1 tracking-widest uppercase text-[10px]">Statut</p>
+                      <span className={`px-2 py-0.5 rounded-md ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} font-bold flex items-center gap-1`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         {user.is_active ? 'Actif' : 'Suspendu'}
                       </span>
                     </div>
-                    <div>
-                      <p className="text-gray-300 mb-1">JOINED</p>
-                      <span>{new Date(user.date_joined).toLocaleDateString()}</span>
+                    <div className="flex flex-col items-center justify-center">
+                      <p className="text-gray-400 mb-1 tracking-widest uppercase text-[10px]">Inscrit le</p>
+                      <span className="text-gray-700 font-bold">{new Date(user.date_joined).toLocaleDateString()}</span>
                     </div>
                   </div>
 
-                  {/* Actions Overlay - Single Eye Icon */}
-                  <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10">
+                  {/* Actions Overlay */}
+                  <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 z-10 bg-gradient-to-t from-white via-white to-transparent pt-12">
                     <button
                       onClick={() => handleOpenInfoModal(user)}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl shadow-lg p-4 flex items-center justify-center gap-3 transition-all transform hover:scale-105"
-                      title="Voir tous les détails et actions"
+                      className="w-full bg-gray-900 hover:bg-black text-white rounded-2xl shadow-xl p-4 flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 group/btn"
                     >
-                      <Eye size={24} />
-                      <span className="font-semibold">Voir les détails</span>
+                      <div className="bg-white/20 p-1.5 rounded-lg group-hover/btn:rotate-12 transition-transform">
+                        <Eye size={20} />
+                      </div>
+                      <span className="font-bold tracking-wide">Ouvrir le dossier</span>
                     </button>
                   </div>
                 </div>
@@ -808,56 +817,61 @@ const SuperAdminUsersPage: React.FC = () => {
           })}
         </div>
       ) : (
-        /* --- LIST VIEW (Optimized) --- */
-        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-          <table className="min-w-full">
-            <thead className="bg-gray-50/50">
+        /* --- LIST VIEW (Premium Separated Rows) --- */
+        <div className="w-full overflow-x-auto pb-4">
+          <table className="w-full border-separate border-spacing-y-4">
+            <thead>
               <tr>
-                <th className="px-8 py-5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider"></th>
-                <th className="px-8 py-5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Utilisateur</th>
-                <th className="px-8 py-5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Rôle</th>
-                <th className="px-8 py-5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Statut</th>
-                <th className="px-8 py-5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Activité</th>
-                <th className="px-8 py-5 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Profil</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Identité</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Rôle</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Statut</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Connexion</th>
+                <th className="px-6 py-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {filteredUsers.map((user) => {
                 const roleInfo = getRoleLabel(user)
+                const gradient = getRoleColor(user)
                 return (
-                  <tr key={user.id} className="group hover:bg-gray-50/80 transition-colors">
-                    <td className="pl-8 py-4 whitespace-nowrap w-16">
-                      <div className="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600">
+                  <tr key={user.id} className="group bg-white/70 backdrop-blur-lg hover:bg-white shadow-[0_4px_20px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-300 relative">
+                    {/* Left Border Accent */}
+                    <td className="w-0 p-0 relative rounded-l-3xl">
+                      <div className={`absolute top-2 bottom-2 left-0 w-1 rounded-r-full bg-gradient-to-b ${gradient} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                    </td>
+
+                    <td className="pl-6 pr-4 py-4 whitespace-nowrap rounded-l-3xl">
+                      <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-lg font-black text-white shadow-inner group-hover:rotate-6 transition-transform duration-300`}>
                         {user.username?.substring(0, 1)}
                       </div>
                     </td>
-                    <td className="px-8 py-4 whitespace-nowrap">
-                      <div className="font-bold text-gray-900">{user.username}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-black text-gray-900 group-hover:text-indigo-600 transition-colors text-base">{user.username}</div>
+                      <div className="text-xs font-bold text-gray-400">{user.email}</div>
                     </td>
-                    <td className="px-8 py-4 whitespace-nowrap">
-                      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold ${roleInfo.bg}`}>
-                        <roleInfo.icon size={12} />
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${roleInfo.bg} ring-1 ring-black/5`}>
+                        <roleInfo.icon size={14} />
                         {roleInfo.label}
                       </div>
                     </td>
-                    <td className="px-8 py-4 whitespace-nowrap">
-                      <div className={`flex items-center gap-2 text-sm font-medium ${user.is_active ? 'text-green-600' : 'text-gray-400'}`}>
-                        <div className={`w-2 h-2 rounded-full ${user.is_active ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
-                        {user.is_active ? 'Actif' : 'Inactif'}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${user.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'} ring-1 ring-black/5`}>
+                        <div className={`w-2 h-2 rounded-full ${user.is_active ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                        {user.is_active ? 'Compte Actif' : 'Suspendu'}
                       </div>
                     </td>
-                    <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-500">
                       {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Jamais'}
                     </td>
-                    <td className="px-8 py-4 whitespace-nowrap text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-right rounded-r-3xl">
                       <button
                         onClick={() => handleOpenInfoModal(user)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all transform hover:scale-105"
-                        title="Voir tous les détails et actions"
+                        className="inline-flex items-center justify-center w-10 h-10 bg-gray-50 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-all group-hover:ring-1 ring-indigo-100"
+                        title="Détails du compte"
                       >
-                        <Eye size={18} />
-                        <span className="text-sm font-medium">Détails</span>
+                        <Eye size={20} strokeWidth={2.5} />
                       </button>
                     </td>
                   </tr>

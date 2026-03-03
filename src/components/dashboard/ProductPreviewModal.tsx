@@ -103,14 +103,30 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                     {product.is_active !== false ? 'Actif' : 'Inactif'}
                   </span>
                 </div>
-                <p className="text-3xl font-black text-emerald-600">
-                  {parseFloat(product.base_price).toLocaleString()} <span className="text-lg font-normal text-gray-400">FCFA</span>
-                </p>
-                {(product as any).promo_price && (
-                  <p className="text-lg text-gray-500 line-through">
-                    {parseFloat((product as any).promo_price).toLocaleString()} FCFA
-                  </p>
-                )}
+                {(() => {
+                  const basePrice = parseFloat(product.base_price) || 0
+                  const promoPrice = parseFloat((product as any).promo_price) || 0
+                  const hasPromo = promoPrice > 0 && promoPrice < basePrice
+                  const discount = hasPromo ? Math.round(((basePrice - promoPrice) / basePrice) * 100) : 0
+                  
+                  return (
+                    <div className="flex items-center gap-3">
+                      <p className={`text-3xl font-black ${hasPromo ? 'text-red-500' : 'text-emerald-600'}`}>
+                        {(hasPromo ? promoPrice : basePrice).toLocaleString()} <span className="text-lg font-normal text-gray-400">FCFA</span>
+                      </p>
+                      {hasPromo && (
+                        <>
+                          <p className="text-lg text-gray-400 line-through">
+                            {basePrice.toLocaleString()} FCFA
+                          </p>
+                          <span className="px-2 py-1 bg-red-100 text-red-600 text-sm font-bold rounded">
+                            -{discount}%
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Category & Stock */}

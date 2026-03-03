@@ -7,7 +7,7 @@ import { useToast } from '@/components/Toast'
 import analytics from '@/lib/analytics/tracker'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
-import { Trash2, ShoppingBag, MessageCircle } from 'lucide-react'
+import { Trash2, ShoppingBag, MessageCircle, Loader2 } from 'lucide-react'
 import { LoginPopup } from '@/components/LoginPopup'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
@@ -77,7 +77,12 @@ export function CartPage() {
 
   const handleWhatsAppOrder = async () => {
     if (whatsappLoading) return
+    
+    // Prevent double-click duplication
     setWhatsappLoading(true)
+    
+    // Small delay to ensure state update propagates
+    await new Promise(resolve => setTimeout(resolve, 100))
     const itemsList = items.map(item => {
       const productUrl = `${window.location.origin}/products/${item.product.slug || item.product.id}`
       return `• *${item.product.name}*\n  Quantité: ${item.quantity}\n  Prix unitaire: ${formatPrice(parseFloat(item.product.base_price), 'XOF')}\n  Sous-total: ${formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}\n  Lien: ${productUrl}`
@@ -228,10 +233,20 @@ export function CartPage() {
 
                 <button
                   onClick={handleWhatsAppOrder}
-                  className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold transition-all mt-2"
+                  disabled={whatsappLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <MessageCircle className="h-5 w-5" />
-                  Commander sur WhatsApp
+                  {whatsappLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Création en cours...
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle className="h-5 w-5" />
+                      Commander sur WhatsApp
+                    </>
+                  )}
                 </button>
 
                 <Button
