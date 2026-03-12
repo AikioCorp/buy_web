@@ -3,7 +3,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { 
   LayoutDashboard, Users, Flag, BarChart, AlertCircle, Wallet,
   LogOut, ChevronRight, ShieldCheck, ExternalLink, Globe,
-  Store, Package, ShoppingCart, MessageSquare, Star, User, FolderTree, Bell, LayoutGrid, Zap
+  Store, Package, ShoppingCart, MessageSquare, Star, User, FolderTree, Bell, LayoutGrid, Zap, Gift
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 import { usePermissions } from '../../../hooks/usePermissions'
@@ -189,6 +189,7 @@ const AdminDashboardSidebar: React.FC<AdminDashboardSidebarProps> = ({ isOpen, o
         <div className="space-y-1">
           <SidebarLink to="/admin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/admin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/admin/coupons" icon={<Gift size={20} />} label="Coupons" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>
 
         {/* MODERATION - Toujours visible pour tous les admins */}

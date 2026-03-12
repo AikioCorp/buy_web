@@ -12,6 +12,12 @@ export interface FlashSale {
   end_date: string;
   is_active: boolean;
   bg_color?: string;
+  product_source_type?: 'manual' | 'all_promo' | 'store';
+  source_store_id?: number | null;
+  display_order?: number;
+  show_countdown?: boolean;
+  custom_padding?: string | null;
+  custom_margin?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -36,10 +42,18 @@ export const flashSalesService = {
   // ==================== PUBLIC ====================
 
   /**
-   * Récupérer la flash sale active avec ses produits
+   * Récupérer la flash sale active avec ses produits (première uniquement)
    */
   async getActiveFlashSale(): Promise<{ data: ActiveFlashSale | null; error?: string }> {
     const response = await apiClient.get<ActiveFlashSale>('/api/flash-sales/active');
+    return { ...response, data: response.data ?? null };
+  },
+
+  /**
+   * Récupérer TOUTES les flash sales actives avec leurs produits, triées par display_order
+   */
+  async getActiveFlashSales(): Promise<{ data: ActiveFlashSale[] | null; error?: string }> {
+    const response = await apiClient.get<ActiveFlashSale[]>('/api/flash-sales/active-all');
     return { ...response, data: response.data ?? null };
   },
 

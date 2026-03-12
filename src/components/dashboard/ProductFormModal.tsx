@@ -68,6 +68,23 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
   const [mainImageIndex, setMainImageIndex] = useState<number>(0)
 
+  // Helper: Convert ISO 8601 to datetime-local format (yyyy-MM-ddThh:mm)
+  const toDatetimeLocal = (isoString: string | null | undefined): string => {
+    if (!isoString) return ''
+    try {
+      const date = new Date(isoString)
+      // Format: yyyy-MM-ddThh:mm (no timezone)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return `${year}-${month}-${day}T${hours}:${minutes}`
+    } catch {
+      return ''
+    }
+  }
+
   useEffect(() => {
     if (isOpen) {
       loadCategories()
@@ -83,8 +100,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           description: product.description || '',
           base_price: product.base_price || '',
           promo_price: (product as any).promo_price || '',
-          promo_start_date: (product as any).promo_start_date || '',
-          promo_end_date: (product as any).promo_end_date || '',
+          promo_start_date: toDatetimeLocal((product as any).promo_start_date),
+          promo_end_date: toDatetimeLocal((product as any).promo_end_date),
           stock: product.stock?.toString() || '0',
           low_stock_threshold: product.low_stock_threshold?.toString() || '10',
           category: product.category?.id?.toString() || '',

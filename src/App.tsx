@@ -53,6 +53,7 @@ import {
   HelpPage
 } from './pages/dashboard'
 import VendorOrdersPage from './pages/dashboard/VendorOrdersPage'
+import VendorCouponsPage from './pages/dashboard/VendorCouponsPage'
 
 // Import du Layout Dashboard Client
 import { ClientDashboardLayout } from './components/dashboard/client'
@@ -67,7 +68,8 @@ import {
   PaymentsPage,
   MessagesPage,
   NotificationsPage,
-  SettingsPage as ClientSettingsPage
+  SettingsPage as ClientSettingsPage,
+  CouponsPage as ClientCouponsPage
 } from './pages/dashboard/client'
 
 // Import du Layout Dashboard Admin
@@ -99,6 +101,7 @@ import AdminMessagesPage from './pages/dashboard/admin/AdminMessagesPage'
 import AdminNotificationsPage from './pages/dashboard/admin/AdminNotificationsPage'
 import SuperAdminShopRequestsPage from './pages/dashboard/admin/SuperAdminShopRequestsPage'
 import AdminRevenuePage from './pages/dashboard/admin/AdminRevenuePage'
+import SuperAdminCouponsPage from './pages/dashboard/admin/SuperAdminCouponsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import { useAuthStore } from './stores/authStore'
 
@@ -164,6 +167,7 @@ function App() {
                 <Route path="earnings" element={<EarningsPage />} />
                 <Route path="shipping" element={<ShippingPage />} />
                 <Route path="profile" element={<SettingsPage />} />
+                <Route path="coupons" element={<VendorCouponsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="help" element={<HelpPage />} />
               </Route>
@@ -183,6 +187,7 @@ function App() {
                 <Route path="messages" element={<MessagesPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="settings" element={<ClientSettingsPage />} />
+                <Route path="coupons" element={<ClientCouponsPage />} />
               </Route>
 
               {/* Routes du dashboard admin - Utilise les pages SuperAdmin avec permissions */}
@@ -210,6 +215,7 @@ function App() {
                 <Route path="homepage" element={<HomepageManagementPage />} />
                 <Route path="flash-sales" element={<FlashSalesManagementPage />} />
                 <Route path="revenue" element={<AdminRevenuePage />} />
+                <Route path="coupons" element={<SuperAdminCouponsPage />} />
               </Route>
 
               {/* Routes du dashboard super admin */}
@@ -237,6 +243,7 @@ function App() {
                 <Route path="homepage" element={<HomepageManagementPage />} />
                 <Route path="flash-sales" element={<FlashSalesManagementPage />} />
                 <Route path="revenue" element={<AdminRevenuePage />} />
+                <Route path="coupons" element={<SuperAdminCouponsPage />} />
               </Route>
 
               {/* 404 - Catch all unmatched routes */}

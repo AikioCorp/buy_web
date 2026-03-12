@@ -1,6 +1,7 @@
 import React from 'react'
 import { X, Edit, Package, Tag, TrendingUp, Clock, Shield, RotateCcw, CheckCircle } from 'lucide-react'
 import { Product } from '../../lib/api/productsService'
+import { PromoCountdown } from '../PromoCountdown'
 
 interface ProductPreviewModalProps {
   isOpen: boolean
@@ -106,23 +107,98 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                 {(() => {
                   const basePrice = parseFloat(product.base_price) || 0
                   const promoPrice = parseFloat((product as any).promo_price) || 0
-                  const hasPromo = promoPrice > 0 && promoPrice < basePrice
+                  const promoStartDate = (product as any).promo_start_date
+                  const promoEndDate = (product as any).promo_end_date
+                  
+                  // Vérifier si la promo est active (prix valide + dans la période de validité)
+                  const isPromoActive = () => {
+                    console.log('🔍 Promo check:', {
+                      basePrice,
+                      promoPrice,
+                      promoStartDate,
+                      promoEndDate,
+                      priceValid: promoPrice > 0 && promoPrice < basePrice
+                    })
+                    
+                    if (promoPrice <= 0 || promoPrice >= basePrice) {
+                      console.log('❌ Promo inactive: prix invalide')
+                      return false
+                    }
+                    
+                    const now = new Date()
+                    const startDate = promoStartDate ? new Date(promoStartDate) : null
+                    const endDate = promoEndDate ? new Date(promoEndDate) : null
+                    
+                    console.log('📅 Date check:', {
+                      now: now.toISOString(),
+                      startDate: startDate?.toISOString(),
+                      endDate: endDate?.toISOString(),
+                      startOk: !startDate || now >= startDate,
+                      endOk: !endDate || now <= endDate
+                    })
+                    
+                    // Si date de début définie et pas encore atteinte
+                    if (startDate && now < startDate) {
+                      console.log('❌ Promo pas encore commencée')
+                      return false
+                    }
+                    // Si date de fin définie et dépassée
+                    if (endDate && now > endDate) {
+                      console.log('❌ Promo expirée')
+                      return false
+                    }
+                    
+                    console.log('✅ Promo active!')
+                    return true
+                  }
+                  
+                  const hasPromo = isPromoActive()
+                  console.log('🎯 hasPromo final:', hasPromo)
                   const discount = hasPromo ? Math.round(((basePrice - promoPrice) / basePrice) * 100) : 0
                   
+                  const formatDate = (dateStr: string) => {
+                    if (!dateStr) return null
+                    const date = new Date(dateStr)
+                    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  }
+                  
                   return (
-                    <div className="flex items-center gap-3">
-                      <p className={`text-3xl font-black ${hasPromo ? 'text-red-500' : 'text-emerald-600'}`}>
-                        {(hasPromo ? promoPrice : basePrice).toLocaleString()} <span className="text-lg font-normal text-gray-400">FCFA</span>
-                      </p>
-                      {hasPromo && (
-                        <>
-                          <p className="text-lg text-gray-400 line-through">
-                            {basePrice.toLocaleString()} FCFA
-                          </p>
-                          <span className="px-2 py-1 bg-red-100 text-red-600 text-sm font-bold rounded">
-                            -{discount}%
-                          </span>
-                        </>
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <p className={`text-3xl font-black ${hasPromo ? 'text-red-500' : 'text-emerald-600'}`}>
+                          {(hasPromo ? promoPrice : basePrice).toLocaleString()} <span className="text-lg font-normal text-gray-400">FCFA</span>
+                        </p>
+                        {hasPromo && (
+                          <>
+                            <p className="text-lg text-gray-400 line-through">
+                              {basePrice.toLocaleString()} FCFA
+                            </p>
+                            <span className="px-2 py-1 bg-red-100 text-red-600 text-sm font-bold rounded">
+                              -{discount}%
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {/* Promo dates et countdown */}
+                      {hasPromo && (promoStartDate || promoEndDate) && (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-orange-600">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>
+                              {promoStartDate && promoEndDate 
+                                ? `Du ${formatDate(promoStartDate)} au ${formatDate(promoEndDate)}`
+                                : promoStartDate 
+                                  ? `Début: ${formatDate(promoStartDate)}`
+                                  : `Fin: ${formatDate(promoEndDate)}`
+                              }
+                            </span>
+                          </div>
+                          {promoEndDate && (
+                            <PromoCountdown endDate={promoEndDate} />
+                          )}
+                        </div>
                       )}
                     </div>
                   )

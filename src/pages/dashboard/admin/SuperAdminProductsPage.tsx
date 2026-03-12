@@ -52,6 +52,7 @@ const SuperAdminProductsPage: React.FC = () => {
   const [hasMore, setHasMore] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [selectedShop, setSelectedShop] = useState<number | null>(null)
+  const [showPromoOnly, setShowPromoOnly] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -73,7 +74,7 @@ const SuperAdminProductsPage: React.FC = () => {
 
   useEffect(() => {
     // Essayer d'utiliser le cache d'abord (use empty string for initial mount)
-    const filtersKey = JSON.stringify({ search: '', cat: selectedCategory, shop: selectedShop })
+    const filtersKey = JSON.stringify({ search: '', cat: selectedCategory, shop: selectedShop, promo: showPromoOnly })
     const cached = getCache('products', filtersKey)
     if (cached) {
       setProducts(cached.data)
@@ -108,7 +109,7 @@ const SuperAdminProductsPage: React.FC = () => {
     setCurrentPage(1)
     setProducts([])
     loadProducts()
-  }, [debouncedSearch, selectedCategory, selectedShop])
+  }, [debouncedSearch, selectedCategory, selectedShop, showPromoOnly])
 
   const loadInitialData = async () => {
     try {
@@ -147,7 +148,8 @@ const SuperAdminProductsPage: React.FC = () => {
         page_size: pageSize,
         search: debouncedSearch || undefined,
         category_id: selectedCategory || undefined,
-        store_id: selectedShop || undefined
+        store_id: selectedShop || undefined,
+        is_on_promo: showPromoOnly || undefined
       })
 
       let newProducts: Product[] = []
@@ -178,7 +180,7 @@ const SuperAdminProductsPage: React.FC = () => {
 
       // Mettre en cache (seulement page 1)
       if (!append) {
-        const filtersKey = JSON.stringify({ search: debouncedSearch, cat: selectedCategory, shop: selectedShop })
+        const filtersKey = JSON.stringify({ search: debouncedSearch, cat: selectedCategory, shop: selectedShop, promo: showPromoOnly })
         setCache('products', newProducts, newCount, filtersKey)
       }
 
@@ -206,6 +208,15 @@ const SuperAdminProductsPage: React.FC = () => {
   }
 
   const handleViewProduct = (product: Product) => {
+    console.log('📦 Viewing product:', {
+      id: product.id,
+      name: product.name,
+      base_price: product.base_price,
+      promo_price: (product as any).promo_price,
+      promo_start_date: (product as any).promo_start_date,
+      promo_end_date: (product as any).promo_end_date,
+      full_product: product
+    })
     setViewingProduct(product)
     setIsViewModalOpen(true)
   }
@@ -265,7 +276,7 @@ const SuperAdminProductsPage: React.FC = () => {
     }
   }
 
-  const formatPrice = (price: string) => {
+  const formatPrice = (price: string | number) => {
     return new Intl.NumberFormat('fr-FR').format(Number(price)) + ' FCFA'
   }
 
@@ -552,6 +563,21 @@ const SuperAdminProductsPage: React.FC = () => {
                   <option key={shop.id} value={shop.id}>{shop.name}</option>
                 ))}
               </select>
+
+              <button
+                onClick={() => {
+                  setShowPromoOnly(!showPromoOnly)
+                  setCurrentPage(1)
+                }}
+                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  showPromoOnly
+                    ? 'bg-red-500 text-white shadow-md'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <TrendingUp size={16} />
+                {showPromoOnly ? 'En promo' : 'Tous les produits'}
+              </button>
             </div>
           </div>
         </div>
@@ -683,14 +709,34 @@ const SuperAdminProductsPage: React.FC = () => {
                       </h3>
 
                       {/* Price & Stock */}
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-green-600">
-                          {formatPrice(product.base_price)}
-                        </span>
-                        <span className={`text-xs ${stockStatus === 'out' ? 'text-red-500' : stockStatus === 'low' ? 'text-yellow-600' : 'text-gray-500'}`}>
-                          {stockLevel} en stock
-                        </span>
-                      </div>
+                      {(() => {
+                        const bp = Number(product.base_price) || 0
+                        const pp = Number((product as any).promo_price) || 0
+                        const pStart = (product as any).promo_start_date
+                        const pEnd = (product as any).promo_end_date
+                        const now = new Date()
+                        const sOk = !pStart || now >= new Date(pStart)
+                        const eOk = !pEnd || now <= new Date(pEnd)
+                        const promo = pp > 0 && pp < bp && sOk && eOk
+                        return (
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {promo ? (
+                                <>
+                                  <span className="font-bold text-red-600 text-sm">{formatPrice(pp)}</span>
+                                  <span className="text-xs text-gray-400 line-through">{formatPrice(bp)}</span>
+                                  <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">PROMO</span>
+                                </>
+                              ) : (
+                                <span className="font-bold text-green-600">{formatPrice(bp)}</span>
+                              )}
+                            </div>
+                            <span className={`text-xs ${stockStatus === 'out' ? 'text-red-500' : stockStatus === 'low' ? 'text-yellow-600' : 'text-gray-500'}`}>
+                              {stockLevel} en stock
+                            </span>
+                          </div>
+                        )
+                      })()}
 
                       {/* Stock Management Buttons */}
                       <div className="flex gap-2 pt-2 border-t border-gray-100">
@@ -834,10 +880,41 @@ const SuperAdminProductsPage: React.FC = () => {
                       <p className="text-gray-500 text-sm font-mono">{viewingProduct.slug}</p>
                       <p className="text-gray-400 text-xs">ID: {viewingProduct.id}</p>
                     </div>
-                    <div className="bg-indigo-50 rounded-xl p-4">
-                      <p className="text-xs text-gray-500">Prix</p>
-                      <span className="text-2xl font-bold text-indigo-600">{formatPrice(viewingProduct.base_price)}</span>
-                    </div>
+                    {(() => {
+                      const bp = Number(viewingProduct.base_price) || 0
+                      const pp = Number((viewingProduct as any).promo_price) || 0
+                      const promoStart = (viewingProduct as any).promo_start_date
+                      const promoEnd = (viewingProduct as any).promo_end_date
+                      const now = new Date()
+                      const startOk = !promoStart || now >= new Date(promoStart)
+                      const endOk = !promoEnd || now <= new Date(promoEnd)
+                      const hasPromo = pp > 0 && pp < bp && startOk && endOk
+                      const disc = hasPromo ? Math.round(((bp - pp) / bp) * 100) : 0
+                      return (
+                        <div className={`rounded-xl p-4 ${hasPromo ? 'bg-red-50 border border-red-200' : 'bg-indigo-50'}`}>
+                          <p className="text-xs text-gray-500 mb-1">{hasPromo ? 'Prix promo' : 'Prix'}</p>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className={`text-2xl font-bold ${hasPromo ? 'text-red-600' : 'text-indigo-600'}`}>
+                              {formatPrice(hasPromo ? pp : bp)}
+                            </span>
+                            {hasPromo && (
+                              <>
+                                <span className="text-lg text-gray-400 line-through">{formatPrice(bp)}</span>
+                                <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">-{disc}%</span>
+                              </>
+                            )}
+                          </div>
+                          {hasPromo && promoEnd && (
+                            <div className="mt-2 flex items-center gap-2 text-xs text-orange-600">
+                              <span>⏰ Fin: {new Date(promoEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          )}
+                          {hasPromo && promoStart && (
+                            <p className="text-xs text-gray-500 mt-1">Début: {new Date(promoStart).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          )}
+                        </div>
+                      )
+                    })()}
                     <div className={`rounded-xl p-4 ${isInStock ? 'bg-green-50' : 'bg-red-50'}`}>
                       <div className="flex items-center gap-2">
                         {isInStock ? <CheckCircle className="text-green-600" size={20} /> : <AlertTriangle className="text-red-600" size={20} />}

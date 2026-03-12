@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, TrendingUp, Wallet,
   Shield, Briefcase, FolderTree, Package, ShoppingBag, UtensilsCrossed,
   LogOut, ChevronRight, Crown, ExternalLink, Globe, AlertCircle,
-  MessageSquare, Star, User, Store, Bell, FileText, LayoutGrid, Zap
+  MessageSquare, Star, User, Store, Bell, FileText, LayoutGrid, Zap, Gift
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 
@@ -180,6 +180,7 @@ const SuperAdminDashboardSidebar: React.FC<SuperAdminDashboardSidebarProps> = ({
           <SidebarLink to="/superadmin/moderation" icon={<AlertCircle size={20} />} label="Modération" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/superadmin/homepage" icon={<LayoutGrid size={20} />} label="Page d'accueil" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/superadmin/flash-sales" icon={<Zap size={20} />} label="Flash Sales" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/superadmin/coupons" icon={<Gift size={20} />} label="Coupons" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/superadmin/reviews" icon={<Star size={20} />} label="Avis" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/superadmin/messages" icon={<MessageSquare size={20} />} label="Messages" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/superadmin/notifications" icon={<Bell size={20} />} label="Notifications" onClick={handleLinkClick} isCollapsed={!isOpen} />

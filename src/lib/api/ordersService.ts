@@ -72,6 +72,7 @@ export interface CreateOrderData {
   payment_method?: string;
   delivery_fee?: number;
   notes?: string;
+  coupon_code?: string;
 }
 
 export interface OrdersListResponse {
@@ -163,6 +164,7 @@ export const ordersService = {
       payment_method: data.payment_method || 'cash_on_delivery',
       delivery_fee: data.delivery_fee || 1000,
       notes: data.notes,
+      coupon_code: data.coupon_code,
     };
 
     return apiClient.post<Order>('/api/orders', orderData);

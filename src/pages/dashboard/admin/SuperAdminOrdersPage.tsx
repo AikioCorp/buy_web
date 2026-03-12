@@ -413,7 +413,10 @@ const SuperAdminOrdersPage: React.FC = () => {
     if (existingIndex >= 0) {
       handleEditQuantity(existingIndex, 1)
     } else {
-      const price = product.is_on_sale && product.promo_price ? product.promo_price : product.base_price
+      const basePrice = parseFloat(product.base_price)
+      const promoPrice = parseFloat(product.promo_price || '0')
+      const hasPromo = product.is_on_sale && promoPrice > 0 && promoPrice < basePrice
+      const price = (hasPromo ? promoPrice : basePrice).toString()
       const mediaArray = product.media || product.product_media || product.images || []
       const primaryMedia = mediaArray.find((m: any) => m.is_primary) || mediaArray[0]
       let imgUrl = primaryMedia?.image_url || primaryMedia?.file || primaryMedia?.image || product.image_url || product.thumbnail || null
@@ -425,7 +428,11 @@ const SuperAdminOrdersPage: React.FC = () => {
         quantity: 1,
         unit_price: parseFloat(price),
         product_image: imgUrl,
-      }])
+        base_price: basePrice,
+        promo_price: hasPromo ? promoPrice : undefined,
+        promo_start_date: product.promo_start_date,
+        promo_end_date: product.promo_end_date,
+      } as any])
     }
     setAddProductSearch('')
     setAddProductResults([])
@@ -877,6 +884,28 @@ const SuperAdminOrdersPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Coupon Info */}
+              {(viewingOrder as any).coupon_code && (
+                <div className="mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                  <h4 className="font-medium text-yellow-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">🎟️</span>
+                    Coupon(s) appliqué(s)
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(viewingOrder as any).coupon_code.split(',').map((code: string, idx: number) => (
+                      <span key={idx} className="inline-flex items-center px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium border border-yellow-300">
+                        {code.trim()}
+                      </span>
+                    ))}
+                  </div>
+                  {(viewingOrder as any).discount_amount > 0 && (
+                    <p className="text-sm text-green-700 font-medium mt-2">
+                      Réduction totale : -{formatPrice((viewingOrder as any).discount_amount)}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="border-t border-gray-200 pt-6">
                 {/* Show stores involved */}
                 {(viewingOrder as any).stores && (viewingOrder as any).stores.length > 1 && (
@@ -1302,14 +1331,30 @@ const SuperAdminOrdersPage: React.FC = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-3">Articles ({editItems.length})</h3>
                   <div className="space-y-2">
-                    {editItems.map((item, index) => (
+                    {editItems.map((item, index) => {
+                      const itemAny = item as any
+                      const hasPromo = itemAny.promo_price && itemAny.base_price && itemAny.promo_price < itemAny.base_price
+                      return (
                       <div key={`${item.product_id}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                         <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                           {item.product_image ? <img src={item.product_image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="text-gray-400" size={16} /></div>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
-                          <p className="text-xs text-gray-500">{item.unit_price.toLocaleString()} FCFA / unité</p>
+                          <div className="flex items-center gap-2">
+                            <p className={`text-xs font-semibold ${hasPromo ? 'text-red-500' : 'text-gray-700'}`}>
+                              {item.unit_price.toLocaleString()} FCFA / unité
+                            </p>
+                            {hasPromo && (
+                              <>
+                                <p className="text-xs text-gray-400 line-through">{itemAny.base_price.toLocaleString()} FCFA</p>
+                                <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">PROMO</span>
+                              </>
+                            )}
+                          </div>
+                          {hasPromo && itemAny.promo_end_date && (
+                            <p className="text-[10px] text-orange-600 mt-0.5">⏰ Expire: {new Date(itemAny.promo_end_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleEditQuantity(index, -1)} className="p-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100"><Minus size={14} /></button>
@@ -1321,7 +1366,8 @@ const SuperAdminOrdersPage: React.FC = () => {
                         </div>
                         <button onClick={() => handleEditRemoveItem(index)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
                       </div>
-                    ))}
+                    )
+                    })}
                     {editItems.length === 0 && (
                       <div className="text-center py-8 text-gray-400">
                         <Package size={32} className="mx-auto mb-2" />

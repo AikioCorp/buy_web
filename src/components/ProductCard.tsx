@@ -6,6 +6,7 @@ import { useFavoritesStore } from '@/store/favoritesStore'
 import { useToast } from '@/components/Toast'
 import { useSmartNavigation } from '@/hooks/useSmartNavigation'
 import { Product } from '@/lib/api/productsService'
+import { PromoCountdown } from '@/components/PromoCountdown'
 
 interface ProductCardProps {
   product: Product | any
@@ -185,6 +186,13 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
             </span>
           )}
         </div>
+
+        {/* Countdown pour les promos avec date de fin */}
+        {hasPromo && product.promo_end_date && (
+          <div className="mt-2">
+            <PromoCountdown endDate={product.promo_end_date} compact={true} />
+          </div>
+        )}
 
         {/* Store */}
         {product.store && (

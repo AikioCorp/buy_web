@@ -141,6 +141,7 @@ export const productsService = {
     search?: string;
     store_id?: number;
     light?: boolean;
+    is_on_promo?: boolean;
   }) {
     const queryParams = new URLSearchParams();
 
@@ -153,6 +154,7 @@ export const productsService = {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.store_id) queryParams.append('store_id', params.store_id.toString());
     if (params?.light) queryParams.append('light', '1');
+    if (params?.is_on_promo) queryParams.append('is_on_promo', 'true');
 
     const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
     return apiClient.get<ProductsResponse>(endpoint);
@@ -278,6 +280,7 @@ export const productsService = {
     search?: string;
     category_id?: number;
     store_id?: number;
+    is_on_promo?: boolean;
   }) {
     try {
       const queryParams = new URLSearchParams();
@@ -294,6 +297,10 @@ export const productsService = {
       if (params?.search) queryParams.append('search', params.search);
       if (params?.category_id) queryParams.append('category_id', params.category_id.toString());
       if (params?.store_id) queryParams.append('store_id', params.store_id.toString());
+      if (params?.is_on_promo) queryParams.append('is_on_promo', 'true');
+      
+      // Force light=false pour obtenir tous les champs (promo_price, promo_start_date, promo_end_date, etc.)
+      queryParams.append('light', 'false');
 
       // Essayer l'endpoint admin d'abord
       const endpoint = `/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
@@ -377,15 +384,37 @@ export const productsService = {
     const results = [];
 
     for (const image of images) {
-      try {
-        const response = await apiClient.upload(endpoint, image, 'image');
-        
-        if (response.error) {
-          throw new Error(response.error);
+      let lastError = '';
+      let success = false;
+
+      // Retry up to 3 times for transient errors
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const response = await apiClient.upload(endpoint, image, 'image');
+
+          if (response.error) {
+            lastError = response.error;
+            console.warn(`⚠️ Upload attempt ${attempt + 1} for ${image.name} failed:`, response.error);
+            if (attempt < 2) {
+              await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+              continue;
+            }
+          } else {
+            results.push(response);
+            success = true;
+            break;
+          }
+        } catch (error: any) {
+          lastError = error.message || 'Erreur réseau';
+          console.warn(`⚠️ Upload attempt ${attempt + 1} for ${image.name} exception:`, lastError);
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+          }
         }
-        results.push(response);
-      } catch (error: any) {
-        throw new Error(error.message || 'Erreur lors de l\'upload');
+      }
+
+      if (!success) {
+        throw new Error(`Échec upload "${image.name}": ${lastError}`);
       }
     }
 

@@ -232,8 +232,11 @@ class ApiClient {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
+        // Backend may return { error: "msg" } or { error: { message: "msg" } } or { message: "msg" }
+        const errMsg = typeof data?.error === 'string' ? data.error
+          : data?.error?.message || data?.message || data?.detail || `Erreur upload (${response.status})`;
         return {
-          error: data?.message || data?.detail || 'Erreur lors de l\'upload',
+          error: errMsg,
           status: response.status,
         };
       }

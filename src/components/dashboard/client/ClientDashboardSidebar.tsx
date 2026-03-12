@@ -9,7 +9,8 @@ import {
   MapPin,
   Settings,
   MessageSquare,
-  Bell
+  Bell,
+  Ticket
 } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 
@@ -82,6 +83,7 @@ const ClientDashboardSidebar: React.FC<ClientDashboardSidebarProps> = ({ isOpen,
           <SidebarLink to="/client" icon={<Home />} label="Tableau de bord" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/client/orders" icon={<ShoppingBag />} label="Mes commandes" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/client/favorites" icon={<Heart />} label="Favoris" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/client/coupons" icon={<Ticket />} label="Mes coupons" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/client/profile" icon={<User />} label="Profil" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/client/addresses" icon={<MapPin />} label="Adresses" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/client/payments" icon={<CreditCard />} label="Paiements" onClick={handleLinkClick} isCollapsed={!isOpen} />

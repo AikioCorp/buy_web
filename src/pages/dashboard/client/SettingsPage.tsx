@@ -1,12 +1,16 @@
-import React, { useState } from 'react'
-import { Settings, Lock, Bell, Globe, Shield, Eye, EyeOff } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Settings, Lock, Bell, Shield, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
 import { useToast } from '../../../components/Toast'
+import { apiClient } from '../../../lib/api/apiClient'
 
 const SettingsPage: React.FC = () => {
   const { showToast } = useToast()
-  const [activeTab, setActiveTab] = useState<'security' | 'notifications' | 'preferences'>('security')
+  const [activeTab, setActiveTab] = useState<'security' | 'notifications'>('security')
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [notificationLoading, setNotificationLoading] = useState(false)
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
   const [passwordData, setPasswordData] = useState({
     current_password: '',
@@ -23,11 +27,30 @@ const SettingsPage: React.FC = () => {
     push_messages: true,
   })
 
-  const [preferences, setPreferences] = useState({
-    language: 'fr',
-    currency: 'XOF',
-    theme: 'light',
-  })
+  // Charger les préférences de notification depuis le profil
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoadingProfile(true)
+        const response = await apiClient.get<any>('/api/customers/profile')
+        if (response.data) {
+          setNotificationSettings({
+            email_orders: response.data.notification_email_orders !== false,
+            email_promotions: response.data.notification_email_promotions === true,
+            email_messages: response.data.notification_email_messages !== false,
+            push_orders: response.data.notification_push_orders !== false,
+            push_promotions: response.data.notification_push_promotions === true,
+            push_messages: response.data.notification_push_messages !== false,
+          })
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error)
+      } finally {
+        setLoadingProfile(false)
+      }
+    }
+    loadProfile()
+  }, [])
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,20 +60,47 @@ const SettingsPage: React.FC = () => {
       return
     }
 
-    showToast('Mot de passe modifié avec succès', 'success')
-    setPasswordData({
-      current_password: '',
-      new_password: '',
-      confirm_password: '',
-    })
+    if (passwordData.new_password.length < 6) {
+      showToast('Le mot de passe doit contenir au moins 6 caractères', 'error')
+      return
+    }
+
+    try {
+      setPasswordLoading(true)
+      await apiClient.post('/api/customers/change-password', {
+        current_password: passwordData.current_password,
+        new_password: passwordData.new_password
+      })
+      showToast('Mot de passe modifié avec succès', 'success')
+      setPasswordData({
+        current_password: '',
+        new_password: '',
+        confirm_password: '',
+      })
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors du changement de mot de passe', 'error')
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
-  const handleNotificationSave = () => {
-    showToast('Préférences de notification enregistrées', 'success')
-  }
-
-  const handlePreferencesSave = () => {
-    showToast('Préférences enregistrées', 'success')
+  const handleNotificationSave = async () => {
+    try {
+      setNotificationLoading(true)
+      await apiClient.patch('/api/customers/profile', {
+        notification_email_orders: notificationSettings.email_orders,
+        notification_email_promotions: notificationSettings.email_promotions,
+        notification_email_messages: notificationSettings.email_messages,
+        notification_push_orders: notificationSettings.push_orders,
+        notification_push_promotions: notificationSettings.push_promotions,
+        notification_push_messages: notificationSettings.push_messages,
+      })
+      showToast('Préférences de notification enregistrées', 'success')
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de l\'enregistrement', 'error')
+    } finally {
+      setNotificationLoading(false)
+    }
   }
 
   return (
@@ -88,17 +138,6 @@ const SettingsPage: React.FC = () => {
             >
               <Bell className="inline mr-2" size={18} />
               Notifications
-            </button>
-            <button
-              onClick={() => setActiveTab('preferences')}
-              className={`px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
-                activeTab === 'preferences'
-                  ? 'border-green-600 text-green-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Globe className="inline mr-2" size={18} />
-              Préférences
             </button>
           </nav>
         </div>
@@ -175,8 +214,10 @@ const SettingsPage: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  disabled={passwordLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
+                  {passwordLoading && <Loader2 size={16} className="animate-spin" />}
                   Modifier le mot de passe
                 </button>
               </form>
@@ -334,74 +375,16 @@ const SettingsPage: React.FC = () => {
 
                 <button
                   onClick={handleNotificationSave}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  disabled={notificationLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
+                  {notificationLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                   Enregistrer les préférences
                 </button>
               </div>
             </div>
           )}
 
-          {/* Preferences Tab */}
-          {activeTab === 'preferences' && (
-            <div>
-              <h2 className="text-lg font-bold mb-4">Préférences générales</h2>
-
-              <div className="space-y-6 max-w-md">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Langue
-                  </label>
-                  <select
-                    value={preferences.language}
-                    onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                    <option value="ar">العربية</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Devise
-                  </label>
-                  <select
-                    value={preferences.currency}
-                    onChange={(e) => setPreferences({ ...preferences, currency: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="XOF">Franc CFA (XOF)</option>
-                    <option value="EUR">Euro (EUR)</option>
-                    <option value="USD">Dollar US (USD)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Thème
-                  </label>
-                  <select
-                    value={preferences.theme}
-                    onChange={(e) => setPreferences({ ...preferences, theme: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="light">Clair</option>
-                    <option value="dark">Sombre</option>
-                    <option value="auto">Automatique</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={handlePreferencesSave}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  Enregistrer les préférences
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -7,11 +7,13 @@ import { useFavoritesStore } from '@/store/favoritesStore'
 import { useAuthStore } from '@/store/authStore'
 import { useToast } from '@/components/Toast'
 import { LoginPopup } from '@/components/LoginPopup'
+import { WhatsAppPhonePopup } from '@/components/WhatsAppPhonePopup'
 import { Button } from '@/components/Button'
 import { SmartBackButton } from '@/components/SmartBackButton'
 import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight, Star, Truck, Shield, RefreshCw, Check, MessageCircle, X, ZoomIn } from 'lucide-react'
 import { useProductTracking } from '@/hooks/useAnalytics'
 import analytics from '@/lib/analytics/tracker'
+import { PromoCountdown } from '@/components/PromoCountdown'
 
 // Cache système pour les produits
 const productCache = new Map<string, { data: Product; timestamp: number }>()
@@ -247,8 +249,16 @@ export function ProductDetailPage() {
   }
 
   const [whatsappLoading, setWhatsappLoading] = useState(false)
+  const [showPhonePopup, setShowPhonePopup] = useState(false)
 
-  const handleWhatsAppOrder = async () => {
+  // Process WhatsApp order with optional phone for guests
+  const processWhatsAppOrder = async (phoneNumber?: string) => {
+    // For guests, phone number is required - don't proceed without it
+    if (!user && !phoneNumber) {
+      setShowPhonePopup(true)
+      return
+    }
+    
     if (product && !whatsappLoading) {
       setWhatsappLoading(true)
       const productUrl = `${window.location.origin}/products/${product.slug || product.id}`
@@ -270,10 +280,11 @@ export function ProductDetailPage() {
             orderRef = `\n\n*Réf. commande:* #${orderData.order_number || orderData.id}`
           }
         } else {
-          // Guest user - use public endpoint
+          // Guest user - use public endpoint with phone number
           const response = await ordersService.createGuestWhatsAppOrder({
             items: [{ product_id: product.id, quantity }],
             delivery_fee: orderDeliveryFee,
+            customer_phone: phoneNumber,
           })
           if (response.data && !response.error) {
             const orderData = (response.data as any).data || response.data
@@ -288,14 +299,32 @@ export function ProductDetailPage() {
       const deliveryFee = productTotal >= 50000 ? 0 : 1000
       const totalWithDelivery = productTotal + deliveryFee
       const deliveryLabel = deliveryFee === 0 ? 'GRATUIT \u2728' : `${formatPrice(deliveryFee)} FCFA`
-      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Sous-total:* ${formatPrice(productTotal)} FCFA\n*Livraison:* ${deliveryLabel}\n*Total global:* ${formatPrice(totalWithDelivery)} FCFA\n\n*Lien du produit:* ${productUrl}${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
+      const phoneInfo = phoneNumber ? `\n*Mon numéro:* ${phoneNumber}` : ''
+      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Sous-total:* ${formatPrice(productTotal)} FCFA\n*Livraison:* ${deliveryLabel}\n*Total global:* ${formatPrice(totalWithDelivery)} FCFA\n\n*Lien du produit:* ${productUrl}${orderRef}${phoneInfo}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
       const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
 
       analytics.whatsAppOrder([product.id], totalWithDelivery)
 
       window.open(whatsappUrl, '_blank')
       setWhatsappLoading(false)
+      setShowPhonePopup(false)
     }
+  }
+
+  // Handle WhatsApp order button click
+  const handleWhatsAppOrder = () => {
+    if (user) {
+      // Authenticated user - proceed directly
+      processWhatsAppOrder()
+    } else {
+      // Guest user - show phone popup first
+      setShowPhonePopup(true)
+    }
+  }
+
+  // Handle phone submission from popup
+  const handlePhoneSubmit = (phone: string) => {
+    processWhatsAppOrder(phone)
   }
 
   const handleShare = async () => {
@@ -596,12 +625,10 @@ export function ProductDetailPage() {
                 )}
               </div>
               {/* Promo countdown */}
-              {hasPromo() && getPromoTimeRemaining() && (
-                <div className="mt-2 flex items-center gap-2 text-orange-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-sm font-medium">Offre limitée : {getPromoTimeRemaining()}</span>
+              {hasPromo() && (product as any)?.promo_end_date && (
+                <div className="mt-3">
+                  <p className="text-xs text-orange-600 font-medium mb-2">⏰ Offre limitée :</p>
+                  <PromoCountdown endDate={(product as any).promo_end_date} />
                 </div>
               )}
             </div>
@@ -1166,6 +1193,14 @@ export function ProductDetailPage() {
         onClose={() => setShowLoginPopup(false)}
         onSuccess={handleLoginSuccess}
         message="Connectez-vous pour finaliser votre commande"
+      />
+
+      {/* WhatsApp Phone Popup for guests */}
+      <WhatsAppPhonePopup
+        isOpen={showPhonePopup}
+        onClose={() => setShowPhonePopup(false)}
+        onSubmit={handlePhoneSubmit}
+        isLoading={whatsappLoading}
       />
     </div>
   )

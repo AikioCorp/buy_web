@@ -288,10 +288,10 @@ export function HomePage() {
   const [promoBannersData, setPromoBannersData] = useState<any[]>(defaultPromoBanners)
   const [currentPromoBanner, setCurrentPromoBanner] = useState(0)
   const [featuredTopVentes, setFeaturedTopVentes] = useState<any[]>([])
-  const [activeFlashSale, setActiveFlashSale] = useState<ActiveFlashSale | null>(null)
+  const [activeFlashSales, setActiveFlashSales] = useState<ActiveFlashSale[]>([])
+  const [apiPromoProducts, setApiPromoProducts] = useState<any[]>([])
 
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-  const [flashDealsScrollRef, setFlashDealsScrollRef] = useState<HTMLDivElement | null>(null)
   const [popularScrollRef, setPopularScrollRef] = useState<HTMLDivElement | null>(null)
   const [menScrollRef, setMenScrollRef] = useState<HTMLDivElement | null>(null)
   const [womenScrollRef, setWomenScrollRef] = useState<HTMLDivElement | null>(null)
@@ -342,6 +342,31 @@ export function HomePage() {
     }
   }
 
+  const loadPromoProducts = async () => {
+    try {
+      const response = await productsService.getProducts({ page: 1, limit: 30, is_on_promo: true })
+      let results: any[] = []
+      if (response.data?.results && response.data.results.length > 0) {
+        results = response.data.results
+      } else if (Array.isArray(response.data) && (response.data as any[]).length > 0) {
+        results = response.data as any[]
+      }
+      // Filtrer côté client pour vérifier la validité des dates de promo
+      const now = new Date()
+      const valid = results.filter((p: any) => {
+        const bp = Number(p.base_price) || 0
+        const pp = Number(p.promo_price) || 0
+        if (pp <= 0 || pp >= bp) return false
+        const start = p.promo_start_date ? new Date(p.promo_start_date) : null
+        const end = p.promo_end_date ? new Date(p.promo_end_date) : null
+        if (start && now < start) return false
+        if (end && now > end) return false
+        return true
+      })
+      setApiPromoProducts(valid)
+    } catch { /* silent */ }
+  }
+
   useEffect(() => {
     let cancelled = false
     const loadCriticalContent = async () => {
@@ -349,7 +374,8 @@ export function HomePage() {
       await Promise.all([
         loadHomepageProducts(),
         loadHomepageContent(),
-        loadActiveFlashSale()
+        loadActiveFlashSales(),
+        loadPromoProducts()
       ])
       if (!cancelled) setIsContentLoaded(true)
     }
@@ -394,26 +420,27 @@ export function HomePage() {
     }
   }
 
-  const loadActiveFlashSale = async () => {
+  const loadActiveFlashSales = async () => {
     try {
-      const response = await flashSalesService.getActiveFlashSale()
-      if (response.data) {
-        setActiveFlashSale(response.data)
+      const response = await flashSalesService.getActiveFlashSales()
+      if (response.data && response.data.length > 0) {
+        setActiveFlashSales(response.data)
       }
     } catch (error) {
-      console.error('Erreur chargement Flash Sale:', error)
+      console.error('Erreur chargement Flash Sales:', error)
     }
   }
 
   // Pas d'auto-scroll pour les sections produits horizontales
 
-  // Countdown dynamique pour Flash Sale
+  // Countdown dynamique pour Flash Sale (utilise la première flash sale active)
+  const firstFlashSale = activeFlashSales[0] || null
   useEffect(() => {
-    if (!activeFlashSale?.flashSale?.end_date) return
+    if (!firstFlashSale?.flashSale?.end_date) return
 
     const updateCountdown = () => {
       const now = new Date().getTime()
-      const end = new Date(activeFlashSale.flashSale.end_date).getTime()
+      const end = new Date(firstFlashSale.flashSale.end_date).getTime()
       const diff = end - now
 
       if (diff <= 0) {
@@ -432,7 +459,7 @@ export function HomePage() {
     updateCountdown()
     const interval = setInterval(updateCountdown, 1000)
     return () => clearInterval(interval)
-  }, [activeFlashSale])
+  }, [firstFlashSale])
 
   const loadCategories = async () => {
     try {
@@ -535,6 +562,8 @@ export function HomePage() {
         name: product.name,
         base_price: product.base_price,
         promo_price: (product as any).promo_price,
+        promo_start_date: (product as any).promo_start_date,
+        promo_end_date: (product as any).promo_end_date,
         media: product.media || (product as any).images || [],
         store: product.store || product.shop || null,
         shop: product.shop || product.store || null,
@@ -949,12 +978,15 @@ export function HomePage() {
     return shuffleArray(fallback);
   };
 
-  // Flash Deals: utiliser les produits de la Flash Sale active si disponible, sinon les produits en promo
-  const flashSaleProducts = activeFlashSale?.products?.map(fp => fp.product).filter(Boolean) || []
-  const promoProducts = allProducts.filter((p: any) => 
-    p.promo_price && Number(p.promo_price) > 0 && Number(p.promo_price) < Number(p.base_price)
-  )
-  const dealProducts = flashSaleProducts.length > 0 ? flashSaleProducts.slice(0, MAX_PRODUCTS_PER_SECTION) : promoProducts.slice(0, MAX_PRODUCTS_PER_SECTION)
+  // Flash Deals: utiliser les produits de la première Flash Sale active si disponible, sinon les produits en promo
+  const flashSaleProducts = firstFlashSale?.products?.map(fp => fp.product).filter(Boolean) || []
+  // Utiliser apiPromoProducts (chargés via is_on_promo) en priorité, sinon fallback sur allProducts
+  const promoProducts = apiPromoProducts.length > 0 
+    ? apiPromoProducts 
+    : allProducts.filter((p: any) => 
+        p.promo_price && Number(p.promo_price) > 0 && Number(p.promo_price) < Number(p.base_price)
+      )
+  const dealProducts = flashSaleProducts.length > 0 ? flashSaleProducts : promoProducts
   
   // Produits populaires: basés sur les ventes (order_count) ou vues (view_count) si disponibles
   const trendingProducts = useMemo(() => {
@@ -1016,7 +1048,16 @@ export function HomePage() {
 
   const ProductCard = ({ product, index, showDiscount = false, dark = false }: { product: any, index: number, showDiscount?: boolean, dark?: boolean }) => {
     const discountPercent = getDiscountPercent(product)
-    const hasDiscount = showDiscount && discountPercent > 0
+    // Vérifier si la promo est active (prix valide + dans la période de validité)
+    const bp = Number(product.base_price) || 0
+    const pp = Number(product.promo_price) || 0
+    const pStart = product.promo_start_date
+    const pEnd = product.promo_end_date
+    const now = new Date()
+    const startOk = !pStart || now >= new Date(pStart)
+    const endOk = !pEnd || now <= new Date(pEnd)
+    const isPromoActive = pp > 0 && pp < bp && startOk && endOk
+    const hasDiscount = isPromoActive
     const finalPrice = hasDiscount ? product.promo_price : product.base_price
 
     return (
@@ -1313,7 +1354,22 @@ export function HomePage() {
                         )}
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</h4>
-                          <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(product.base_price)} FCFA</p>
+                          {(() => {
+                            const b = Number(product.base_price) || 0
+                            const p = Number(product.promo_price) || 0
+                            const ps = product.promo_start_date
+                            const pe = product.promo_end_date
+                            const n = new Date()
+                            const active = p > 0 && p < b && (!ps || n >= new Date(ps)) && (!pe || n <= new Date(pe))
+                            return active ? (
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span className="text-red-600 font-bold text-sm">{formatPrice(p)} FCFA</span>
+                                <span className="text-gray-400 text-xs line-through">{formatPrice(b)}</span>
+                              </div>
+                            ) : (
+                              <p className="text-green-600 font-bold text-sm mt-1">{formatPrice(b)} FCFA</p>
+                            )
+                          })()}
                         </div>
                       </Link>
                     )
@@ -1527,80 +1583,225 @@ export function HomePage() {
       })()}
       </LazySection>
 
-      {/* Flash Deals */}
-      {(activeFlashSale || dealProducts.length > 0) && (
-        <section className={`py-6 bg-gradient-to-r ${activeFlashSale?.flashSale?.bg_color || 'from-red-500 to-orange-500'}`}>
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><Zap className="w-6 h-6 text-yellow-300" /></div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">{activeFlashSale?.flashSale?.title || 'Ventes Flash'}</h2>
-                  <p className="text-white/80 text-sm">{activeFlashSale?.flashSale?.description || 'Offres limitées - Dépêchez-vous!'}</p>
-                </div>
-              </div>
-              {activeFlashSale && (
-                <div className="flex items-center gap-3">
-                  <span className="text-white/80 text-sm">Se termine dans:</span>
-                  <div className="flex gap-1">
-                    {countdown.days > 0 && (
-                      <div className="bg-white rounded-lg px-3 py-2 text-center min-w-[50px]">
-                        <div className="text-xl font-black text-red-500">{String(countdown.days).padStart(2, '0')}</div>
-                        <div className="text-[10px] text-gray-500 font-medium">J</div>
-                      </div>
-                    )}
-                    {[
-                      { value: countdown.hours, label: 'H' }, 
-                      { value: countdown.minutes, label: 'M' }, 
-                      { value: countdown.seconds, label: 'S' }
-                    ].map((item, i) => (
-                      <div key={i} className="bg-white rounded-lg px-3 py-2 text-center min-w-[50px]">
-                        <div className="text-xl font-black text-red-500">{String(item.value).padStart(2, '0')}</div>
-                        <div className="text-[10px] text-gray-500 font-medium">{item.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          {/* Mobile: Horizontal Slider | Desktop: Grid */}
-          <div ref={setFlashDealsScrollRef} className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 scrollbar-hide snap-x snap-mandatory md:snap-none">
-            {dealProducts.length > 0 ? dealProducts.map((product: any) => {
-              const discountPercent = getDiscountPercent(product)
-              const hasDiscount = discountPercent > 0
-              const finalPrice = hasDiscount ? product.promo_price : product.base_price
+      {/* Flash Deals - Multiple sections */}
+      {activeFlashSales.length > 0 && activeFlashSales.map((flashSaleData, sectionIndex) => {
+        const saleProducts = flashSaleData.products?.map(fp => fp.product).filter(Boolean) || []
+        if (saleProducts.length === 0) return null
 
-              return (
-                <Link key={product.id} to={`/products/${product.slug || product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-lg min-w-[160px] md:min-w-0 snap-start">
-                  <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                    {hasDiscount && (
-                      <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{discountPercent}%</div>
-                    )}
-                    {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
-                      <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    ) : (<div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>)}
+        // Calculer le countdown pour cette flash sale
+        const endDate = new Date(flashSaleData.flashSale.end_date).getTime()
+        const now = new Date().getTime()
+        const diff = endDate - now
+        const saleCountdown = diff > 0 ? {
+          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((diff % (1000 * 60)) / 1000)
+        } : { days: 0, hours: 0, minutes: 0, seconds: 0 }
+
+        // Déterminer le style de fond
+        const bgColor = flashSaleData.flashSale.bg_color || 'from-red-500 to-orange-500'
+        const isCustomColor = bgColor.startsWith('custom:')
+        const isSolidColor = bgColor.startsWith('bg-')
+        const isGradient = !isCustomColor && !isSolidColor
+        
+        // Styles inline pour padding/margin personnalisés (priorité sur Tailwind)
+        const hasCustomPadding = flashSaleData.flashSale.custom_padding && flashSaleData.flashSale.custom_padding.trim() !== ''
+        const hasCustomMargin = flashSaleData.flashSale.custom_margin && flashSaleData.flashSale.custom_margin.trim() !== ''
+        
+        const sectionStyle: React.CSSProperties = {
+          ...(isCustomColor ? { backgroundColor: bgColor.replace('custom:', '') } : {}),
+          ...(hasCustomPadding ? { padding: flashSaleData.flashSale.custom_padding! } : {}),
+          ...(hasCustomMargin ? { margin: flashSaleData.flashSale.custom_margin! } : {})
+        }
+        
+        // N'appliquer les classes Tailwind de padding que si pas de padding personnalisé
+        const paddingClass = hasCustomPadding ? '' : 'py-8 md:py-10'
+        const bgClass = isGradient ? `bg-gradient-to-r ${bgColor}` : (isSolidColor ? bgColor : '')
+        const sectionClassName = `${paddingClass} ${bgClass}`.trim()
+
+        return (
+          <section key={flashSaleData.flashSale.id} className={sectionClassName} style={sectionStyle}>
+            <div className="container mx-auto px-4">
+              {/* Header: titre + countdown */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><Zap className="w-6 h-6 text-yellow-300" /></div>
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-white">{flashSaleData.flashSale.title}</h2>
+                    <p className="text-white/80 text-sm">{flashSaleData.flashSale.description || `${saleProducts.length} produits en réduction`}</p>
                   </div>
-                  <div className="p-2">
-                    <h3 className="font-medium text-gray-900 text-xs line-clamp-2 mb-1">{product.name}</h3>
-                    <div className="flex items-center gap-1">
-                      <span className="text-red-600 font-bold text-sm">{formatPrice(finalPrice)} FCFA</span>
-                      {hasDiscount && (
-                        <span className="text-gray-400 text-xs line-through">{formatPrice(product.base_price)}</span>
+                </div>
+                {flashSaleData.flashSale.show_countdown !== false && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-white/80 text-sm">Se termine dans:</span>
+                    <div className="flex gap-1.5">
+                      {saleCountdown.days > 0 && (
+                        <div className="bg-white rounded-lg px-3 py-2 text-center min-w-[48px]">
+                          <div className="text-lg font-black text-red-500">{String(saleCountdown.days).padStart(2, '0')}</div>
+                          <div className="text-[10px] text-gray-500 font-medium">J</div>
+                        </div>
                       )}
+                      {[
+                        { value: saleCountdown.hours, label: 'H' }, 
+                        { value: saleCountdown.minutes, label: 'M' }, 
+                        { value: saleCountdown.seconds, label: 'S' }
+                      ].map((item, i) => (
+                        <div key={i} className="bg-white rounded-lg px-3 py-2 text-center min-w-[48px]">
+                          <div className="text-lg font-black text-red-500">{String(item.value).padStart(2, '0')}</div>
+                          <div className="text-[10px] text-gray-500 font-medium">{item.label}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </Link>
-              )
-            }) : (
-              <div className="col-span-full text-center py-8 text-white/80">
-                <p>Aucune promotion en cours</p>
-                <p className="text-sm">Revenez bientôt pour découvrir nos offres !</p>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-        </section>
-      )}
+
+              {/* Slider avec navigation */}
+              <div className="relative group">
+                {/* Flèches de navigation */}
+                {saleProducts.length > 6 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        const container = (e.currentTarget.parentElement?.querySelector('.flash-slider') as HTMLElement)
+                        if (container) container.scrollBy({ left: -300, behavior: 'smooth' })
+                      }}
+                      className="hidden md:flex absolute -left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-gray-700 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        const container = (e.currentTarget.parentElement?.querySelector('.flash-slider') as HTMLElement)
+                        if (container) container.scrollBy({ left: 300, behavior: 'smooth' })
+                      }}
+                      className="hidden md:flex absolute -right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-gray-700 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+
+                <div className="flash-slider flex gap-4 overflow-x-auto pb-3 scrollbar-hide scroll-smooth">
+                  {saleProducts.map((product: any) => {
+                    const bpd = Number(product.base_price) || 0
+                    const ppd = Number(product.promo_price) || 0
+                    const psd = product.promo_start_date
+                    const ped = product.promo_end_date
+                    const nd = new Date()
+                    const hasDiscount = ppd > 0 && ppd < bpd && (!psd || nd >= new Date(psd)) && (!ped || nd <= new Date(ped))
+                    const discountPercent = hasDiscount ? Math.round(((bpd - ppd) / bpd) * 100) : 0
+                    const finalPrice = hasDiscount ? ppd : bpd
+
+                    return (
+                      <Link 
+                        key={product.id} 
+                        to={`/products/${product.slug || product.id}`} 
+                        className="flex-shrink-0 w-[160px] md:w-[180px] bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow group/card"
+                      >
+                        <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                          {hasDiscount && discountPercent > 0 && (
+                            <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">-{discountPercent}%</div>
+                          )}
+                          {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+                            <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} loading="lazy" className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-500" />
+                          ) : (<div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>)}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1.5 leading-tight">{product.name}</h3>
+                          <div className="flex flex-col">
+                            <span className="text-red-600 font-bold text-sm">{formatPrice(finalPrice)} FCFA</span>
+                            {hasDiscount && (
+                              <span className="text-gray-400 text-xs line-through">{formatPrice(bpd)} FCFA</span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        )
+      })}
+
+      {/* Section Promotions - 2 lignes : promos + produits aléatoires (seulement si pas de flash sale active) */}
+      {activeFlashSales.length === 0 && promoProducts.length > 0 && (() => {
+        // Mélanger les promos et compléter avec des produits aléatoires pour remplir 2 lignes (12 items desktop)
+        const GRID_SIZE = 12
+        const promoIds = new Set(promoProducts.map((p: any) => p.id))
+        const otherProducts = shuffleArray(allProducts.filter((p: any) => !promoIds.has(p.id))).slice(0, GRID_SIZE)
+        const promoSlice = promoProducts.slice(0, GRID_SIZE)
+        // Combiner : d'abord les promos, compléter avec des produits random
+        const combined = [...promoSlice]
+        if (combined.length < GRID_SIZE) {
+          const needed = GRID_SIZE - combined.length
+          const usedIds = new Set(combined.map((p: any) => p.id))
+          const fillers = otherProducts.filter((p: any) => !usedIds.has(p.id)).slice(0, needed)
+          combined.push(...fillers)
+        }
+
+        return (
+          <section className="py-8 bg-gradient-to-b from-orange-50 to-white">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                    <Percent className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Promotions en cours</h2>
+                    <p className="text-sm text-gray-500">{promoProducts.length} produit{promoProducts.length > 1 ? 's' : ''} en réduction</p>
+                  </div>
+                </div>
+                <Link to="/deals" className="text-orange-600 font-medium flex items-center gap-1 hover:gap-2 transition-all text-sm">
+                  Voir tout <ArrowRight size={16} />
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {combined.map((product: any) => {
+                  const bp = Number(product.base_price) || 0
+                  const pp = Number(product.promo_price) || 0
+                  const isPromo = pp > 0 && pp < bp
+                  const discPct = isPromo ? Math.round(((bp - pp) / bp) * 100) : 0
+                  const finalPrice = isPromo ? pp : bp
+
+                  return (
+                    <Link key={product.id} to={`/products/${product.slug || product.id}`} className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all border border-gray-100">
+                      <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                        {isPromo && discPct > 0 && (
+                          <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">-{discPct}%</div>
+                        )}
+                        {(getImageUrl(product) || product.media?.[0]?.image_url) ? (
+                          <img src={getImageUrl(product) || product.media?.[0]?.image_url} alt={product.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        ) : (<div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>)}
+                      </div>
+                      <div className="p-3">
+                        <h3 className="font-medium text-gray-900 text-xs line-clamp-2 mb-1.5">{product.name}</h3>
+                        {isPromo ? (
+                          <>
+                            <div className="flex flex-col">
+                              <span className="text-red-600 font-bold text-sm">{formatPrice(pp)} FCFA</span>
+                              <span className="text-gray-400 text-xs line-through">{formatPrice(bp)} FCFA</span>
+                            </div>
+                            <div className="mt-1">
+                              <span className="text-xs text-green-600 font-medium">Économisez {formatPrice(bp - pp)} FCFA</span>
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-gray-900 font-bold text-sm">{formatPrice(finalPrice)} FCFA</span>
+                        )}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </section>
+        )
+      })()}
 
       {/* Produits Populaires - Horizontal Slider with Auto-scroll */}
       <section className="py-8 bg-white">

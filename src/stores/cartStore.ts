@@ -11,6 +11,21 @@ export interface CartItem {
   quantity: number;
 }
 
+/**
+ * Retourne le prix effectif d'un produit (promo si active, sinon base_price)
+ */
+export function getEffectivePrice(product: Product): number {
+  const base = Number(product.base_price) || 0;
+  const promo = Number((product as any).promo_price) || 0;
+  if (promo <= 0 || promo >= base) return base;
+  const now = new Date();
+  const start = (product as any).promo_start_date ? new Date((product as any).promo_start_date) : null;
+  const end = (product as any).promo_end_date ? new Date((product as any).promo_end_date) : null;
+  if (start && now < start) return base;
+  if (end && now > end) return base;
+  return promo;
+}
+
 interface CartState {
   items: CartItem[];
   
@@ -81,7 +96,7 @@ export const useCartStore = create<CartState>()(
 
       getTotal: () => {
         return get().items.reduce((total, item) => {
-          const price = parseFloat(item.product.base_price);
+          const price = getEffectivePrice(item.product);
           return total + (price * item.quantity);
         }, 0);
       },

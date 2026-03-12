@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore, getEffectivePrice } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
 import { useShippingStore } from '@/store/shippingStore'
 import { ordersService } from '@/lib/api/ordersService'
+import { apiClient } from '@/lib/api/apiClient'
 import { formatPrice } from '@/lib/utils'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import {
   ShoppingBag, MapPin, CreditCard, Truck, CheckCircle,
-  ArrowLeft, Loader2, AlertCircle, Phone, User, Mail, Save
+  ArrowLeft, Loader2, AlertCircle, Phone, User, Mail, Save, ChevronDown
 } from 'lucide-react'
 import analytics from '@/lib/analytics/tracker'
 
@@ -112,59 +113,39 @@ export function CheckoutPage() {
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [orderId, setOrderId] = useState<number | null>(null)
   const [saveAddressForLater, setSaveAddressForLater] = useState(true)
+  
+  // Saved addresses from API
+  const [savedAddresses, setSavedAddresses] = useState<ShippingAddress[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null)
+  const [loadingAddresses, setLoadingAddresses] = useState(true)
+  const [customerProfile, setCustomerProfile] = useState<any>(null)
 
-  // Shipping form - Priorité: données utilisateur connecté > adresse sauvegardée > vide
-  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(() => {
-    // Ne pas afficher l'email généré automatiquement
-    const userEmail = user?.email && !user.email.includes('@phone.buymore.ml') ? user.email : ''
-
-    // Si l'utilisateur est connecté, toujours utiliser ses données
-    if (user) {
-      // Si une adresse est sauvegardée ET appartient à cet utilisateur, utiliser commune/quartier/détails
-      const useSavedLocation = savedAddress &&
-        savedAddress.phone === user.phone &&
-        savedAddress.commune &&
-        savedAddress.quartier
-
-      return {
-        full_name: user.first_name && user.last_name
-          ? `${user.first_name} ${user.last_name}`
-          : user.username || '',
-        phone: user.phone || '',
-        email: userEmail,
-        commune: useSavedLocation ? savedAddress.commune : '',
-        quartier: useSavedLocation ? savedAddress.quartier : '',
-        address_details: useSavedLocation ? savedAddress.address_details : '',
-        country: 'Mali',
-        is_default: true
-      }
-    }
-
-    // Si pas d'utilisateur connecté mais une adresse sauvegardée, l'utiliser
-    if (savedAddress) {
-      return {
-        ...savedAddress,
-        is_default: true
-      }
-    }
-
-    // Sinon, formulaire vide
-    return {
-      full_name: '',
-      phone: '',
-      email: '',
-      commune: '',
-      quartier: '',
-      address_details: '',
-      country: 'Mali',
-      is_default: true
-    }
+  // Shipping form - Start empty, will be populated by useEffect
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
+    full_name: '',
+    phone: '',
+    email: '',
+    commune: '',
+    quartier: '',
+    address_details: '',
+    country: 'Mali',
+    is_default: true
   })
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_money'>('cash_on_delivery')
   const [mobileMoneyProvider, setMobileMoneyProvider] = useState<'wave' | 'orange_money' | 'sama' | 'moov'>('wave')
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('')
+
+  // Multi-coupon support
+  const [couponInput, setCouponInput] = useState('')
+  const [appliedCoupons, setAppliedCoupons] = useState<Array<{ code: string; discount: number; coupon: any }>>([])
+  const [couponMessage, setCouponMessage] = useState<string | null>(null)
+  const [couponMessageType, setCouponMessageType] = useState<'success' | 'error'>('success')
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [freeShipping, setFreeShipping] = useState(false)
+  const [suggestedCoupons, setSuggestedCoupons] = useState<any[]>([])
+  const totalCouponDiscount = appliedCoupons.reduce((sum, c) => sum + c.discount, 0)
 
   // Calcul automatique des frais de livraison en fonction de la commune
   const getDeliveryFee = (): number => {
@@ -180,6 +161,88 @@ export function CheckoutPage() {
   const availableQuartiers = shippingAddress.commune
     ? BAMAKO_ZONES[shippingAddress.commune]?.quartiers || []
     : []
+
+  // Load customer profile and saved addresses
+  useEffect(() => {
+    const loadCustomerData = async () => {
+      if (!isAuthenticated) return
+      
+      try {
+        setLoadingAddresses(true)
+        
+        // Load profile and addresses in parallel
+        const [profileRes, addressesRes] = await Promise.all([
+          apiClient.get<any>('/api/customers/profile'),
+          apiClient.get<any[]>('/api/customers/addresses')
+        ])
+        
+        const profile = profileRes.data
+        const addresses = addressesRes.data || []
+        
+        setCustomerProfile(profile)
+        setSavedAddresses(addresses)
+        
+        // Find default address or first address
+        const defaultAddress = addresses.find((a: any) => a.is_default) || addresses[0]
+        
+        // Build shipping address from profile + default address
+        const userEmail = profile?.email && !profile.email.includes('@phone.buymore.ml') ? profile.email : ''
+        const fullName = profile?.first_name && profile?.last_name 
+          ? `${profile.first_name} ${profile.last_name}`
+          : profile?.first_name || user?.username || ''
+        
+        // Use profile phone, or address phone, or user phone
+        const phone = profile?.phone || defaultAddress?.phone || user?.phone || ''
+        
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id)
+          setShippingAddress({
+            id: defaultAddress.id,
+            full_name: defaultAddress.full_name || fullName,
+            phone: defaultAddress.phone || phone,
+            email: defaultAddress.email || userEmail,
+            commune: defaultAddress.commune || '',
+            quartier: defaultAddress.quartier || '',
+            address_details: defaultAddress.address_details || '',
+            country: defaultAddress.country || 'Mali',
+            is_default: defaultAddress.is_default
+          })
+        } else {
+          // No saved address, use profile data
+          setShippingAddress({
+            full_name: fullName,
+            phone: phone,
+            email: userEmail,
+            commune: savedAddress?.commune || '',
+            quartier: savedAddress?.quartier || '',
+            address_details: savedAddress?.address_details || '',
+            country: 'Mali',
+            is_default: true
+          })
+        }
+      } catch (error) {
+        console.error('Error loading customer data:', error)
+        // Fallback to user data from auth store
+        const userEmail = user?.email && !user.email.includes('@phone.buymore.ml') ? user.email : ''
+        setShippingAddress({
+          full_name: user?.first_name && user?.last_name 
+            ? `${user.first_name} ${user.last_name}` 
+            : user?.username || '',
+          phone: user?.phone || '',
+          email: userEmail,
+          commune: savedAddress?.commune || '',
+          quartier: savedAddress?.quartier || '',
+          address_details: savedAddress?.address_details || '',
+          country: 'Mali',
+          is_default: true
+        })
+      } finally {
+        setLoadingAddresses(false)
+      }
+    }
+    
+    loadCustomerData()
+  }, [isAuthenticated, user])
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -246,6 +309,111 @@ export function CheckoutPage() {
     setCurrentStep('confirmation')
   }
 
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase()
+    if (!code) return
+
+    // Check if already applied
+    if (appliedCoupons.some(c => c.code.toUpperCase() === code)) {
+      setCouponMessage('Ce coupon est déjà appliqué')
+      setCouponMessageType('error')
+      return
+    }
+
+    setCouponLoading(true)
+    setCouponMessage(null)
+
+    try {
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const storeIds = [...new Set(items.map(i => (i.product as any).store_id || (i.product as any).store?.id).filter(Boolean))]
+
+      const res = await fetch(`${API_URL}/api/coupons/validate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          code,
+          subtotal: getTotal(),
+          product_ids: items.map(i => i.product.id),
+          store_ids: storeIds,
+          items_count: items.reduce((sum, i) => sum + i.quantity, 0),
+          already_applied_coupon_ids: appliedCoupons.map(c => c.coupon?.id).filter(Boolean),
+        }),
+      })
+      const data = await res.json()
+
+      if (data.valid) {
+        setAppliedCoupons(prev => [...prev, { code: data.coupon.code, discount: data.discount, coupon: data.coupon }])
+        if (data.coupon?.discount_type === 'free_shipping') {
+          setFreeShipping(true)
+        }
+        setCouponMessage(`Coupon "${data.coupon.code}" appliqué ! -${formatPrice(data.discount, 'XOF')}`)
+        setCouponMessageType('success')
+        setCouponInput('')
+      } else {
+        setCouponMessage(data.message || 'Code coupon invalide')
+        setCouponMessageType('error')
+      }
+    } catch (err) {
+      setCouponMessage('Erreur de validation du coupon')
+      setCouponMessageType('error')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleRemoveCoupon = (code: string) => {
+    setAppliedCoupons(prev => {
+      const updated = prev.filter(c => c.code !== code)
+      // Re-check free shipping
+      setFreeShipping(updated.some(c => c.coupon?.discount_type === 'free_shipping'))
+      return updated
+    })
+    setCouponMessage(null)
+  }
+
+  const handleRemoveAllCoupons = () => {
+    setAppliedCoupons([])
+    setFreeShipping(false)
+    setCouponMessage(null)
+    setCouponInput('')
+  }
+
+  // Load coupon suggestions when checkout starts
+  const loadSuggestions = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const storeIds = [...new Set(items.map(i => (i.product as any).store_id || (i.product as any).store?.id).filter(Boolean))]
+
+      const res = await fetch(`${API_URL}/api/coupons/suggest`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          subtotal: getTotal(),
+          product_ids: items.map(i => i.product.id),
+          store_ids: storeIds,
+        }),
+      })
+      const data = await res.json()
+      if (data.data && Array.isArray(data.data)) {
+        setSuggestedCoupons(data.data)
+      }
+    } catch (err) {
+      // Silent fail for suggestions
+    }
+  }
+
+  useEffect(() => {
+    if (items.length > 0) loadSuggestions()
+  }, [items.length])
+
   const handlePlaceOrder = async () => {
     setIsLoading(true)
     setError(null)
@@ -267,7 +435,8 @@ export function CheckoutPage() {
           country: shippingAddress.country
         },
         payment_method: paymentMethod,
-        delivery_fee: getDeliveryFee()
+        delivery_fee: freeShipping ? 0 : getDeliveryFee(),
+        coupon_code: appliedCoupons.length > 0 ? appliedCoupons.map(c => c.code).join(',') : undefined,
       }
 
       try {
@@ -314,8 +483,8 @@ export function CheckoutPage() {
   }
 
   const subtotal = getTotal()
-  const delivery = getDeliveryFee()
-  const total = subtotal + delivery
+  const delivery = freeShipping ? 0 : getDeliveryFee()
+  const total = subtotal + delivery - totalCouponDiscount
 
   // Order success view
   if (orderSuccess) {
@@ -419,6 +588,99 @@ export function CheckoutPage() {
                     <MapPin className="h-5 w-5 mr-2 text-[#0f4c2b]" />
                     Adresse de livraison
                   </h2>
+
+                  {/* Saved Addresses Selector */}
+                  {loadingAddresses ? (
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400 mr-2" />
+                      <span className="text-gray-500 text-sm">Chargement de vos adresses...</span>
+                    </div>
+                  ) : savedAddresses.length > 0 && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Utiliser une adresse enregistrée
+                      </label>
+                      <div className="space-y-2">
+                        {savedAddresses.map((addr: any) => (
+                          <button
+                            key={addr.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAddressId(addr.id)
+                              setShippingAddress({
+                                id: addr.id,
+                                full_name: addr.full_name || shippingAddress.full_name,
+                                phone: addr.phone || customerProfile?.phone || shippingAddress.phone,
+                                email: addr.email || customerProfile?.email || shippingAddress.email,
+                                commune: addr.commune || '',
+                                quartier: addr.quartier || '',
+                                address_details: addr.address_details || '',
+                                country: addr.country || 'Mali',
+                                is_default: addr.is_default
+                              })
+                            }}
+                            className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                              selectedAddressId === addr.id
+                                ? 'border-green-500 bg-green-50'
+                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{addr.full_name || 'Adresse'}</span>
+                                  {addr.is_default && (
+                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Par défaut</span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {addr.quartier && `${addr.quartier}, `}{addr.commune}
+                                </p>
+                                {addr.phone && (
+                                  <p className="text-sm text-gray-500">{addr.phone}</p>
+                                )}
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                selectedAddressId === addr.id ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                              }`}>
+                                {selectedAddressId === addr.id && (
+                                  <CheckCircle className="w-4 h-4 text-white" />
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedAddressId(null)
+                            setShippingAddress({
+                              full_name: customerProfile?.first_name 
+                                ? `${customerProfile.first_name} ${customerProfile.last_name || ''}`
+                                : '',
+                              phone: customerProfile?.phone || '',
+                              email: customerProfile?.email || '',
+                              commune: '',
+                              quartier: '',
+                              address_details: '',
+                              country: 'Mali',
+                              is_default: false
+                            })
+                          }}
+                          className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                            selectedAddressId === null
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-dashed border-gray-300 hover:border-gray-400 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <MapPin className="w-4 h-4" />
+                            <span className="font-medium">Nouvelle adresse</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -723,7 +985,7 @@ export function CheckoutPage() {
                             <p className="text-sm text-gray-500">Quantité: {item.quantity}</p>
                           </div>
                           <p className="font-semibold">
-                            {formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}
+                            {formatPrice(getEffectivePrice(item.product) * item.quantity, 'XOF')}
                           </p>
                         </div>
                       ))}
@@ -787,10 +1049,75 @@ export function CheckoutPage() {
                         <p className="text-xs text-gray-500">x{item.quantity}</p>
                       </div>
                       <p className="text-sm font-medium">
-                        {formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}
+                        {formatPrice(getEffectivePrice(item.product) * item.quantity, 'XOF')}
                       </p>
                     </div>
                   ))}
+                </div>
+
+                {/* Multi-Coupon */}
+                <div className="border-t pt-4 mb-4">
+                  <p className="text-sm font-medium mb-2">Code(s) promo</p>
+
+                  {/* Applied coupons list */}
+                  {appliedCoupons.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {appliedCoupons.map((c) => (
+                        <div key={c.code} className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-bold text-green-700">{c.code}</span>
+                            <p className="text-xs text-green-600">-{formatPrice(c.discount, 'XOF')}</p>
+                          </div>
+                          <button onClick={() => handleRemoveCoupon(c.code)} className="text-red-500 hover:text-red-700 text-xs font-medium ml-2">✕</button>
+                        </div>
+                      ))}
+                      {appliedCoupons.length > 1 && (
+                        <button onClick={handleRemoveAllCoupons} className="text-xs text-red-500 hover:text-red-700">Retirer tous les coupons</button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Input for new coupon */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="Entrer un code promo"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading || !couponInput.trim()}
+                      className="px-3 py-2 bg-[#0f4c2b] text-white text-sm rounded-lg hover:bg-[#0a3a20] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {couponLoading ? '...' : 'Appliquer'}
+                    </button>
+                  </div>
+
+                  {/* Message */}
+                  {couponMessage && (
+                    <p className={`text-xs mt-1 ${couponMessageType === 'success' ? 'text-green-600' : 'text-red-500'}`}>{couponMessage}</p>
+                  )}
+
+                  {/* Suggestions */}
+                  {suggestedCoupons.length > 0 && appliedCoupons.length === 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-500 mb-1">Coupons disponibles :</p>
+                      <div className="flex flex-wrap gap-1">
+                        {suggestedCoupons.slice(0, 3).map((s: any) => (
+                          <button
+                            key={s.code}
+                            onClick={() => { setCouponInput(s.code); }}
+                            className="text-xs bg-gray-100 hover:bg-green-100 text-gray-700 hover:text-green-700 px-2 py-1 rounded border border-gray-200 hover:border-green-300 transition-colors"
+                          >
+                            {s.code} {s.discount_type === 'percentage' ? `(-${s.discount_value}%)` : s.discount_type === 'free_shipping' ? '(Livr. gratuite)' : `(-${formatPrice(s.discount_value, 'XOF')})`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t pt-4 space-y-2">
@@ -800,8 +1127,14 @@ export function CheckoutPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Livraison</span>
-                    <span>{formatPrice(delivery, 'XOF')}</span>
+                    <span>{freeShipping ? <span className="text-green-600 font-medium">Gratuit</span> : formatPrice(delivery, 'XOF')}</span>
                   </div>
+                  {totalCouponDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Réduction coupon{appliedCoupons.length > 1 ? 's' : ''}</span>
+                      <span>-{formatPrice(totalCouponDiscount, 'XOF')}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-lg font-bold pt-2 border-t">
                     <span>Total</span>
                     <span className="text-[#0f4c2b]">{formatPrice(total, 'XOF')}</span>

@@ -105,6 +105,23 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [mainImageIndex, setMainImageIndex] = useState<number>(0)
   const [categorySearch, setCategorySearch] = useState('')
 
+  // Helper: Convert ISO 8601 to datetime-local format (yyyy-MM-ddThh:mm)
+  const toDatetimeLocal = (isoString: string | null | undefined): string => {
+    if (!isoString) return ''
+    try {
+      const date = new Date(isoString)
+      // Format: yyyy-MM-ddThh:mm (no timezone)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return `${year}-${month}-${day}T${hours}:${minutes}`
+    } catch {
+      return ''
+    }
+  }
+
   useEffect(() => {
     if (initialData) {
       const trackInventory = initialData.track_inventory ?? (initialData as any).track_inventory ?? false
@@ -114,8 +131,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: initialData.description || '',
         base_price: initialData.base_price || '',
         promo_price: initialData.promo_price || '',
-        promo_start_date: (initialData as any).promo_start_date || '',
-        promo_end_date: (initialData as any).promo_end_date || '',
+        promo_start_date: toDatetimeLocal((initialData as any).promo_start_date),
+        promo_end_date: toDatetimeLocal((initialData as any).promo_end_date),
         category_id: initialData.category_id || null,
         category_ids: initialData.category_ids || [],
         store_id: initialData.store_id || null,

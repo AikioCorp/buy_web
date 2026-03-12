@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore, getEffectivePrice } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
 import { formatPrice } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -9,6 +9,7 @@ import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import { Trash2, ShoppingBag, MessageCircle, Loader2 } from 'lucide-react'
 import { LoginPopup } from '@/components/LoginPopup'
+import { WhatsAppPhonePopup } from '@/components/WhatsAppPhonePopup'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -74,8 +75,17 @@ export function CartPage() {
   }
 
   const [whatsappLoading, setWhatsappLoading] = useState(false)
+  const [showPhonePopup, setShowPhonePopup] = useState(false)
+  const [guestPhone, setGuestPhone] = useState('')
 
-  const handleWhatsAppOrder = async () => {
+  // Process WhatsApp order with optional phone for guests
+  const processWhatsAppOrder = async (phoneNumber?: string) => {
+    // For guests, phone number is required - don't proceed without it
+    if (!user && !phoneNumber) {
+      setShowPhonePopup(true)
+      return
+    }
+    
     if (whatsappLoading) return
     
     // Prevent double-click duplication
@@ -85,7 +95,8 @@ export function CartPage() {
     await new Promise(resolve => setTimeout(resolve, 100))
     const itemsList = items.map(item => {
       const productUrl = `${window.location.origin}/products/${item.product.slug || item.product.id}`
-      return `• *${item.product.name}*\n  Quantité: ${item.quantity}\n  Prix unitaire: ${formatPrice(parseFloat(item.product.base_price), 'XOF')}\n  Sous-total: ${formatPrice(parseFloat(item.product.base_price) * item.quantity, 'XOF')}\n  Lien: ${productUrl}`
+      const unitPrice = getEffectivePrice(item.product)
+      return `• *${item.product.name}*\n  Quantité: ${item.quantity}\n  Prix unitaire: ${formatPrice(unitPrice, 'XOF')}\n  Sous-total: ${formatPrice(unitPrice * item.quantity, 'XOF')}\n  Lien: ${productUrl}`
     }).join('\n\n')
 
     const subtotal = getTotal()
@@ -113,13 +124,14 @@ export function CartPage() {
           clearCart()
         }
       } else {
-        // Guest user - use public endpoint (no auth required)
+        // Guest user - use public endpoint with phone number
         const response = await ordersService.createGuestWhatsAppOrder({
           items: items.map(item => ({
             product_id: item.product.id,
             quantity: item.quantity
           })),
           delivery_fee: deliveryFee,
+          customer_phone: phoneNumber, // Include the captured phone number
         })
         if (response.data && !response.error) {
           const orderData = (response.data as any).data || response.data
@@ -131,13 +143,33 @@ export function CartPage() {
       console.error('WhatsApp order creation failed, continuing with redirect:', err)
     }
 
-    const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Sous-total: ${formatPrice(subtotal, 'XOF')}*\n*Livraison: ${formatPrice(deliveryFee, 'XOF')}*\n*Total global: ${formatPrice(totalGlobal, 'XOF')}*${orderRef}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
+    // Include phone in message if provided
+    const phoneInfo = phoneNumber ? `\n*Mon numéro:* ${phoneNumber}` : ''
+    const message = `Bonjour BuyMore, je souhaite commander:\n\n${itemsList}\n\n*Sous-total: ${formatPrice(subtotal, 'XOF')}*\n*Livraison: ${formatPrice(deliveryFee, 'XOF')}*\n*Total global: ${formatPrice(totalGlobal, 'XOF')}*${orderRef}${phoneInfo}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
     const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
 
     analytics.whatsAppOrder(items.map(i => i.product.id), totalGlobal)
 
     window.open(whatsappUrl, '_blank')
     setWhatsappLoading(false)
+    setShowPhonePopup(false)
+  }
+
+  // Handle WhatsApp order button click
+  const handleWhatsAppOrder = () => {
+    if (user) {
+      // Authenticated user - proceed directly
+      processWhatsAppOrder()
+    } else {
+      // Guest user - show phone popup first
+      setShowPhonePopup(true)
+    }
+  }
+
+  // Handle phone submission from popup
+  const handlePhoneSubmit = (phone: string) => {
+    setGuestPhone(phone)
+    processWhatsAppOrder(phone)
   }
 
   if (items.length === 0) {
@@ -178,7 +210,10 @@ export function CartPage() {
                       <h3 className="font-semibold">{item.product.name}</h3>
                       <p className="text-sm text-gray-600">{item.product.store?.name || 'Boutique'}</p>
                       <p className="text-lg font-bold text-primary mt-1">
-                        {formatPrice(parseFloat(item.product.base_price), 'XOF')}
+                        {formatPrice(getEffectivePrice(item.product), 'XOF')}
+                        {getEffectivePrice(item.product) < parseFloat(item.product.base_price) && (
+                          <span className="text-sm text-gray-400 line-through ml-2">{formatPrice(parseFloat(item.product.base_price), 'XOF')}</span>
+                        )}
                       </p>
                     </div>
 
@@ -267,6 +302,14 @@ export function CartPage() {
         isOpen={showLoginPopup}
         onClose={() => setShowLoginPopup(false)}
         onSuccess={handleLoginSuccess}
+      />
+
+      {/* WhatsApp Phone Popup for guests */}
+      <WhatsAppPhonePopup
+        isOpen={showPhonePopup}
+        onClose={() => setShowPhonePopup(false)}
+        onSubmit={handlePhoneSubmit}
+        isLoading={whatsappLoading}
       />
     </>
   )

@@ -13,7 +13,8 @@ import {
   LogOut,
   ChevronRight,
   Star,
-  TrendingUp
+  TrendingUp,
+  Gift
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { vendorService } from '../../lib/api/vendorService'
@@ -234,6 +235,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, shop, onClo
         )}
         <div className="space-y-1">
           <SidebarLink to="/dashboard/store" icon={<Store size={20} />} label="Ma Boutique" onClick={handleLinkClick} isCollapsed={!isOpen} />
+          <SidebarLink to="/dashboard/coupons" icon={<Gift size={20} />} label="Coupons" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/dashboard/settings" icon={<Settings size={20} />} label="Paramètres" onClick={handleLinkClick} isCollapsed={!isOpen} />
           <SidebarLink to="/dashboard/help" icon={<HelpCircle size={20} />} label="Aide & Support" onClick={handleLinkClick} isCollapsed={!isOpen} />
         </div>

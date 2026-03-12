@@ -1,12 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   ShoppingBag, Package, CreditCard, Clock, Calendar, CheckCircle, Heart, MapPin,
-  Bell, ArrowRight, Star, Truck, Eye, Trash2, Plus, Download, TrendingDown, Award
+  Bell, ArrowRight, Star, Truck, Eye, Trash2, Plus, Download, TrendingDown, Award,
+  Zap, Percent, Gift, ShoppingCart, Sparkles, Tag, ChevronRight
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useOrders } from '../../../hooks/useOrders'
 import { useFavorites } from '../../../hooks/useFavorites'
 import { useProducts } from '../../../hooks/useProducts'
+import { flashSalesService } from '../../../lib/api/flashSalesService'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -16,7 +19,6 @@ const getImageUrl = (media?: Array<{ image_url?: string; file?: string; is_prima
   const primaryImage = media.find(m => m.is_primary) || media[0]
   let url = primaryImage?.image_url || primaryImage?.file
   if (!url) return null
-  // Convertir http:// en https:// pour éviter le blocage mixed content
   if (url.startsWith('http://')) {
     url = url.replace('http://', 'https://')
   }
@@ -109,21 +111,65 @@ const ClientDashboardPage: React.FC = () => {
   const { user } = useAuthStore()
   const { orders, isLoading: ordersLoading } = useOrders()
   const { favorites, isLoading: favoritesLoading } = useFavorites()
-  const { products } = useProducts({ page: 1, page_size: 8, light: true })
+  const { products } = useProducts({ page: 1, page_size: 20, light: true })
   const [tab, setTab] = useState<'overview' | 'wishlist'>('overview')
+  const [flashSales, setFlashSales] = useState<any[]>([])
 
   const firstName = user?.first_name || user?.username || 'Utilisateur'
+  
+  // Charger les flash sales actives
+  useEffect(() => {
+    const loadFlashSales = async () => {
+      try {
+        const response = await flashSalesService.getActiveFlashSales()
+        if (response.data) {
+          setFlashSales(response.data)
+        }
+      } catch (error) {
+        console.error('Error loading flash sales:', error)
+      }
+    }
+    loadFlashSales()
+  }, [])
   
   // Calculer les statistiques
   const totalOrders = orders?.length || 0
   const pendingOrders = orders?.filter(o => o.status === 'pending' || o.status === 'processing').length || 0
+  const deliveredOrders = orders?.filter(o => o.status === 'delivered').length || 0
   const totalSpent = orders?.reduce((sum, order) => sum + parseFloat(order.total_amount), 0) || 0
+  
+  // Calculer les économies réalisées (produits achetés en promo)
+  const totalSavings = orders?.reduce((sum, order) => {
+    return sum + (order.items?.reduce((itemSum: number, item: any) => {
+      const basePrice = parseFloat(item.product?.base_price || 0)
+      const promoPrice = parseFloat(item.product?.promo_price || 0)
+      if (promoPrice > 0 && promoPrice < basePrice) {
+        return itemSum + ((basePrice - promoPrice) * item.quantity)
+      }
+      return itemSum
+    }, 0) || 0)
+  }, 0) || 0
   
   // Récupérer les 3 dernières commandes
   const recentOrders = orders?.slice(0, 3) || []
   
-  // Récupérer 4 produits recommandés
+  // Commandes en cours de livraison (vraies données)
+  const activeDeliveries = orders?.filter(o => o.status === 'processing' || o.status === 'shipped').slice(0, 2) || []
+  
+  // Produits en promo (vraies données)
+  const promoProducts = products?.filter((p: any) => {
+    const basePrice = parseFloat(p.base_price || 0)
+    const promoPrice = parseFloat(p.promo_price || 0)
+    return promoPrice > 0 && promoPrice < basePrice
+  }).slice(0, 4) || []
+  
+  // Produits recommandés (basés sur les catégories des commandes précédentes ou aléatoires)
   const recommendedProducts = products?.slice(0, 4) || []
+  
+  // Produits des flash sales
+  const flashSaleProducts = flashSales.length > 0 
+    ? flashSales[0]?.products?.slice(0, 4).map((fp: any) => fp.product).filter(Boolean) || []
+    : []
 
   return (
     <div>
@@ -251,80 +297,156 @@ const ClientDashboardPage: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            {/* Delivery Status */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">Statut de livraison</h2>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="font-medium text-sm">Commande #2433</p>
-                    <p className="text-xs text-green-600 font-medium">En route</p>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-600 h-2 rounded-full" style={{ width: '75%' }}></div>
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-gray-500">
-                    <span>Préparation</span>
-                    <span>En transit</span>
-                    <span>Livré</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="font-medium text-sm">Commande #2422</p>
-                    <p className="text-xs text-blue-600 font-medium">Préparation</p>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: '25%' }}></div>
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-gray-500">
-                    <span>Préparation</span>
-                    <span>En transit</span>
-                    <span>Livré</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Favorite Shops */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Boutiques favorites</h2>
-              <div className="space-y-3">
-                {[
-                  { name: 'Électronique Plus', abbr: 'EP', rating: 4.8 },
-                  { name: 'Mode Bamako', abbr: 'MB', rating: 4.9 },
-                  { name: 'Tout pour la Maison', abbr: 'TM', rating: 4.5 }
-                ].map((shop, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-sm">
-                        {shop.abbr}
+            {/* Livraisons en cours (vraies données) */}
+            {activeDeliveries.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Truck size={20} className="text-green-600" />
+                  Livraisons en cours
+                </h2>
+                <div className="space-y-4">
+                  {activeDeliveries.map((order: any) => {
+                    const progress = order.status === 'shipped' ? 75 : 25
+                    const statusText = order.status === 'shipped' ? 'En route' : 'Préparation'
+                    const statusColor = order.status === 'shipped' ? 'text-green-600' : 'text-blue-600'
+                    const barColor = order.status === 'shipped' ? 'bg-green-600' : 'bg-blue-600'
+                    return (
+                      <div key={order.id}>
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="font-medium text-sm">Commande #{order.id}</p>
+                          <p className={`text-xs font-medium ${statusColor}`}>{statusText}</p>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className={`${barColor} h-2 rounded-full transition-all`} style={{ width: `${progress}%` }}></div>
+                        </div>
+                        <div className="flex justify-between mt-2 text-xs text-gray-500">
+                          <span>Préparation</span>
+                          <span>En transit</span>
+                          <span>Livré</span>
+                        </div>
                       </div>
-                      <p className="font-medium text-sm">{shop.name}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-medium">{shop.rating}</span>
-                    </div>
-                  </div>
-                ))}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Quick Links */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
-              <h3 className="font-bold text-gray-900 mb-3">Actions rapides</h3>
+            {/* Flash Sales - Offres limitées */}
+            {flashSaleProducts.length > 0 && (
+              <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-lg p-5 text-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold flex items-center gap-2">
+                    <Zap size={18} className="text-yellow-300" />
+                    Ventes Flash
+                  </h3>
+                  <Link to="/" className="text-xs bg-white/20 px-2 py-1 rounded-full hover:bg-white/30 transition-colors flex items-center gap-1">
+                    Voir tout <ChevronRight size={14} />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {flashSaleProducts.slice(0, 2).map((product: any) => {
+                    const basePrice = parseFloat(product.base_price || 0)
+                    const promoPrice = parseFloat(product.promo_price || 0)
+                    const discount = promoPrice > 0 && promoPrice < basePrice 
+                      ? Math.round(((basePrice - promoPrice) / basePrice) * 100) 
+                      : 0
+                    return (
+                      <Link key={product.id} to={`/products/${product.slug || product.id}`} className="bg-white/10 rounded-lg p-2 hover:bg-white/20 transition-colors">
+                        <div className="h-16 bg-white/20 rounded mb-2 overflow-hidden">
+                          {getImageUrl(product.media) ? (
+                            <img src={getImageUrl(product.media)!} alt={product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Package size={20} /></div>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium truncate">{product.name}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {discount > 0 && <span className="text-[10px] bg-yellow-400 text-black px-1 rounded font-bold">-{discount}%</span>}
+                          <span className="text-xs font-bold">{(promoPrice || basePrice).toLocaleString()} F</span>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Produits en promo */}
+            {promoProducts.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <Tag size={18} className="text-red-500" />
+                    Bonnes affaires
+                  </h3>
+                  <Link to="/products?promo=true" className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1">
+                    Voir plus <ChevronRight size={14} />
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {promoProducts.slice(0, 3).map((product: any) => {
+                    const basePrice = parseFloat(product.base_price || 0)
+                    const promoPrice = parseFloat(product.promo_price || 0)
+                    const discount = Math.round(((basePrice - promoPrice) / basePrice) * 100)
+                    return (
+                      <Link key={product.id} to={`/products/${product.slug || product.id}`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                          {getImageUrl(product.media) ? (
+                            <img src={getImageUrl(product.media)!} alt={product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Package size={16} className="text-gray-400" /></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-600 font-bold text-sm">{promoPrice.toLocaleString()} F</span>
+                            <span className="text-gray-400 text-xs line-through">{basePrice.toLocaleString()} F</span>
+                            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">-{discount}%</span>
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Économies réalisées */}
+            {totalSavings > 0 && (
+              <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg p-5 text-white">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <Award size={20} />
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-90">Vous avez économisé</p>
+                    <p className="text-2xl font-bold">{totalSavings.toLocaleString()} FCFA</p>
+                  </div>
+                </div>
+                <p className="text-xs opacity-80">Grâce aux promotions BuyMore ! 🎉</p>
+              </div>
+            )}
+
+            {/* Actions rapides */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-5 border border-green-200">
+              <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <Sparkles size={16} className="text-green-600" />
+                Actions rapides
+              </h3>
               <div className="space-y-2">
-                <a href="/client/addresses" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                <Link to="/client/addresses" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
                   <MapPin size={16} /> Gérer adresses
-                </a>
-                <a href="/client/settings" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                </Link>
+                <Link to="/client/settings" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
                   <Bell size={16} /> Préférences
-                </a>
-                <a href="/client/orders" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
-                  <Download size={16} /> Mes commandes
-                </a>
+                </Link>
+                <Link to="/client/orders" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                  <ShoppingBag size={16} /> Mes commandes
+                </Link>
+                <Link to="/" className="w-full text-left text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-2 py-2">
+                  <ShoppingCart size={16} /> Continuer mes achats
+                </Link>
               </div>
             </div>
           </div>

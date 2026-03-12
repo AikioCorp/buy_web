@@ -595,6 +595,29 @@ const OrdersPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Coupon Info */}
+              {(viewingOrder as any).coupon_code && (
+                <div className="border-t border-gray-200 pt-4 pb-2">
+                  <div className="p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                    <h4 className="font-medium text-yellow-900 mb-2 flex items-center gap-2 text-sm">
+                      <span>🎟️</span> Coupon(s) appliqué(s)
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {(viewingOrder as any).coupon_code.split(',').map((code: string, idx: number) => (
+                        <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium border border-yellow-300">
+                          {code.trim()}
+                        </span>
+                      ))}
+                    </div>
+                    {(viewingOrder as any).discount_amount > 0 && (
+                      <p className="text-xs text-green-700 font-medium mt-1">
+                        Réduction : -{formatPrice((viewingOrder as any).discount_amount)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Articles commandés */}
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
