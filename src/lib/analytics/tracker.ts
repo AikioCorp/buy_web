@@ -4,7 +4,9 @@
  * Uses session-based tracking with batched event sending for minimal performance impact.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.length > 0)
+    ? import.meta.env.VITE_API_BASE_URL
+    : '/api'
 
 // === Session Management ===
 const SESSION_KEY = 'bm_session_id'
