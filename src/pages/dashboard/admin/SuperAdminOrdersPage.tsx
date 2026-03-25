@@ -709,6 +709,9 @@ const SuperAdminOrdersPage: React.FC = () => {
                             {(order as any).order_source === 'whatsapp' && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">📱 WhatsApp</span>
                             )}
+                            {(order as any).order_source === 'mobile' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">📲 Application</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
@@ -818,6 +821,11 @@ const SuperAdminOrdersPage: React.FC = () => {
                   {(viewingOrder as any).order_source === 'whatsapp' && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-bold shadow-sm">
                       📱 WhatsApp
+                    </span>
+                  )}
+                  {(viewingOrder as any).order_source === 'mobile' && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-full text-sm font-bold shadow-sm">
+                      📲 Application
                     </span>
                   )}
                 </div>
@@ -1315,6 +1323,11 @@ const SuperAdminOrdersPage: React.FC = () => {
                     {(editingOrder as any).order_source === 'whatsapp' && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-bold shadow-sm">
                         📱 WhatsApp
+                      </span>
+                    )}
+                    {(editingOrder as any).order_source === 'mobile' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-full text-sm font-bold shadow-sm">
+                        📲 Application
                       </span>
                     )}
                   </div>
