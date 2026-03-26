@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff, Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { useToast } from '@/components/Toast'
+import { apiClient } from '@/lib/api'
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
@@ -45,22 +46,13 @@ export function ResetPasswordPage() {
     try {
       setLoading(true)
 
-      // Appeler l'API backend pour réinitialiser le mot de passe
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token: token,
-          new_password: newPassword
-        })
+      const result = await apiClient.post('/api/auth/reset-password/', {
+        token,
+        new_password: newPassword,
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Erreur lors de la réinitialisation')
+      if (result.error) {
+        throw new Error(result.error)
       }
 
       showToast('Mot de passe réinitialisé avec succès!', 'success')

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Mail, Send, CheckCircle, Lock, Shield, ArrowRight, Sparkles } from 'lucide-react'
 import { useToast } from '@/components/Toast'
+import { apiClient } from '@/lib/api'
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -28,26 +29,16 @@ export function ForgotPasswordPage() {
     try {
       setLoading(true)
 
-      // Appeler l'API Supabase pour envoyer l'email de réinitialisation
-      const { createClient } = await import('@supabase/supabase-js')
-      const supabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY
-      )
+      const result = await apiClient.post('/api/auth/forgot-password/', { email })
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-
-      if (error) {
-        throw error
+      if (result.error) {
+        throw new Error(result.error)
       }
 
       setEmailSent(true)
       showToast('Email de réinitialisation envoyé!', 'success')
 
     } catch (error: any) {
-      console.error('Error sending reset email:', error)
       showToast(
         error.message || 'Erreur lors de l\'envoi de l\'email',
         'error'

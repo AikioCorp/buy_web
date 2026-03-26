@@ -7,8 +7,7 @@ import {
 } from 'lucide-react'
 import { useDashboardCache } from '../../../hooks/useDashboardCache'
 import { useAuthStore } from '../../../stores/authStore'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+import { apiClient } from '../../../lib/api'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: 'En attente', color: 'text-amber-600 bg-amber-50', icon: Clock },
@@ -77,14 +76,9 @@ const SuperAdminDashboardPage: React.FC = () => {
   const loadAnalytics = useCallback(async () => {
     setAnalyticsLoading(true)
     try {
-      const token = localStorage.getItem('auth_token')
-      if (!token) { setAnalyticsLoading(false); return }
-      const res = await fetch(`${API_BASE_URL}/api/analytics/summary?period=7d`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (res.ok) {
-        const json = await res.json()
-        setAnalyticsData(json.data || null)
+      const res = await apiClient.get<any>('/api/analytics/summary?period=7d')
+      if (!res.error && res.data) {
+        setAnalyticsData(res.data.data || res.data || null)
       }
     } catch {
       // Analytics pas encore déployé — silencieux

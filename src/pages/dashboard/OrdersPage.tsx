@@ -8,8 +8,9 @@ import { useNavigate } from 'react-router-dom'
 import { ordersService, Order, OrderStatus } from '../../lib/api/ordersService'
 import { vendorService } from '../../lib/api/vendorService'
 import { useToast } from '../../components/Toast'
+import { apiClient } from '../../lib/api'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 // Cache pour les images et slugs chargés depuis l'API
 const productImageCache = new Map<number, string | null>()
@@ -21,10 +22,9 @@ const fetchProductImage = async (productId: number): Promise<string | null> => {
     return productImageCache.get(productId)!
   }
   try {
-    const response = await fetch(`${API_BASE_URL}/api/products/${productId}`)
-    if (!response.ok) return null
-    const result = await response.json()
-    const product = result.data
+    const result = await apiClient.get<any>(`/api/products/${productId}`)
+    if (result.error) return null
+    const product = result.data?.data || result.data
     // Cache le slug du produit
     if (product.slug) {
       productSlugCache.set(productId, product.slug)

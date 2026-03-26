@@ -6,7 +6,7 @@ import {
   Store, Shield, Truck
 } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+import { apiClient } from '../../../lib/api'
 
 interface Coupon {
   id: number
@@ -53,19 +53,6 @@ interface CouponUsage {
   order?: { id: number; order_number: string; total_amount: number; created_at: string; shipping_full_name: string }
 }
 
-const getToken = () => localStorage.getItem('auth_token') || localStorage.getItem('token')
-
-const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
-  const token = getToken()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(options.headers as any || {}) }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.message || data.error || `Erreur ${res.status}`)
-  }
-  return res.json()
-}
 
 const formatPrice = (price: number) => new Intl.NumberFormat('fr-FR').format(Math.round(price)) + ' FCFA'
 const formatDate = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -133,9 +120,10 @@ export default function SuperAdminCouponsPage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (filterActive !== undefined) params.append('is_active', String(filterActive))
-      const data = await apiFetch(`/api/coupons/?${params}`)
-      setCoupons(data.data || [])
-      setTotalCount(data.count || 0)
+      const res = await apiClient.get<any>(`/api/coupons/?${params}`)
+      if (res.error) throw new Error(res.error)
+      setCoupons(res.data?.data || [])
+      setTotalCount(res.data?.count || 0)
     } catch (err: any) {
       showToast(err.message, 'error')
     } finally {
@@ -147,8 +135,8 @@ export default function SuperAdminCouponsPage() {
 
   const handleGenerateCode = async () => {
     try {
-      const data = await apiFetch('/api/coupons/generate-code', { method: 'POST', body: JSON.stringify({}) })
-      setForm(f => ({ ...f, code: data.code }))
+      const res = await apiClient.post<any>('/api/coupons/generate-code', {})
+      if (res.data?.code) setForm(f => ({ ...f, code: res.data.code }))
     } catch { /* ignore */ }
   }
 
@@ -224,10 +212,12 @@ export default function SuperAdminCouponsPage() {
       }
 
       if (editingCoupon) {
-        await apiFetch(`/api/coupons/${editingCoupon.id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        const res = await apiClient.patch<any>(`/api/coupons/${editingCoupon.id}`, payload)
+        if (res.error) throw new Error(res.error)
         showToast('Coupon modifié avec succès')
       } else {
-        await apiFetch('/api/coupons/', { method: 'POST', body: JSON.stringify(payload) })
+        const res = await apiClient.post<any>('/api/coupons/', payload)
+        if (res.error) throw new Error(res.error)
         showToast('Coupon créé avec succès')
       }
       setShowFormModal(false)
@@ -243,7 +233,8 @@ export default function SuperAdminCouponsPage() {
   const handleDelete = async (coupon: Coupon) => {
     if (!confirm(`Supprimer le coupon ${coupon.code} ?`)) return
     try {
-      await apiFetch(`/api/coupons/${coupon.id}`, { method: 'DELETE' })
+      const res = await apiClient.delete<any>(`/api/coupons/${coupon.id}`)
+      if (res.error) throw new Error(res.error)
       showToast('Coupon supprimé')
       loadCoupons()
     } catch (err: any) {
@@ -253,7 +244,8 @@ export default function SuperAdminCouponsPage() {
 
   const handleToggleActive = async (coupon: Coupon) => {
     try {
-      await apiFetch(`/api/coupons/${coupon.id}`, { method: 'PATCH', body: JSON.stringify({ is_active: !coupon.is_active }) })
+      const res = await apiClient.patch<any>(`/api/coupons/${coupon.id}`, { is_active: !coupon.is_active })
+      if (res.error) throw new Error(res.error)
       loadCoupons()
     } catch (err: any) {
       showToast(err.message, 'error')
@@ -265,12 +257,12 @@ export default function SuperAdminCouponsPage() {
     setShowUsagesModal(true)
     setUsagesLoading(true)
     try {
-      const [usagesData, statsData] = await Promise.all([
-        apiFetch(`/api/coupons/${coupon.id}/usages`),
-        apiFetch(`/api/coupons/${coupon.id}/stats`),
+      const [usagesRes, statsRes] = await Promise.all([
+        apiClient.get<any>(`/api/coupons/${coupon.id}/usages`),
+        apiClient.get<any>(`/api/coupons/${coupon.id}/stats`),
       ])
-      setUsages(usagesData.data || [])
-      setStats(statsData.data || null)
+      setUsages(usagesRes.data?.data || [])
+      setStats(statsRes.data?.data || null)
     } catch (err: any) {
       showToast(err.message, 'error')
     } finally {
@@ -288,8 +280,9 @@ export default function SuperAdminCouponsPage() {
   const loadStorePermissions = useCallback(async () => {
     setPermissionsLoading(true)
     try {
-      const data = await apiFetch('/api/coupons/admin/stores-permissions')
-      setStorePermissions(data.data || [])
+      const res = await apiClient.get<any>('/api/coupons/admin/stores-permissions')
+      if (res.error) throw new Error(res.error)
+      setStorePermissions(res.data?.data || [])
     } catch (err: any) {
       showToast(err.message, 'error')
     } finally {
@@ -300,10 +293,8 @@ export default function SuperAdminCouponsPage() {
   const toggleStorePermission = async (storeId: number, currentValue: boolean) => {
     setTogglingStoreId(storeId)
     try {
-      await apiFetch(`/api/coupons/admin/store/${storeId}/permission`, {
-        method: 'PATCH',
-        body: JSON.stringify({ can_use_coupons: !currentValue }),
-      })
+      const res = await apiClient.patch<any>(`/api/coupons/admin/store/${storeId}/permission`, { can_use_coupons: !currentValue })
+      if (res.error) throw new Error(res.error)
       setStorePermissions(prev => prev.map(s => s.id === storeId ? { ...s, can_use_coupons: !currentValue } : s))
       showToast(`Coupons ${!currentValue ? 'activés' : 'désactivés'} pour la boutique`)
     } catch (err: any) {

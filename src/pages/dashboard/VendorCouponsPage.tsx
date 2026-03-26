@@ -3,15 +3,7 @@ import {
   Gift, Plus, Search, Edit, Trash2, Copy, CheckCircle, XCircle,
   AlertTriangle, Loader2, Tag, Calendar, Percent, DollarSign, X, Truck
 } from 'lucide-react'
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
-
-const getAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  return headers
-}
+import { apiClient } from '@/lib/api'
 
 const formatPrice = (price: number) => new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
 
@@ -102,11 +94,9 @@ const VendorCouponsPage: React.FC = () => {
 
   const checkPermission = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/coupons/vendor/permission`, { headers: getAuthHeaders() })
-      const data = await res.json()
-      if (data.data) {
-        setPermission(data.data)
-      }
+      const res = await apiClient.get<any>('/api/coupons/vendor/permission')
+      if (res.data?.data) setPermission(res.data.data)
+      else setPermission(null)
     } catch {
       setPermission(null)
     } finally {
@@ -117,11 +107,9 @@ const VendorCouponsPage: React.FC = () => {
   const loadCoupons = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (search) params.set('search', search)
-      const res = await fetch(`${API_URL}/api/coupons/vendor/my-coupons?${params}`, { headers: getAuthHeaders() })
-      const data = await res.json()
-      setCoupons(data.data || [])
+      const params = search ? `?search=${encodeURIComponent(search)}` : ''
+      const res = await apiClient.get<any>(`/api/coupons/vendor/my-coupons${params}`)
+      setCoupons(res.data?.data || [])
     } catch {
       setCoupons([])
     } finally {
@@ -136,13 +124,8 @@ const VendorCouponsPage: React.FC = () => {
 
   const generateCode = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/coupons/generate-code`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ prefix: 'SHOP', length: 8 }),
-      })
-      const data = await res.json()
-      if (data.code) setForm(f => ({ ...f, code: data.code }))
+      const res = await apiClient.post<any>('/api/coupons/generate-code', { prefix: 'SHOP', length: 8 })
+      if (res.data?.code) setForm(f => ({ ...f, code: res.data.code }))
     } catch { /* silent */ }
   }
 
@@ -213,19 +196,11 @@ const VendorCouponsPage: React.FC = () => {
         first_order_only: form.first_order_only,
       }
 
-      let url: string, method: string
-      if (editingCoupon) {
-        url = `${API_URL}/api/coupons/vendor/${editingCoupon.id}`
-        method = 'PATCH'
-      } else {
-        url = `${API_URL}/api/coupons/vendor/create`
-        method = 'POST'
-      }
+      const res = editingCoupon
+        ? await apiClient.patch<any>(`/api/coupons/vendor/${editingCoupon.id}`, body)
+        : await apiClient.post<any>('/api/coupons/vendor/create', body)
 
-      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) })
-      const data = await res.json()
-
-      if (!res.ok) throw new Error(data.error || 'Erreur lors de la sauvegarde')
+      if (res.error) throw new Error(res.error)
 
       setIsModalOpen(false)
       loadCoupons()
@@ -239,11 +214,10 @@ const VendorCouponsPage: React.FC = () => {
   const handleDelete = async (id: number) => {
     setDeleting(true)
     try {
-      await fetch(`${API_URL}/api/coupons/vendor/${id}`, { method: 'DELETE', headers: getAuthHeaders() })
+      await apiClient.delete(`/api/coupons/vendor/${id}`)
       setDeleteId(null)
       loadCoupons()
-    } catch { /* silent */ }
-    finally { setDeleting(false) }
+    } catch { /* silent */ } finally { setDeleting(false) }
   }
 
   const copyCode = (code: string) => {
