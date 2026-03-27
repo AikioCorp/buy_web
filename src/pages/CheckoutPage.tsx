@@ -324,26 +324,17 @@ export function CheckoutPage() {
     setCouponMessage(null)
 
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-
       const storeIds = [...new Set(items.map(i => (i.product as any).store_id || (i.product as any).store?.id).filter(Boolean))]
 
-      const res = await fetch(`${API_URL}/api/coupons/validate`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          code,
-          subtotal: getTotal(),
-          product_ids: items.map(i => i.product.id),
-          store_ids: storeIds,
-          items_count: items.reduce((sum, i) => sum + i.quantity, 0),
-          already_applied_coupon_ids: appliedCoupons.map(c => c.coupon?.id).filter(Boolean),
-        }),
+      const res = await apiClient.post<any>('/api/coupons/validate', {
+        code,
+        subtotal: getTotal(),
+        product_ids: items.map(i => i.product.id),
+        store_ids: storeIds,
+        items_count: items.reduce((sum, i) => sum + i.quantity, 0),
+        already_applied_coupon_ids: appliedCoupons.map(c => c.coupon?.id).filter(Boolean),
       })
-      const data = await res.json()
+      const data = res.data ?? {}
 
       if (data.valid) {
         setAppliedCoupons(prev => [...prev, { code: data.coupon.code, discount: data.discount, coupon: data.coupon }])
@@ -385,25 +376,15 @@ export function CheckoutPage() {
   // Load coupon suggestions when checkout starts
   const loadSuggestions = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-
       const storeIds = [...new Set(items.map(i => (i.product as any).store_id || (i.product as any).store?.id).filter(Boolean))]
 
-      const res = await fetch(`${API_URL}/api/coupons/suggest`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          subtotal: getTotal(),
-          product_ids: items.map(i => i.product.id),
-          store_ids: storeIds,
-        }),
+      const res = await apiClient.post<any>('/api/coupons/suggest', {
+        subtotal: getTotal(),
+        product_ids: items.map(i => i.product.id),
+        store_ids: storeIds,
       })
-      const data = await res.json()
-      if (data.data && Array.isArray(data.data)) {
-        setSuggestedCoupons(data.data)
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setSuggestedCoupons(res.data.data)
       }
     } catch (err) {
       // Silent fail for suggestions

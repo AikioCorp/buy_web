@@ -200,26 +200,19 @@ export const ordersService = {
     delivery_fee?: number;
     notes?: string;
   }) {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app';
-
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/whatsapp-guest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: data.items,
-          customer_name: data.customer_name,
-          customer_phone: data.customer_phone,
-          delivery_fee: data.delivery_fee || 1000,
-          notes: data.notes || 'Commande passée via WhatsApp (invité)',
-        }),
+      const res = await apiClient.post<any>('/api/orders/whatsapp-guest', {
+        items: data.items,
+        customer_name: data.customer_name,
+        customer_phone: data.customer_phone,
+        delivery_fee: data.delivery_fee || 1000,
+        notes: data.notes || 'Commande passée via WhatsApp (invité)',
       });
 
-      const result = await response.json();
-      if (response.ok) {
-        return { data: result.data || result, error: null, status: response.status };
+      if (res.error) {
+        return { data: null, error: res.error, status: res.status };
       }
-      return { data: null, error: result.message || 'Erreur lors de la création de la commande', status: response.status };
+      return { data: res.data?.data || res.data, error: null, status: res.status };
     } catch (error: any) {
       return { data: null, error: error.message || 'Erreur réseau', status: 500 };
     }

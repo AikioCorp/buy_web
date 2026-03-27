@@ -10,8 +10,9 @@ import { shopsService } from '../../../lib/api/shopsService'
 import { useToast } from '../../../components/Toast'
 import { usePermissions } from '../../../hooks/usePermissions'
 import { useAdminCacheStore } from '../../../stores/adminCacheStore'
+import { apiClient } from '../../../lib/api'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 // Données des communes et quartiers de Bamako
 const BAMAKO_ZONES: Record<string, { quartiers: string[], frais_livraison: number }> = {
@@ -53,10 +54,8 @@ const productSlugCache = new Map<number, string | null>()
 const fetchProductSlug = async (productId: number): Promise<string | null> => {
   if (productSlugCache.has(productId)) return productSlugCache.get(productId)!
   try {
-    const response = await fetch(`${API_BASE_URL}/api/products/${productId}`)
-    if (!response.ok) return null
-    const result = await response.json()
-    const slug = result.data?.slug || null
+    const result = await apiClient.get<any>(`/api/products/${productId}`)
+    const slug = result.data?.data?.slug || result.data?.slug || null
     productSlugCache.set(productId, slug)
     return slug
   } catch {
@@ -397,9 +396,8 @@ const SuperAdminOrdersPage: React.FC = () => {
     if (!addProductSearch.trim()) return
     setAddProductLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/products?search=${encodeURIComponent(addProductSearch)}&page_size=5`)
-      const result = await response.json()
-      const products = result.data?.results || result.results || result.data || []
+      const result = await apiClient.get<any>(`/api/products?search=${encodeURIComponent(addProductSearch)}&page_size=5`)
+      const products = result.data?.data?.results || result.data?.results || result.data || []
       setAddProductResults(Array.isArray(products) ? products : [])
     } catch {
       setAddProductResults([])

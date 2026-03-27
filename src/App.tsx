@@ -22,7 +22,6 @@ import { ProductDetailPage } from './pages/ProductDetailPage'
 import { CartPage } from './pages/CartPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
-import { TestApiPage } from './pages/TestApiPage'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { ProductsPage as PublicProductsPage } from './pages/ProductsPage'
 import { DealsPage } from './pages/DealsPage'
@@ -150,7 +149,6 @@ function App() {
                 <Route path="faq" element={<FAQPage />} />
                 <Route path="terms" element={<TermsPage />} />
                 <Route path="privacy" element={<PrivacyPolicyPage />} />
-                <Route path="test-api" element={<TestApiPage />} />
               </Route>
 
               {/* Routes du dashboard vendeur */}

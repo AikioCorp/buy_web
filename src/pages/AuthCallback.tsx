@@ -36,33 +36,20 @@ export function AuthCallback() {
       localStorage.setItem('token', token);
 
       try {
-        // Vérifier si l'utilisateur existe dans notre backend
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        // Set token first so apiClient sends it with requests
+        apiClient.setToken(token);
 
-        if (response.ok) {
-          // Utilisateur existe, récupérer ses données
-          console.log('✅ User profile found in backend');
-          
-          const userData = await response.json();
-          console.log('👤 User data from API:', userData);
-          
-          // IMPORTANT: Mettre à jour le store MANUELLEMENT avec les données récupérées
-          console.log('📥 Setting token and updating store...');
-          
-          // 1. Définir le token dans apiClient
-          apiClient.setToken(token);
-          
-          // 2. Déterminer le rôle
-          const userRole = userData.is_superuser ? 'super_admin' 
-            : userData.is_staff ? 'admin' 
-            : userData.is_seller ? 'vendor' 
+        // Vérifier si l'utilisateur existe dans notre backend
+        const meResult = await apiClient.get<any>('/api/auth/me/');
+
+        if (!meResult.error && meResult.data) {
+          const userData = meResult.data;
+
+          const userRole = userData.is_superuser ? 'super_admin'
+            : userData.is_staff ? 'admin'
+            : userData.is_seller ? 'vendor'
             : 'client';
-          
-          // 3. Mettre à jour le store directement
+
           useAuthStore.setState({
             user: userData,
             isAuthenticated: true,
@@ -70,76 +57,44 @@ export function AuthCallback() {
             isLoading: false,
             error: null,
           });
-          
-          console.log('✅ Store updated manually:', { 
-            isAuthenticated: true, 
-            userId: userData.id,
-            role: userRole 
-          });
-          
-          // Déterminer la redirection basée sur le rôle
-          let redirectPath = '/';
-          
-          if (userData.is_superuser) {
-            redirectPath = '/superadmin';
-          } else if (userData.is_staff) {
-            redirectPath = '/admin';
-          } else if (userData.is_seller) {
-            redirectPath = '/dashboard';
-          } else {
-            redirectPath = '/client';
-          }
-          
-          console.log('🔀 Redirecting to:', redirectPath);
-          
-          // Rediriger
+
+          const redirectPath = userData.is_superuser ? '/superadmin'
+            : userData.is_staff ? '/admin'
+            : userData.is_seller ? '/dashboard'
+            : '/client';
+
           navigate(redirectPath, { replace: true });
-        } else if (response.status === 404 || response.status === 401) {
+        } else if (meResult.status === 404 || meResult.status === 401) {
           // Utilisateur n'existe pas, créer le profil
-          console.log('⚠️ Profile not found, creating new profile...');
-          
-          // Décoder le JWT pour obtenir les infos utilisateur
           const payload = JSON.parse(atob(token.split('.')[1]));
           const email = payload.email || '';
           const fullName = payload.user_metadata?.full_name || payload.user_metadata?.name || '';
-          
           const nameParts = fullName.split(' ');
           const firstName = nameParts[0] || '';
           const lastName = nameParts.slice(1).join(' ') || '';
           const username = `${firstName.toLowerCase()}_${Date.now().toString(36).slice(-4)}`;
 
-          const createResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email,
-              username,
-              password: Math.random().toString(36).slice(-16), // Mot de passe aléatoire
-              first_name: firstName,
-              last_name: lastName,
-            }),
+          // Reset token so register call is unauthenticated
+          apiClient.setToken(null);
+          const createResult = await apiClient.post<any>('/api/auth/register', {
+            email,
+            username,
+            password: Math.random().toString(36).slice(-16),
+            first_name: firstName,
+            last_name: lastName,
           });
 
-          if (createResponse.ok) {
-            console.log('✅ New profile created');
-            const newUserData = await createResponse.json();
-            
-            // Mettre à jour le store avec le nouvel utilisateur
+          if (!createResult.error && createResult.data) {
             apiClient.setToken(token);
             useAuthStore.setState({
-              user: newUserData.user || newUserData,
+              user: createResult.data.user || createResult.data,
               isAuthenticated: true,
               role: 'client',
               isLoading: false,
               error: null,
             });
-            
             navigate('/');
           } else {
-            const errorData = await createResponse.json();
-            console.error('❌ Failed to create profile:', errorData);
             setError('Erreur lors de la création du profil');
             setTimeout(() => navigate('/login?error=profile_creation_failed'), 2000);
           }
@@ -147,7 +102,6 @@ export function AuthCallback() {
           throw new Error('Erreur lors de la vérification du profil');
         }
       } catch (apiError: any) {
-        console.error('❌ API error:', apiError);
         setError('Erreur de connexion au serveur');
         setTimeout(() => navigate('/login?error=api_error'), 2000);
       }
