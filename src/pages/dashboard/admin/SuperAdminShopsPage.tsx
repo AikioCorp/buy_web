@@ -819,8 +819,8 @@ const SuperAdminShopsPage: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Toggle Active */}
-                    <div className="flex items-center justify-between py-2 border-t border-gray-100 mb-3">
+                    {/* Toggle Active + Featured */}
+                    <div className="flex items-center justify-between py-2 border-t border-gray-100">
                       <span className="text-sm text-gray-600">Boutique active</span>
                       <button
                         onClick={() => handleToggleActive(shop)}
@@ -828,6 +828,30 @@ const SuperAdminShopsPage: React.FC = () => {
                         className={`relative w-11 h-6 rounded-full transition-colors ${shop.is_active ? 'bg-green-500' : 'bg-gray-300'}`}
                       >
                         <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${shop.is_active ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100 mb-3">
+                      <span className="text-sm text-gray-600 flex items-center gap-1">
+                        <Star size={14} className={shop.is_featured ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} />
+                        En vedette
+                      </span>
+                      <button
+                        onClick={async () => {
+                          try {
+                            setActionLoading(true)
+                            await shopsService.toggleFeatured(shop.id)
+                            showToast(shop.is_featured ? 'Boutique retirée des vedettes' : 'Boutique mise en vedette', 'success')
+                            loadShops()
+                          } catch (err: any) {
+                            showToast(err.message || 'Erreur', 'error')
+                          } finally {
+                            setActionLoading(false)
+                          }
+                        }}
+                        disabled={actionLoading}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${shop.is_featured ? 'bg-amber-500' : 'bg-gray-300'}`}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${shop.is_featured ? 'left-6' : 'left-1'}`} />
                       </button>
                     </div>
 
@@ -1343,6 +1367,26 @@ const SuperAdminShopsPage: React.FC = () => {
                         Vérifier
                       </button>
                     )}
+                    <button
+                      onClick={async () => {
+                        try {
+                          setActionLoading(true)
+                          await shopsService.toggleFeatured(viewingShop.id)
+                          showToast(viewingShop.is_featured ? 'Boutique retirée des vedettes' : 'Boutique mise en vedette', 'success')
+                          loadShops()
+                          setIsViewModalOpen(false)
+                        } catch (err: any) {
+                          showToast(err.message || 'Erreur', 'error')
+                        } finally {
+                          setActionLoading(false)
+                        }
+                      }}
+                      disabled={actionLoading}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-colors font-medium ${viewingShop.is_featured ? 'bg-gray-500 text-white hover:bg-gray-600' : 'bg-amber-500 text-white hover:bg-amber-600'}`}
+                    >
+                      <Star size={18} />
+                      {viewingShop.is_featured ? 'Retirer vedette' : 'Mettre en vedette'}
+                    </button>
                     <button
                       onClick={() => setIsEditingInView(true)}
                       className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium"

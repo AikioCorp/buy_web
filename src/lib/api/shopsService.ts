@@ -21,6 +21,7 @@ export interface Shop {
   products_count?: number;
   is_active: boolean;
   is_verified?: boolean;
+  is_featured?: boolean;
   verification_date?: string;
   // Approval status
   status?: ShopStatus;
@@ -382,7 +383,7 @@ export const shopsService = {
    */
   async validateShop(id: number) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, { is_active: true, status: 'approved' });
+      const response = await apiClient.post<Shop>(`/api/shops/admin/${id}/approve`, {});
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la validation de la boutique');
@@ -406,9 +407,7 @@ export const shopsService = {
    */
   async approveShop(id: number, notes?: string) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, {
-        status: 'approved',
-        is_active: true,
+      const response = await apiClient.post<Shop>(`/api/shops/admin/${id}/approve`, {
         admin_notes: notes
       });
       return { data: response.data, status: response.status };
@@ -422,10 +421,8 @@ export const shopsService = {
    */
   async rejectShop(id: number, reason: string) {
     try {
-      const response = await apiClient.patch<Shop>(`/api/shops/${id}`, {
-        status: 'rejected',
-        is_active: false,
-        rejection_reason: reason
+      const response = await apiClient.post<Shop>(`/api/shops/admin/${id}/reject`, {
+        reason
       });
       return { data: response.data, status: response.status };
     } catch (error: any) {
@@ -494,6 +491,18 @@ export const shopsService = {
       return { data: response.data, status: response.status };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors du retrait de la vérification');
+    }
+  },
+
+  /**
+   * Toggle featured status of a shop (Admin)
+   */
+  async toggleFeatured(id: number) {
+    try {
+      const response = await apiClient.post<Shop>(`/api/shops/admin/${id}/toggle-featured`);
+      return { data: response.data, status: response.status };
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors du changement de statut vedette');
     }
   },
 };

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, ShoppingCart, Eye, Star } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
@@ -204,3 +204,4 @@ export function ProductCard({ product, showDiscount = false, dark = false }: Pro
     </div>
   )
 }
+

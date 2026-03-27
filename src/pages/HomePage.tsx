@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+﻿import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Package, ShoppingCart, Star, ChevronRight, Truck, Shield,
@@ -295,6 +295,7 @@ export function HomePage() {
   const [popularScrollRef, setPopularScrollRef] = useState<HTMLDivElement | null>(null)
   const [menScrollRef, setMenScrollRef] = useState<HTMLDivElement | null>(null)
   const [womenScrollRef, setWomenScrollRef] = useState<HTMLDivElement | null>(null)
+  const [featuredShopsScrollRef, setFeaturedShopsScrollRef] = useState<HTMLDivElement | null>(null)
   const [kidsScrollRef, setKidsScrollRef] = useState<HTMLDivElement | null>(null)
   const [foodScrollRef, setFoodScrollRef] = useState<HTMLDivElement | null>(null)
   const [beautyScrollRef, setBeautyScrollRef] = useState<HTMLDivElement | null>(null)
@@ -474,7 +475,8 @@ export function HomePage() {
 
   const loadShops = async () => {
     try {
-      const response = await shopsService.getPublicShops(1, 12)
+      // Load a larger page so admin-selected featured shops are not missed.
+      const response = await shopsService.getPublicShops(1, 100)
       if (response.data?.results && response.data.results.length > 0) {
         setShops(response.data.results)
       } else if (Array.isArray(response.data) && response.data.length > 0) {
@@ -485,8 +487,8 @@ export function HomePage() {
     }
   }
 
-  // Boutiques en vedette (4 premières)
-  const featuredShops = shops.slice(0, 4)
+  // Boutiques en vedette: strictly admin-controlled via is_featured.
+  const featuredShops = shops.filter((s: any) => s.is_featured).slice(0, 8)
   // Toutes les boutiques
   const allShopsData = shops
 
@@ -856,6 +858,23 @@ export function HomePage() {
 
   const MEN_STORE_KEYWORDS = ['au masculin', 'homme', 'barbier', 'gentlemen'];
 
+  const normalizeGenderText = (value: string): string =>
+    (value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+
+  const hasAnyGenderKeyword = (text: string, keywords: string[]): boolean => {
+    const normalizedText = ` ${normalizeGenderText(text)} `;
+    return keywords.some((keyword) => {
+      const normalizedKeyword = normalizeGenderText(keyword);
+      if (!normalizedKeyword) return false;
+      return normalizedText.includes(` ${normalizedKeyword} `);
+    });
+  };
+
   const isMenProduct = (product: any): boolean => {
     const name = (product.name || '').toLowerCase();
     const storeName = (product.store?.name || product.shop?.name || '').toLowerCase();
@@ -865,16 +884,16 @@ export function HomePage() {
     const text = `${name} ${storeName} ${meta} ${catName}`;
 
     // Exclure les produits clairement féminins
-    if (WOMEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return false;
-    if (WOMEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return false;
+    if (hasAnyGenderKeyword(name, WOMEN_ONLY_KEYWORDS)) return false;
+    if (hasAnyGenderKeyword(storeName, WOMEN_STORE_KEYWORDS)) return false;
 
     // Produits clairement masculins par leur nom
-    if (MEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return true;
+    if (hasAnyGenderKeyword(text, MEN_ONLY_KEYWORDS)) return true;
     // Boutique clairement masculine
-    if (MEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return true;
+    if (hasAnyGenderKeyword(storeName, MEN_STORE_KEYWORDS)) return true;
 
-    const menKeywords = ['homme', 'masculin', 'men', 'garçon', 'monsieur', 'male', 'man'];
-    return menKeywords.some((k) => text.includes(k));
+    const menKeywords = ['homme', 'masculin', 'men', 'garçon', 'monsieur', 'male', 'for men', 'mens'];
+    return hasAnyGenderKeyword(text, menKeywords);
   };
 
   const isWomenProduct = (product: any): boolean => {
@@ -886,16 +905,16 @@ export function HomePage() {
     const text = `${name} ${storeName} ${meta} ${catName}`;
 
     // Exclure d'abord les produits clairement masculins
-    if (MEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return false;
-    if (MEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return false;
+    if (hasAnyGenderKeyword(text, MEN_ONLY_KEYWORDS)) return false;
+    if (hasAnyGenderKeyword(storeName, MEN_STORE_KEYWORDS)) return false;
 
     // Produits clairement féminins par leur nom
-    if (WOMEN_ONLY_KEYWORDS.some((k) => name.includes(k))) return true;
+    if (hasAnyGenderKeyword(text, WOMEN_ONLY_KEYWORDS)) return true;
     // Boutique clairement féminine
-    if (WOMEN_STORE_KEYWORDS.some((k) => storeName.includes(k))) return true;
+    if (hasAnyGenderKeyword(storeName, WOMEN_STORE_KEYWORDS)) return true;
 
-    const womenKeywords = ['femme', 'féminin', 'feminine', 'women', 'dame', 'fille', 'woman', 'female'];
-    return womenKeywords.some((k) => text.includes(k));
+    const womenKeywords = ['femme', 'féminin', 'feminine', 'women', 'dame', 'fille', 'woman', 'female', 'lady'];
+    return hasAnyGenderKeyword(text, womenKeywords);
   };
 
   // Produits de mode Homme / Femme basés sur catégorie + heuristiques
@@ -926,28 +945,27 @@ export function HomePage() {
 
   const getModeWomenProducts = (): any[] => {
     if (import.meta.env.DEV) {
-      console.log('🔍 Mode base products count (women):', modeBaseProducts.length);
+      console.log('Mode base products count (women):', modeBaseProducts.length);
     }
-    // 1) Produits explicitement féminins
     const women = modeBaseProducts.filter((p) => isWomenProduct(p));
     if (import.meta.env.DEV) {
-      console.log('👗 Women products found:', women.length);
+      console.log('Women products found:', women.length);
     }
-    if (women.length >= 4) return women;
+    if (women.length > 0) return shuffleArray([...women]);
 
-    // 2) Fallback : produits non explicitement masculins
     const notMen = modeBaseProducts.filter((p) => !isMenProduct(p));
     if (import.meta.env.DEV) {
-      console.log('🚺 Not-men products found:', notMen.length);
+      console.log('Women fallback not-men products found:', notMen.length);
     }
-    if (notMen.length >= 4) return shuffleArray(notMen);
+    if (notMen.length > 0) return shuffleArray([...notMen]);
 
-    // 3) Dernier recours : tous les produits mode
-    if (import.meta.env.DEV) {
-      console.log('⚠️ Using all mode products as fallback (women)');
-    }
-    return shuffleArray([...modeBaseProducts]);
+    return [];
   };
+
+  const modeWomenProducts = useMemo(
+    () => getModeWomenProducts().slice(0, MAX_PRODUCTS_PER_SECTION),
+    [modeBaseProducts]
+  )
 
   // Heuristique pour identifier les produits Enfants/Bébé
   const isKidsProduct = (product: any): boolean => {
@@ -1449,41 +1467,59 @@ export function HomePage() {
               <h2 className="text-xl font-bold text-gray-900">Boutiques en vedette</h2>
               <Link to="/shops" className="text-green-600 text-sm font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-4 h-4" /></Link>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {featuredShops.map((shop, index) => (
-                <Link key={shop.id} to={`/shops/${shop.id}`} className="relative overflow-hidden rounded-xl hover:scale-[1.02] transition-transform shadow-lg group">
-                  {/* Shop Banner Image as Background */}
-                  {shop.banner_url ? (
-                    <div className="absolute inset-0">
-                      <img src={shop.banner_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-                    </div>
-                  ) : (
-                    <div className={`absolute inset-0 bg-gradient-to-br ${shopColors[index % shopColors.length]}`}>
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
-                    </div>
-                  )}
+            <div className="relative group">
+              <button
+                onClick={() => featuredShopsScrollRef?.scrollBy({ left: -320, behavior: 'smooth' })}
+                className="hidden md:flex absolute left-0 top-1/2 z-20 h-11 w-11 -translate-x-4 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-lg transition-all hover:bg-green-500 hover:text-white group-hover:translate-x-0 group-hover:opacity-100 opacity-0"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => featuredShopsScrollRef?.scrollBy({ left: 320, behavior: 'smooth' })}
+                className="hidden md:flex absolute right-0 top-1/2 z-20 h-11 w-11 translate-x-4 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-lg transition-all hover:bg-green-500 hover:text-white group-hover:translate-x-0 group-hover:opacity-100 opacity-0"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <div ref={setFeaturedShopsScrollRef} className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-3 scrollbar-hide snap-x snap-mandatory scroll-smooth">
+                {featuredShops.map((shop, index) => (
+                  <Link
+                    key={shop.id}
+                    to={`/shops/${shop.id}`}
+                    className="group relative h-[230px] min-w-[280px] flex-shrink-0 snap-start overflow-hidden rounded-xl shadow-lg transition-transform hover:scale-[1.02] md:min-w-[320px]"
+                  >
+                    {/* Shop Banner Image as Background */}
+                    {shop.banner_url ? (
+                      <div className="absolute inset-0">
+                        <img src={shop.banner_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+                      </div>
+                    ) : (
+                      <div className={`absolute inset-0 bg-gradient-to-br ${shopColors[index % shopColors.length]}`}>
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
+                      </div>
+                    )}
 
-                  {/* Content */}
-                  <div className="relative z-10 p-6 text-white">
-                    {/* Shop Logo - Larger and more prominent */}
-                    <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mb-3 overflow-hidden shadow-md">
-                      {shop.logo_url ? (
-                        <img src={shop.logo_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
-                      ) : (
-                        <Store className="w-8 h-8 text-gray-600" />
-                      )}
-                    </div>
+                    {/* Content */}
+                    <div className="relative z-10 p-6 text-white">
+                      {/* Shop Logo - Larger and more prominent */}
+                      <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mb-3 overflow-hidden shadow-md">
+                        {shop.logo_url ? (
+                          <img src={shop.logo_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
+                        ) : (
+                          <Store className="w-8 h-8 text-gray-600" />
+                        )}
+                      </div>
 
-                    <h3 className="font-bold text-lg">{shop.name}</h3>
-                    <p className="text-white/90 text-sm mb-2">{shop.category || shop.city || 'Boutique'}</p>
-                    <div className="flex items-center gap-1 mt-2">
-                      <Star className="w-4 h-4 fill-yellow-300 text-yellow-300" />
-                      <span className="text-sm font-semibold">{shop.rating || 4.5}</span>
+                      <h3 className="font-bold text-lg">{shop.name}</h3>
+                      <p className="text-white/90 text-sm mb-2">{shop.category || shop.city || 'Boutique'}</p>
+                      <div className="flex items-center gap-1 mt-2">
+                        <Star className="w-4 h-4 fill-yellow-300 text-yellow-300" />
+                        <span className="text-sm font-semibold">{shop.rating || 4.5}</span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1514,74 +1550,6 @@ export function HomePage() {
           </div>
         </section>
       )}
-
-      {/* Section Ramadan - Affichée seulement si des produits existent */}
-      <LazySection>
-      {(() => {
-        if (!productsLoading && ramadanProducts.length === 0) return null;
-        
-        return (
-          <section className="py-10 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 relative overflow-hidden">
-            {/* Decorative elements */}
-            <div className="absolute top-4 left-8 text-white/10 text-8xl select-none">☪</div>
-            <div className="absolute bottom-4 right-12 text-white/10 text-7xl select-none">🌙</div>
-            <div className="absolute top-1/2 left-1/4 text-white/5 text-9xl select-none">✨</div>
-
-            <div className="container mx-auto px-4 relative z-10">
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
-                  <span className="text-xl">🌙</span>
-                  <span className="text-white font-semibold text-sm">Spécial Ramadan</span>
-                  <span className="text-xl">☪</span>
-                </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">Ramadan Mubarak</h2>
-                <p className="text-emerald-100 text-lg">Préparez votre mois sacré avec nos produits essentiels</p>
-              </div>
-
-              <div className="relative group">
-                <button
-                  onClick={() => {
-                    const el = document.getElementById('ramadan-scroll')
-                    el?.scrollBy({ left: -300, behavior: 'smooth' })
-                  }}
-                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
-                >
-                  <ChevronLeft className="w-6 h-6 text-emerald-600" />
-                </button>
-
-                <button
-                  onClick={() => {
-                    const el = document.getElementById('ramadan-scroll')
-                    el?.scrollBy({ left: 300, behavior: 'smooth' })
-                  }}
-                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
-                >
-                  <ChevronRight className="w-6 h-6 text-emerald-600" />
-                </button>
-
-                <div id="ramadan-scroll" className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-                  {productsLoading ? (
-                    <SectionSkeleton count={6} />
-                  ) : (
-                    ramadanProducts.map((product: any, index: number) => (
-                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
-                        <ProductCard product={product} index={index} showDiscount dark />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="text-center mt-6">
-                <Link to="/products?category=alimentation" className="inline-flex items-center gap-2 px-8 py-3 bg-white text-emerald-600 rounded-full font-bold hover:shadow-lg hover:scale-105 transition-all">
-                  Voir tous les produits Ramadan <span className="text-xl">🌙</span>
-                </Link>
-              </div>
-            </div>
-          </section>
-        );
-      })()}
-      </LazySection>
 
       {/* Flash Deals - Multiple sections */}
       {activeFlashSales.length > 0 && activeFlashSales.map((flashSaleData, sectionIndex) => {
@@ -1943,8 +1911,8 @@ export function HomePage() {
             <div ref={setWomenScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory px-2">
               {productsLoading ? (
                 <SectionSkeleton count={6} />
-              ) : getModeWomenProducts().length > 0 ? (
-                getModeWomenProducts().map((product: any, index: number) => (
+              ) : modeWomenProducts.length > 0 ? (
+                modeWomenProducts.map((product: any, index: number) => (
                   <div key={product.id} className="min-w-[140px] md:min-w-[200px] snap-start">
                     <ProductCard product={product} index={index} />
                   </div>
@@ -2198,3 +2166,5 @@ export function HomePage() {
     </div>
   )
 }
+
+
