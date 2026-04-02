@@ -1133,24 +1133,27 @@ const SuperAdminProductsPage: React.FC = () => {
             promo_end_date: (editingProduct as any).promo_end_date || '',
             category_id: editingProduct.category?.id || (editingProduct as any).category_id || null,
             category_ids: (() => {
-              // Try multiple extraction strategies
               let ids: number[] = []
 
-              // Strategy 1: categories array with nested category objects
-              if ((editingProduct as any).categories && Array.isArray((editingProduct as any).categories)) {
+              // Strategy 0: extra_categories from product_categories junction table
+              const extras = (editingProduct as any).extra_categories
+              if (extras && Array.isArray(extras) && extras.length > 0) {
+                ids = extras
+                  .map((ec: any) => ec.category?.id || ec.category_id)
+                  .filter((id: any) => id != null && !isNaN(id))
+              }
+
+              // Add primary category if not already in the list
+              const primaryId = editingProduct.category?.id || (editingProduct as any).category_id
+              if (primaryId && !ids.includes(primaryId)) {
+                ids = [primaryId, ...ids]
+              }
+
+              // Fallback: legacy 'categories' array
+              if (ids.length === 0 && (editingProduct as any).categories?.length > 0) {
                 ids = (editingProduct as any).categories
                   .map((c: any) => c.category?.id || c.category_id || c.id)
                   .filter((id: any) => id != null)
-              }
-
-              // Strategy 2: single category object
-              if (ids.length === 0 && editingProduct.category?.id) {
-                ids = [editingProduct.category.id]
-              }
-
-              // Strategy 3: category_id field
-              if (ids.length === 0 && (editingProduct as any).category_id) {
-                ids = [(editingProduct as any).category_id]
               }
 
               return ids
