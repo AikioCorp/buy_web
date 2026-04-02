@@ -574,12 +574,36 @@ export function ProductDetailPage() {
 
           {/* Product Info */}
           <div className="space-y-5">
-            {/* Category badge */}
-            {product.category && (
-              <span className="inline-block px-3 py-1 bg-[#0f4c2b]/10 text-[#0f4c2b] text-sm font-medium rounded-full">
-                {typeof product.category === 'object' ? product.category.name : product.category}
-              </span>
-            )}
+            {/* Category badges — primary + extra from product_categories */}
+            {(() => {
+              const allCategories: { id: number; name: string; slug: string }[] = []
+              if (product.category && typeof product.category === 'object') {
+                allCategories.push(product.category as any)
+              }
+              const extras: any[] = (product as any).extra_categories || []
+              extras.forEach((ec: any) => {
+                const cat = ec.category
+                if (cat && !allCategories.find(c => c.id === cat.id)) {
+                  allCategories.push(cat)
+                }
+              })
+              if (allCategories.length === 0 && product.category) {
+                return (
+                  <span className="inline-block px-3 py-1 bg-[#0f4c2b]/10 text-[#0f4c2b] text-sm font-medium rounded-full">
+                    {typeof product.category === 'string' ? product.category : (product.category as any).name}
+                  </span>
+                )
+              }
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {allCategories.map(cat => (
+                    <span key={cat.id} className="inline-block px-3 py-1 bg-[#0f4c2b]/10 text-[#0f4c2b] text-sm font-medium rounded-full">
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
+              )
+            })()}
 
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{product.name}</h1>
 
