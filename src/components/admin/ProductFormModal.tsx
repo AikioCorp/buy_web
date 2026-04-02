@@ -680,14 +680,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   {formData.category_ids && formData.category_ids.length > 0 && (
                     <div className="mb-3 flex flex-wrap gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
                       {formData.category_ids.map(catId => {
-                        const cat = flatCategories.find(c => c.id === catId)
+                        const cat = flatCategories.find(c => Number(c.id) === Number(catId))
                         return cat ? (
                           <span key={catId} className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium shadow-sm">
                             <Tag size={12} />
                             {cat.name.replace(/^—\s*/, '').replace(/^—\s*/, '')}
                             <button
                               type="button"
-                              onClick={() => setFormData({ ...formData, category_ids: formData.category_ids?.filter(id => id !== catId) })}
+                              onClick={() => setFormData({ ...formData, category_ids: formData.category_ids?.filter(id => Number(id) !== Number(catId)) })}
                               className="ml-1 hover:bg-green-700 rounded p-0.5 transition-colors"
                             >
                               <X size={14} />
@@ -727,7 +727,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         cat.name.toLowerCase().includes(categorySearch.toLowerCase())
                       )
                       .map(cat => {
-                        const isSelected = formData.category_ids?.includes(cat.id) || false
+                        const isSelected = formData.category_ids?.some(id => Number(id) === Number(cat.id)) || false
                         const isSubCategory = cat.name.startsWith('—')
                         return (
                           <label 
@@ -742,9 +742,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                               onChange={(e) => {
                                 const currentIds = formData.category_ids || []
                                 if (e.target.checked) {
-                                  setFormData({ ...formData, category_ids: [...currentIds, cat.id] })
+                                  setFormData({ ...formData, category_ids: [...currentIds.map(Number), Number(cat.id)] })
                                 } else {
-                                  setFormData({ ...formData, category_ids: currentIds.filter(id => id !== cat.id) })
+                                  setFormData({ ...formData, category_ids: currentIds.filter(id => Number(id) !== Number(cat.id)) })
                                 }
                               }}
                               className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
