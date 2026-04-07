@@ -28,8 +28,15 @@ export function ForgotPasswordPage() {
 
     try {
       setLoading(true)
-
-      const result = await apiClient.post('/api/auth/forgot-password/', { email })
+      const result = await Promise.race([
+        apiClient.post('/api/auth/forgot-password/', { email }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("L'envoi prend trop de temps. Veuillez réessayer.")),
+            20000
+          )
+        ),
+      ])
 
       if (result.error) {
         throw new Error(result.error)
