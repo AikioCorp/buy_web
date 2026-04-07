@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { shopsService, Shop } from '@/lib/api/shopsService'
 import { productsService, Product } from '@/lib/api/productsService'
@@ -43,11 +43,45 @@ export function ShopDetailPage() {
   const navigate = useNavigate()
   const [shop, setShop] = useState<Shop | any>(null)
   const [products, setProducts] = useState<(Product | any)[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
   const [loading, setLoading] = useState(true)
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
   const { toggleFavorite, isFavorite } = useFavoritesStore()
   const addItem = useCartStore((state) => state.addItem)
   const { showToast } = useToast()
+
+  const categoryOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const product of products) {
+      const slug = product.category?.slug || product.category_slug
+      const name = product.category?.name || product.category_name
+      if (slug && name && !seen.has(slug)) {
+        seen.set(slug, name)
+      }
+    }
+    return Array.from(seen.entries()).map(([slug, name]) => ({ slug, name }))
+  }, [products])
+
+  const filteredProducts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    return products.filter((product) => {
+      const matchesCategory = !selectedCategory
+        ? true
+        : ((product.category?.slug || product.category_slug || '') === selectedCategory)
+      const haystack = [
+        product.name,
+        product.category?.name,
+        product.category_name,
+        product.description,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      const matchesSearch = normalizedQuery.length === 0 || haystack.includes(normalizedQuery)
+      return matchesCategory && matchesSearch
+    })
+  }, [products, searchQuery, selectedCategory])
 
   useEffect(() => {
     if (id) {
@@ -217,11 +251,62 @@ export function ShopDetailPage() {
 
         {/* Products Section */}
         <div className="pb-12">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900">Produits de la boutique</h2>
-            <Link to="/shops" className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm font-medium">
-              Toutes les boutiques <ChevronRight className="w-4 h-4" />
-            </Link>
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900">Produits de la boutique</h2>
+              <Link to="/shops" className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm font-medium">
+                Toutes les boutiques <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {products.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-5">
+                <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Rechercher dans cette boutique..."
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 whitespace-nowrap">
+                    {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} affiché{filteredProducts.length > 1 ? 's' : ''}
+                  </div>
+                </div>
+
+                {categoryOptions.length > 0 && (
+                  <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('')}
+                      className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                        !selectedCategory
+                          ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-lg shadow-green-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Toutes
+                    </button>
+                    {categoryOptions.map((category) => (
+                      <button
+                        key={category.slug}
+                        type="button"
+                        onClick={() => setSelectedCategory(category.slug)}
+                        className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                          selectedCategory === category.slug
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-lg shadow-green-200'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           {products.length === 0 ? (
@@ -230,9 +315,15 @@ export function ShopDetailPage() {
               <h3 className="text-lg font-medium text-gray-700 mb-2">Aucun produit disponible</h3>
               <p className="text-gray-500">Cette boutique n'a pas encore ajouté de produits.</p>
             </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+              <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-700 mb-2">Aucun produit ne correspond</h3>
+              <p className="text-gray-500">Essayez une autre catégorie ou une autre recherche.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <Link 
                   key={product.id} 
                   to={`/products/${product.slug || product.id}`}

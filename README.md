@@ -9,20 +9,13 @@ BuyMore est une plateforme marketplace permettant à des vendeurs de créer leur
 
 ## Architecture
 
-Ce projet utilise **pnpm workspaces** pour gérer l'application web et les packages partagés.
+Cette application est un frontend **React + Vite** autonome qui consomme l'API Node.js `buymore-api`.
 
-```
-buymore/
-├── web/               # Application web (React + Vite + TailwindCSS)
-├── packages/
-│   ├── ui/            # Composants UI réutilisables
-│   └── api-client/    # Client API + hooks + stores Zustand
-├── supabase/
-│   ├── migrations/    # Schéma de base de données
-│   ├── seed/          # Données de test
-│   ├── policies/      # Politiques RLS (Row Level Security)
-│   └── functions/     # Edge Functions (Deno)
-└── docs/              # Documentation complète
+```text
+BuyMore/
+├── buy_web/       # Frontend web React + Vite
+├── buymore-api/   # API Node.js/Express
+└── Buy_Apps/      # Application mobile Flutter
 ```
 
 ## Démarrage rapide
@@ -30,8 +23,8 @@ buymore/
 ### Prérequis
 
 - **Node.js** 18+
-- **pnpm** 8+ (`npm install -g pnpm`)
-- **Compte Supabase** (gratuit sur https://supabase.com)
+- **npm** 9+
+- **BuyMore API** accessible localement ou en environnement distant
 
 ### Installation
 
@@ -40,50 +33,34 @@ buymore/
 git clone <repo-url>
 cd buymore
 
-# Installer toutes les dépendances
-pnpm install
+# Installer les dépendances
+npm install
 
-# Configurer Supabase (voir docs/installation.md)
-# Exécuter les migrations SQL dans votre projet Supabase
+# Configurer VITE_API_BASE_URL pour pointer vers buymore-api
 ```
 
 ### Développement
 
 ```bash
 # Lancer l'application web
-pnpm dev          # Site web (http://localhost:5173)
-pnpm dev:web      # Alias pour pnpm dev
+npm run dev
 ```
 
 ### Build
 
 ```bash
 # Build l'application web
-pnpm build
-pnpm build:web    # Alias pour pnpm build
+npm run build
 ```
-
-## Packages partagés
-
-### @buymore/ui
-Composants UI réutilisables:
-- `Button`, `Card`, `Input`
-- Utilitaires: `cn()`, `formatPrice()`, `formatDate()`
-
-### @buymore/api-client
-Code partagé pour interagir avec Supabase:
-- Client Supabase configuré
-- Types TypeScript complets
-- Stores Zustand (auth, cart)
-- Hooks React personnalisés (useProducts, useShops, useOrders)
 
 ## Stack Technique
 
 | Couche | Technologie |
 |--------|-------------|
 | **Frontend** | React 18 + Vite + TailwindCSS |
-| **Backend** | Supabase (PostgreSQL + Auth + Storage) |
-| **Edge Functions** | Deno Deploy |
+| **Backend** | API Node.js/Express (`buymore-api`) |
+| **Données** | PostgreSQL via Prisma |
+| **Auth / Storage** | Supabase |
 | **State Management** | Zustand |
 | **UI Components** | shadcn/ui + Lucide Icons |
 
@@ -95,15 +72,15 @@ Code partagé pour interagir avec Supabase:
 
 ## Fonctionnalités MVP
 
-- Authentification multi-rôles (Supabase Auth)
+- Authentification multi-rôles via l'API Node.js
 - Gestion des boutiques (création, validation admin)
 - Catalogue de produits avec images
 - Système de catégories hiérarchiques
 - Panier d'achat persistant
 - Gestion des commandes avec gestion du stock
 - Dashboard par rôle (client, vendeur, admin)
-- Sécurité RLS (Row Level Security)
-- Edge Functions pour logique métier critique
+- API centralisée pour le catalogue, les commandes et l'authentification
+- Dashboards web branchés sur la même API que l'application mobile
 
 ## Documentation
 
@@ -114,16 +91,13 @@ Code partagé pour interagir avec Supabase:
 
 ```bash
 # Développement
-pnpm dev              # Lance l'application web
-pnpm dev:web          # Alias pour pnpm dev
+npm run dev
 
 # Build
-pnpm build            # Build l'application web
-pnpm build:web        # Alias pour pnpm build
+npm run build
 
 # Maintenance
-pnpm lint             # Lint tous les packages
-pnpm clean            # Nettoie node_modules et builds
+npm run lint
 ```
 
 ## Déploiement
@@ -134,14 +108,14 @@ pnpm clean            # Nettoie node_modules et builds
 - Preview deployments pour chaque PR
 
 ### Backend
-- **Supabase** (géré)
-- Backups automatiques
-- Scaling automatique
+- **API Node.js/Express**
+- **PostgreSQL + Prisma**
+- **Supabase** pour auth et stockage
 
 ## Contribution
 
 Ce projet utilise:
-- **pnpm** pour la gestion des dépendances
+- **npm** pour la gestion des dépendances
 - **TypeScript** pour la sécurité des types
 - **ESLint** pour le linting
 - **Prettier** pour le formatage (à configurer)

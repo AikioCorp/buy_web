@@ -326,7 +326,7 @@ export function HomePage() {
         if (import.meta.env.DEV) {
           console.log('📦 Fallback products loaded:', fallback.data.results.length)
         }
-        setApiProducts(fallback.data.results)
+        setApiProducts(shuffleArray(fallback.data.results))
       }
     } catch (err) {
       try {
@@ -335,7 +335,7 @@ export function HomePage() {
           if (import.meta.env.DEV) {
             console.log('📦 Error fallback products loaded:', fallback.data.results.length)
           }
-          setApiProducts(fallback.data.results)
+          setApiProducts(shuffleArray(fallback.data.results))
         }
       } catch (e) { console.error('Error loading homepage products:', e) }
     } finally {
@@ -2166,5 +2166,4 @@ export function HomePage() {
     </div>
   )
 }
-
 
