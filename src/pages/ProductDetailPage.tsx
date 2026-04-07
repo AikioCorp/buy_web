@@ -14,20 +14,11 @@ import { Package, Store, ShoppingCart, Heart, Share2, ChevronLeft, ChevronRight,
 import { useProductTracking } from '@/hooks/useAnalytics'
 import analytics from '@/lib/analytics/tracker'
 import { PromoCountdown } from '@/components/PromoCountdown'
+import { formatPrice } from '@/lib/utils'
 
 // Cache système pour les produits
 const productCache = new Map<string, { data: Product; timestamp: number }>()
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
-
-// Helper to format price
-const formatPrice = (price: number | string, currency: string = 'XOF') => {
-  const numPrice = typeof price === 'string' ? parseFloat(price) : price
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0
-  }).format(numPrice)
-}
 
 // Interface pour les avis
 interface Review {
@@ -298,9 +289,9 @@ export function ProductDetailPage() {
       const productTotal = getPrice() * quantity
       const deliveryFee = productTotal >= 50000 ? 0 : 1000
       const totalWithDelivery = productTotal + deliveryFee
-      const deliveryLabel = deliveryFee === 0 ? 'GRATUIT \u2728' : `${formatPrice(deliveryFee)} FCFA`
+      const deliveryLabel = deliveryFee === 0 ? 'GRATUIT \u2728' : formatPrice(deliveryFee)
       const phoneInfo = phoneNumber ? `\n*Mon numéro:* ${phoneNumber}` : ''
-      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())} FCFA\n*Sous-total:* ${formatPrice(productTotal)} FCFA\n*Livraison:* ${deliveryLabel}\n*Total global:* ${formatPrice(totalWithDelivery)} FCFA\n\n*Lien du produit:* ${productUrl}${orderRef}${phoneInfo}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
+      const message = `Bonjour BuyMore, je souhaite commander:\n\n*Produit:* ${product.name}\n*Quantité:* ${quantity}\n*Prix unitaire:* ${formatPrice(getPrice())}\n*Sous-total:* ${formatPrice(productTotal)}\n*Livraison:* ${deliveryLabel}\n*Total global:* ${formatPrice(totalWithDelivery)}\n\n*Lien du produit:* ${productUrl}${orderRef}${phoneInfo}\n\n*Lieu de livraison:* [Veuillez préciser votre adresse]\n\nMerci!`
       const whatsappUrl = `https://wa.me/22370796969?text=${encodeURIComponent(message)}`
 
       analytics.whatsAppOrder([product.id], totalWithDelivery)

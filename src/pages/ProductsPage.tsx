@@ -7,6 +7,7 @@ import productCacheService from '../services/productCache.service'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { useCartStore } from '../store/cartStore'
 import { useToast } from '../components/Toast'
+import { formatPrice } from '@/lib/utils'
 
 interface CategoryItem {
   id: number
@@ -178,14 +179,6 @@ export function ProductsPage() {
     setSearchParams(searchParams)
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF',
-      minimumFractionDigits: 0
-    }).format(price)
   }
 
   const getDiscount = (price: number, compareAt?: number) => {

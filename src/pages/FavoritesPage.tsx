@@ -3,6 +3,7 @@ import { Heart, ShoppingCart, Trash2, Package } from 'lucide-react'
 import { useFavoritesStore } from '@/store/favoritesStore'
 import { useCartStore } from '@/store/cartStore'
 import { useToast } from '@/components/Toast'
+import { formatAmount } from '@/lib/utils'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -45,7 +46,7 @@ const getImageUrl = (product: any): string | null => {
   return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
-const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
+const formatPrice = (price: string | number) => formatAmount(price)
 
 export function FavoritesPage() {
   const { favorites, removeFavorite, clearFavorites } = useFavoritesStore()

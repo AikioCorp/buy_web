@@ -15,6 +15,7 @@ import { flashSalesService, ActiveFlashSale } from '../lib/api/flashSalesService
 import { useCartStore } from '../store/cartStore'
 import { useFavoritesStore } from '../store/favoritesStore'
 import { useToast } from '../components/Toast'
+import { formatAmount } from '@/lib/utils'
 
 // Composant de chargement progressif - les sections ne se rendent que quand elles sont visibles
 const LazySection = ({ children, fallback, rootMargin = '200px' }: { children: React.ReactNode, fallback?: React.ReactNode, rootMargin?: string }) => {
@@ -1039,7 +1040,7 @@ export function HomePage() {
     return Math.round((1 - Number(product.promo_price) / Number(product.base_price)) * 100)
   }
 
-  const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
+  const formatPrice = (price: string | number) => formatAmount(price)
 
   const nextBanner = () => setCurrentBanner((prev) => (prev + 1) % heroSliders.length)
   const prevBanner = () => setCurrentBanner((prev) => (prev - 1 + heroSliders.length) % heroSliders.length)
@@ -2166,4 +2167,3 @@ export function HomePage() {
     </div>
   )
 }
-

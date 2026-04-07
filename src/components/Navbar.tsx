@@ -8,6 +8,7 @@ import { useFavoritesStore } from '../store/favoritesStore'
 import { shopsService } from '../lib/api/shopsService'
 import { categoriesService } from '../lib/api/categoriesService'
 import { productsService } from '../lib/api/productsService'
+import { formatAmount } from '@/lib/utils'
 
 interface ShopItem {
   id: number
@@ -283,7 +284,7 @@ export function Navbar() {
     }
   }
 
-  const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
+  const formatPrice = (price: string | number) => formatAmount(price)
 
   const handleSignOut = async () => {
     await logout()

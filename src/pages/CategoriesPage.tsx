@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Grid3X3, ChevronRight, Package, Sparkles, Star, ShoppingCart, Heart, ArrowRight } from 'lucide-react'
 import { categoriesService } from '../lib/api/categoriesService'
+import { formatAmount } from '@/lib/utils'
 
 interface Category {
   id: number
@@ -53,7 +54,7 @@ export function CategoriesPage() {
     }
   }
 
-  const formatPrice = (price: string | number) => new Intl.NumberFormat('fr-FR').format(Number(price))
+  const formatPrice = (price: string | number) => formatAmount(price)
 
   const getCategoryImage = (category: Category): string => {
     // Priority: icon > image > image_url > fallback by slug

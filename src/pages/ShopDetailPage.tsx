@@ -8,17 +8,9 @@ import { Package, Store, Star, ShoppingBag, Heart, ShoppingCart, Eye, ChevronRig
 import { useFavoritesStore } from '@/store/favoritesStore'
 import { useCartStore } from '@/store/cartStore'
 import { useToast } from '@/components/Toast'
+import { formatPrice } from '@/lib/utils'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
-
-const formatPrice = (price: number | string, currency: string = 'XOF') => {
-  const numPrice = typeof price === 'string' ? parseFloat(price) : price
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0
-  }).format(numPrice)
-}
 
 const getProductImage = (product: Product | any): string | undefined => {
   // Backend returns 'images' from product_media, but interface uses 'media'

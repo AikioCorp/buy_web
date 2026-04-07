@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Percent, Clock, ShoppingCart, Zap, Gift, Tag, ArrowRight, Star, Package } from 'lucide-react'
 import { productsService, Product } from '../lib/api/productsService'
+import { formatPrice } from '@/lib/utils'
 
 
 // Helper to get price as number
@@ -88,14 +89,6 @@ export function DealsPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF',
-      minimumFractionDigits: 0
-    }).format(price)
   }
 
   // Countdown timer component
