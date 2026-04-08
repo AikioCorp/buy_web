@@ -10,6 +10,8 @@ import { useOrders } from '../../../hooks/useOrders'
 import { useFavorites } from '../../../hooks/useFavorites'
 import { useProducts } from '../../../hooks/useProducts'
 import { flashSalesService } from '../../../lib/api/flashSalesService'
+import { apiClient } from '../../../lib/api/apiClient'
+import { cache, CACHE_TTL } from '../../../lib/cache'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -114,16 +116,24 @@ const ClientDashboardPage: React.FC = () => {
   const { products } = useProducts({ page: 1, page_size: 20, light: true })
   const [tab, setTab] = useState<'overview' | 'wishlist'>('overview')
   const [flashSales, setFlashSales] = useState<any[]>([])
+  const [personalizedProducts, setPersonalizedProducts] = useState<any[]>([])
 
   const firstName = user?.first_name || user?.username || 'Utilisateur'
   
   // Charger les flash sales actives
   useEffect(() => {
     const loadFlashSales = async () => {
+      const cacheKey = 'client_dashboard_flash_sales'
+      const cached = cache.get<any[]>(cacheKey)
+      if (cached) {
+        setFlashSales(cached)
+      }
+
       try {
         const response = await flashSalesService.getActiveFlashSales()
         if (response.data) {
           setFlashSales(response.data)
+          cache.set(cacheKey, response.data, CACHE_TTL.SHORT)
         }
       } catch (error) {
         console.error('Error loading flash sales:', error)
@@ -131,6 +141,38 @@ const ClientDashboardPage: React.FC = () => {
     }
     loadFlashSales()
   }, [])
+
+  useEffect(() => {
+    const loadPersonalizedProducts = async () => {
+      if (!apiClient.isAuthenticated()) {
+        setPersonalizedProducts([])
+        return
+      }
+
+      const cacheKey = `client_dashboard_personalized_${user?.id || 'user'}`
+      const cached = cache.get<any[]>(cacheKey)
+      if (cached) {
+        setPersonalizedProducts(cached)
+      }
+
+      try {
+        const response = await apiClient.get<any>('/api/analytics/recommendations/me?limit=4')
+        const payload = response.data?.data || response.data
+        const results = Array.isArray(payload?.results) ? payload.results : []
+        const mapped = results
+          .map((item: any) => item?.product || item)
+          .filter(Boolean)
+        if (mapped.length > 0) {
+          setPersonalizedProducts(mapped)
+          cache.set(cacheKey, mapped, CACHE_TTL.SHORT)
+        }
+      } catch (error) {
+        console.error('Error loading personalized products:', error)
+      }
+    }
+
+    loadPersonalizedProducts()
+  }, [user?.id])
   
   // Calculer les statistiques
   const totalOrders = orders?.length || 0
@@ -164,7 +206,9 @@ const ClientDashboardPage: React.FC = () => {
   }).slice(0, 4) || []
   
   // Produits recommandés (basés sur les catégories des commandes précédentes ou aléatoires)
-  const recommendedProducts = products?.slice(0, 4) || []
+  const recommendedProducts = personalizedProducts.length > 0
+    ? personalizedProducts
+    : products?.slice(0, 4) || []
   
   // Produits des flash sales
   const flashSaleProducts = flashSales.length > 0 

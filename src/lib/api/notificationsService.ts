@@ -6,7 +6,7 @@ import { apiClient } from './apiClient';
 
 export interface Notification {
   id: number;
-  type: 'order' | 'user' | 'shop' | 'product' | 'message' | 'promotion' | 'system' | 'info';
+  type: 'order' | 'user' | 'shop' | 'product' | 'message' | 'promotion' | 'recommendation' | 'system' | 'info';
   title: string;
   content: string;
   link?: string;

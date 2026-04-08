@@ -33,6 +33,10 @@ const ProfilePage: React.FC = () => {
           setMessage({ type: 'error', text: typeof response.error === 'string' ? response.error : 'Erreur lors de l\'upload de l\'image' })
           // Revert preview on error if needed, but keeping it is fine as "what tried to be uploaded"
         } else {
+          const uploadedUrl = response.data?.avatar_url || response.data?.avatar || response.data?.url || response.data?.profile?.avatar_url
+          if (uploadedUrl) {
+            setAvatarPreview(uploadedUrl)
+          }
           setMessage({ type: 'success', text: 'Photo de profil mise à jour avec succès' })
           refresh()
           loadUser()
@@ -101,6 +105,12 @@ const ProfilePage: React.FC = () => {
                     {avatarPreview ? (
                       <img
                         src={avatarPreview}
+                        alt={profile ? `${profile.first_name} ${profile.last_name}` : 'Avatar'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
                         alt={profile ? `${profile.first_name} ${profile.last_name}` : 'Avatar'}
                         className="w-full h-full object-cover"
                       />

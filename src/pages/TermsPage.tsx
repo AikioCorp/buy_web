@@ -237,7 +237,7 @@ export function TermsPage() {
                 <div className="text-gray-600 space-y-4 pl-13">
                   <p>
                     Tous les éléments du site Buy More (logos, textes, images, design) sont la
-                    propriété exclusive de Buy More. Toute reproduction
+                    propriété exclusive de Business More SARL. Toute reproduction
                     ou utilisation non autorisée est strictement interdite.
                   </p>
                 </div>

@@ -95,6 +95,7 @@ export function ShopDetailPage() {
         try {
           const productsResponse = await productsService.getProducts({ 
             store_id: shopResponse.data.id,
+            page_size: 250,
             light: true
           })
           if (productsResponse.data?.results) {

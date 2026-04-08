@@ -72,9 +72,12 @@ export const profileService = {
    * Mettre à jour l'avatar du client
    */
   async uploadAvatar(file: File) {
-    const formData = new FormData();
-    formData.append('avatar', file);
-    return apiClient.patchFormData<CustomerProfile>('/api/customers/profile', formData);
+    return apiClient.upload<{
+      avatar_url?: string;
+      avatar?: string;
+      url?: string;
+      profile?: CustomerProfile;
+    }>('/api/auth/profile/avatar/', file, 'file');
   },
 
   /**

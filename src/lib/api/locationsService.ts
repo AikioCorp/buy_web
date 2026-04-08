@@ -15,6 +15,8 @@ export interface Quartier {
   id: number;
   commune_id: number;
   name: string;
+  commune_name?: string;
+  delivery_fee?: number;
 }
 
 export const locationsService = {
@@ -39,6 +41,14 @@ export const locationsService = {
    */
   async getQuartiersByCommuneName(communeName: string): Promise<Quartier[]> {
     const response = await apiClient.get<{ data: Quartier[] }>(`/api/locations/quartiers?commune_name=${encodeURIComponent(communeName)}`);
+    return response.data?.data || [];
+  },
+
+  /**
+   * Récupérer tous les quartiers avec leur commune
+   */
+  async getAllQuartiers(): Promise<Quartier[]> {
+    const response = await apiClient.get<{ data: Quartier[] }>('/api/locations/quartiers');
     return response.data?.data || [];
   },
 };

@@ -133,6 +133,8 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ variant = 'light' }
         return <MessageSquare size={18} className="text-cyan-600" />
       case 'promotion':
         return <Info size={18} className="text-orange-500" />
+      case 'recommendation':
+        return <Package size={18} className="text-emerald-600" />
       case 'system':
         return <Info size={18} className="text-gray-600" />
       default:

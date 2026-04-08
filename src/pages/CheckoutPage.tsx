@@ -98,6 +98,14 @@ const BAMAKO_ZONES: Record<string, { quartiers: string[], frais_livraison: numbe
   }
 }
 
+const BAMAKO_QUARTIER_OPTIONS = Object.entries(BAMAKO_ZONES).flatMap(([commune, config]) =>
+  config.quartiers.map((quartier) => ({
+    quartier,
+    commune,
+    label: `${quartier} · ${commune}`,
+  }))
+)
+
 type Step = 'shipping' | 'payment' | 'confirmation'
 
 export function CheckoutPage() {
@@ -150,17 +158,20 @@ export function CheckoutPage() {
   // Calcul automatique des frais de livraison en fonction de la commune
   const getDeliveryFee = (): number => {
     const subtotal = getTotal()
-    // Livraison gratuite pour les commandes >= 50000 XOF
     if (subtotal >= 50000) return 0
-
-    if (!shippingAddress.commune) return 1000 // Frais par défaut
-    return BAMAKO_ZONES[shippingAddress.commune]?.frais_livraison || 1000
+    return 1000
   }
 
-  // Quartiers disponibles en fonction de la commune sélectionnée
-  const availableQuartiers = shippingAddress.commune
-    ? BAMAKO_ZONES[shippingAddress.commune]?.quartiers || []
-    : []
+  const handleQuartierSelect = (quartierLabel: string) => {
+    const selectedQuartier = BAMAKO_QUARTIER_OPTIONS.find(
+      (option) => option.label === quartierLabel
+    )
+    setShippingAddress((current) => ({
+      ...current,
+      quartier: selectedQuartier?.quartier || '',
+      commune: selectedQuartier?.commune || '',
+    }))
+  }
 
   // Load customer profile and saved addresses
   useEffect(() => {
@@ -270,12 +281,12 @@ export function CheckoutPage() {
       setError('Le numéro de téléphone est requis')
       return false
     }
-    if (!shippingAddress.commune) {
-      setError('Veuillez sélectionner votre commune')
-      return false
-    }
     if (!shippingAddress.quartier) {
       setError('Veuillez sélectionner votre quartier')
+      return false
+    }
+    if (!shippingAddress.commune) {
+      setError('La commune n’a pas pu être détectée pour ce quartier')
       return false
     }
     setError(null)
@@ -713,42 +724,36 @@ export function CheckoutPage() {
                       </div>
                     </div>
 
-                    {/* Sélection Commune et Quartier */}
+                    {/* Sélection Quartier puis commune auto */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Commune *
-                        </label>
-                        <select
-                          value={shippingAddress.commune}
-                          onChange={(e) => setShippingAddress({
-                            ...shippingAddress,
-                            commune: e.target.value,
-                            quartier: '' // Reset quartier when commune changes
-                          })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent bg-white"
-                        >
-                          <option value="">Sélectionnez votre commune</option>
-                          {Object.keys(BAMAKO_ZONES).map((commune) => (
-                            <option key={commune} value={commune}>{commune}</option>
-                          ))}
-                        </select>
-                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Quartier *
                         </label>
                         <select
-                          value={shippingAddress.quartier}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, quartier: e.target.value })}
+                          value={
+                            shippingAddress.quartier && shippingAddress.commune
+                              ? `${shippingAddress.quartier} · ${shippingAddress.commune}`
+                              : ''
+                          }
+                          onChange={(e) => handleQuartierSelect(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent bg-white"
-                          disabled={!shippingAddress.commune}
                         >
                           <option value="">Sélectionnez votre quartier</option>
-                          {availableQuartiers.map((quartier) => (
-                            <option key={quartier} value={quartier}>{quartier}</option>
+                          {BAMAKO_QUARTIER_OPTIONS.map((option) => (
+                            <option key={option.label} value={option.label}>
+                              {option.label}
+                            </option>
                           ))}
                         </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Commune détectée
+                        </label>
+                        <div className="w-full px-4 py-3 border border-green-200 rounded-lg bg-green-50 text-gray-800 min-h-[52px] flex items-center">
+                          {shippingAddress.commune || 'La commune apparaîtra automatiquement'}
+                        </div>
                       </div>
                     </div>
 

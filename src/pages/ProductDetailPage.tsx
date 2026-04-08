@@ -5,6 +5,7 @@ import { SEO } from '@/components/SEO'
 import { useCartStore } from '@/store/cartStore'
 import { useFavoritesStore } from '@/store/favoritesStore'
 import { useAuthStore } from '@/store/authStore'
+import { apiClient } from '@/lib/api/apiClient'
 import { useToast } from '@/components/Toast'
 import { LoginPopup } from '@/components/LoginPopup'
 import { WhatsAppPhonePopup } from '@/components/WhatsAppPhonePopup'
@@ -121,6 +122,26 @@ export function ProductDetailPage() {
 
   const loadSimilarProducts = async (currentProduct: Product) => {
     try {
+      if (user) {
+        const personalizedResponse = await apiClient.get<any>(
+          '/api/analytics/recommendations/me?limit=6',
+        )
+        const personalizedPayload =
+          personalizedResponse.data?.data || personalizedResponse.data
+        const personalizedResults = Array.isArray(personalizedPayload?.results)
+          ? personalizedPayload.results
+          : []
+        const personalizedProducts = personalizedResults
+          .map((item: any) => item?.product || item)
+          .filter((item: Product) => item && item.id !== currentProduct.id)
+          .slice(0, 4)
+
+        if (personalizedProducts.length > 0) {
+          setSimilarProducts(personalizedProducts)
+          return
+        }
+      }
+
       const categoryId = currentProduct.category?.id || (currentProduct as any).category_id
       if (categoryId) {
         const response = await productsService.getProducts({

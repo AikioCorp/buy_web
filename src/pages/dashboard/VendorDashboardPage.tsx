@@ -9,6 +9,7 @@ import {
 import { useAuthStore } from '../../stores/authStore'
 import { vendorService } from '../../lib/api/vendorService'
 import OnboardingTour from '../../components/dashboard/OnboardingTour'
+import { cache, CACHE_TTL } from '../../lib/cache'
 
 // Stat Card moderne
 const StatCard = ({
@@ -288,20 +289,31 @@ const VendorDashboardPage: React.FC = () => {
   }, [])
 
   const loadDashboardData = async () => {
+    const cacheKey = `vendor_dashboard_${user?.id || 'vendor'}`
     try {
-      setLoading(true)
+      const cached = cache.get<{ hasStore: boolean; stats: typeof stats }>(cacheKey)
+      if (cached) {
+        setHasStore(cached.hasStore)
+        setStats(cached.stats)
+        setLoading(false)
+      } else {
+        setLoading(true)
+      }
       
       // Single lightweight API call instead of 3 heavy ones
       const res = await vendorService.getStats()
       if (res.data) {
         const d = (res.data as any).data || res.data
-        setHasStore(d.has_shop || false)
-        setStats({
+        const nextHasStore = d.has_shop || false
+        const nextStats = {
           products: d.products_count || 0,
           orders: d.pending_orders || 0,
           revenue: d.revenue_month || 0,
           views: 0,
-        })
+        }
+        setHasStore(nextHasStore)
+        setStats(nextStats)
+        cache.set(cacheKey, { hasStore: nextHasStore, stats: nextStats }, CACHE_TTL.SHORT)
       }
     } catch (error) {
       console.error('Erreur chargement dashboard:', error)

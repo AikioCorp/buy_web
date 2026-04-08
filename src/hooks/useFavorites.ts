@@ -4,6 +4,21 @@
 
 import { useState, useEffect } from 'react';
 import { favoritesService, type Favorite } from '../lib/api';
+import { cache, CACHE_TTL } from '../lib/cache';
+import { apiClient } from '../lib/api/apiClient';
+
+const getFavoritesCacheKey = () => {
+  const authStorage = localStorage.getItem('auth-storage')
+  if (!authStorage) return 'favorites_anonymous'
+
+  try {
+    const parsed = JSON.parse(authStorage)
+    const userId = parsed?.state?.user?.id
+    return userId ? `favorites_${userId}` : 'favorites_authenticated'
+  } catch {
+    return 'favorites_authenticated'
+  }
+}
 
 export function useFavorites() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -11,12 +26,29 @@ export function useFavorites() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!apiClient.isAuthenticated()) {
+      setFavorites([])
+      setIsLoading(false)
+      return
+    }
+
     loadFavorites();
   }, []);
 
-  const loadFavorites = async () => {
+  const loadFavorites = async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
+
+    const cacheKey = getFavoritesCacheKey()
+
+    if (!forceRefresh) {
+      const cached = cache.get<Favorite[]>(cacheKey)
+      if (cached) {
+        setFavorites(cached)
+        setIsLoading(false)
+        return
+      }
+    }
 
     try {
       const response = await favoritesService.getFavorites();
@@ -25,7 +57,9 @@ export function useFavorites() {
         setError(response.error);
         setFavorites([]);
       } else if (response.data) {
-        setFavorites(response.data.results || []);
+        const results = response.data.results || []
+        setFavorites(results);
+        cache.set(cacheKey, results, CACHE_TTL.MEDIUM)
       } else {
         setFavorites([]);
       }
@@ -41,7 +75,7 @@ export function useFavorites() {
     try {
       const response = await favoritesService.addFavorite(productId);
       if (response.data) {
-        await loadFavorites();
+        await loadFavorites(true);
         return { success: true };
       }
       return { success: false, error: response.error };
@@ -54,7 +88,7 @@ export function useFavorites() {
     try {
       const response = await favoritesService.removeFavorite(favoriteId);
       if (!response.error) {
-        await loadFavorites();
+        await loadFavorites(true);
         return { success: true };
       }
       return { success: false, error: response.error };
@@ -64,7 +98,7 @@ export function useFavorites() {
   };
 
   const refresh = () => {
-    loadFavorites();
+    loadFavorites(true);
   };
 
   return {

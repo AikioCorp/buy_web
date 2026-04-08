@@ -6,6 +6,20 @@ import { useState, useEffect } from 'react';
 import { ordersService, type Order } from '../lib/api';
 
 import { apiClient } from '../lib/api/apiClient';
+import { cache, CACHE_TTL } from '../lib/cache';
+
+const getOrdersCacheKey = () => {
+  const authStorage = localStorage.getItem('auth-storage')
+  if (!authStorage) return 'orders_anonymous'
+
+  try {
+    const parsed = JSON.parse(authStorage)
+    const userId = parsed?.state?.user?.id
+    return userId ? `orders_${userId}` : 'orders_authenticated'
+  } catch {
+    return 'orders_authenticated'
+  }
+}
 
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -20,7 +34,7 @@ export function useOrders() {
     }
   }, []);
 
-  const loadOrders = async () => {
+  const loadOrders = async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
 
@@ -28,6 +42,17 @@ export function useOrders() {
     if (!apiClient.isAuthenticated()) {
       setIsLoading(false);
       return;
+    }
+
+    const cacheKey = getOrdersCacheKey()
+
+    if (!forceRefresh) {
+      const cached = cache.get<Order[]>(cacheKey)
+      if (cached) {
+        setOrders(cached)
+        setIsLoading(false)
+        return
+      }
     }
 
     try {
@@ -44,6 +69,7 @@ export function useOrders() {
           ? unwrapped 
           : unwrapped.results || [];
         setOrders(ordersData);
+        cache.set(cacheKey, ordersData, CACHE_TTL.SHORT)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des commandes');
@@ -53,7 +79,7 @@ export function useOrders() {
   };
 
   const refresh = () => {
-    loadOrders();
+    loadOrders(true);
   };
 
   return {

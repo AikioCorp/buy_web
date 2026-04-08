@@ -21,7 +21,26 @@ function generateId(): string {
     })
 }
 
+function getAuthenticatedUserId(): string | null {
+    try {
+        const authStorage = localStorage.getItem('auth-storage')
+        if (!authStorage) return null
+        const parsed = JSON.parse(authStorage)
+        const user = parsed?.state?.user
+        const isAuthenticated = parsed?.state?.isAuthenticated
+        if (!isAuthenticated || !user) return null
+        return user.id?.toString() || null
+    } catch {
+        return null
+    }
+}
+
 function getVisitorId(): string {
+    const userId = getAuthenticatedUserId()
+    if (userId) {
+        return userId
+    }
+
     let visitorId = localStorage.getItem(VISITOR_KEY)
     if (!visitorId) {
         visitorId = generateId()
@@ -75,9 +94,13 @@ const BATCH_INTERVAL = 5000 // 5 seconds
 const MAX_BATCH_SIZE = 20
 
 function createEvent(type: AnalyticsEventType, data: Record<string, any> = {}): AnalyticsEvent {
+    const userId = getAuthenticatedUserId()
     return {
         event_type: type,
-        event_data: data,
+        event_data: {
+            ...data,
+            ...(userId ? { user_id: userId } : {}),
+        },
         visitor_id: getVisitorId(),
         session_id: getSessionId(),
         page_url: window.location.pathname + window.location.search,
