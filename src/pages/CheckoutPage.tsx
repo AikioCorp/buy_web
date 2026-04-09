@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useCartStore, getEffectivePrice } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
@@ -13,6 +13,11 @@ import {
   ArrowLeft, Loader2, AlertCircle, Phone, User, Mail, Save, ChevronDown
 } from 'lucide-react'
 import analytics from '@/lib/analytics/tracker'
+import {
+  BAMAKO_ZONES,
+  getQuartierSuggestions,
+  resolveQuartierOption,
+} from '@/lib/locations/bamako'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
 
@@ -70,42 +75,6 @@ interface ShippingAddress {
   is_default: boolean
 }
 
-// Données des communes et quartiers de Bamako
-const BAMAKO_ZONES: Record<string, { quartiers: string[], frais_livraison: number }> = {
-  'Commune I': {
-    quartiers: ['Korofina Nord', 'Korofina Sud', 'Banconi', 'Boulkassoumbougou', 'Djelibougou', 'Sotuba', 'Fadjiguila', 'Sikoroni', 'Doumanzana'],
-    frais_livraison: 1000
-  },
-  'Commune II': {
-    quartiers: ['Hippodrome', 'Médina Coura', 'Bozola', 'Niarela', 'Quinzambougou', 'Bagadadji', 'TSF', 'Missira', 'Zone Industrielle', 'Bougouba'],
-    frais_livraison: 1000
-  },
-  'Commune III': {
-    quartiers: ['Bamako Coura', 'Darsalam', 'Ouolofobougou', 'ACI 2000', 'Point G', 'Koulouba', 'N\'Tomikorobougou', 'Samé', 'Badialan I', 'Badialan II', 'Badialan III'],
-    frais_livraison: 1000
-  },
-  'Commune IV': {
-    quartiers: ['Lafiabougou', 'Hamdallaye', 'Djicoroni Para', 'Sébenikoro', 'Taliko', 'Lassa', 'Sébénikoro', 'Djélibougou'],
-    frais_livraison: 1000
-  },
-  'Commune V': {
-    quartiers: ['Badalabougou', 'Quartier du Fleuve', 'Torokorobougou', 'Daoudabougou', 'Sabalibougou', 'Kalaban Coura', 'Baco Djicoroni ACI', 'Baco Djicoroni Golf', 'Garantiguibougou'],
-    frais_livraison: 1000
-  },
-  'Commune VI': {
-    quartiers: ['Sogoniko', 'Faladié', 'Magnambougou', 'Niamakoro', 'Banankabougou', 'Missabougou', 'Sokorodji', 'Yirimadio', 'Dianéguéla', 'Senou'],
-    frais_livraison: 1000
-  }
-}
-
-const BAMAKO_QUARTIER_OPTIONS = Object.entries(BAMAKO_ZONES).flatMap(([commune, config]) =>
-  config.quartiers.map((quartier) => ({
-    quartier,
-    commune,
-    label: `${quartier} · ${commune}`,
-  }))
-)
-
 type Step = 'shipping' | 'payment' | 'confirmation'
 
 export function CheckoutPage() {
@@ -139,6 +108,9 @@ export function CheckoutPage() {
     country: 'Mali',
     is_default: true
   })
+  const [quartierQuery, setQuartierQuery] = useState('')
+  const [showQuartierSuggestions, setShowQuartierSuggestions] = useState(false)
+  const quartierInputRef = useRef<HTMLInputElement | null>(null)
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_money'>('cash_on_delivery')
@@ -163,15 +135,31 @@ export function CheckoutPage() {
   }
 
   const handleQuartierSelect = (quartierLabel: string) => {
-    const selectedQuartier = BAMAKO_QUARTIER_OPTIONS.find(
-      (option) => option.label === quartierLabel
-    )
+    const selectedQuartier = resolveQuartierOption(quartierLabel)
+    if (!selectedQuartier) return
+
+    setQuartierQuery(selectedQuartier.label)
     setShippingAddress((current) => ({
       ...current,
-      quartier: selectedQuartier?.quartier || '',
-      commune: selectedQuartier?.commune || '',
+      quartier: selectedQuartier.quartier,
+      commune: selectedQuartier.commune,
     }))
   }
+
+  const quartierSuggestions = useMemo(
+    () => getQuartierSuggestions(quartierQuery, 10),
+    [quartierQuery],
+  )
+
+  const selectedQuartierLabel = shippingAddress.quartier && shippingAddress.commune
+    ? `${shippingAddress.quartier} · ${shippingAddress.commune}`
+    : ''
+
+  useEffect(() => {
+    if (document.activeElement !== quartierInputRef.current && quartierQuery !== selectedQuartierLabel) {
+      setQuartierQuery(selectedQuartierLabel)
+    }
+  }, [quartierQuery, selectedQuartierLabel])
 
   // Load customer profile and saved addresses
   useEffect(() => {
@@ -273,6 +261,22 @@ export function CheckoutPage() {
   }, [items, navigate, orderSuccess])
 
   const validateShipping = (): boolean => {
+    const resolvedQuartier = !shippingAddress.quartier && quartierQuery.trim()
+      ? resolveQuartierOption(quartierQuery)
+      : undefined
+
+    if (resolvedQuartier) {
+      setShippingAddress((current) => ({
+        ...current,
+        quartier: resolvedQuartier.quartier,
+        commune: resolvedQuartier.commune,
+      }))
+      setQuartierQuery(resolvedQuartier.label)
+    }
+
+    const quartierValue = shippingAddress.quartier || resolvedQuartier?.quartier || ''
+    const communeValue = shippingAddress.commune || resolvedQuartier?.commune || ''
+
     if (!shippingAddress.full_name.trim()) {
       setError('Le nom complet est requis')
       return false
@@ -281,11 +285,11 @@ export function CheckoutPage() {
       setError('Le numéro de téléphone est requis')
       return false
     }
-    if (!shippingAddress.quartier) {
+    if (!quartierValue) {
       setError('Veuillez sélectionner votre quartier')
       return false
     }
-    if (!shippingAddress.commune) {
+    if (!communeValue) {
       setError('La commune n’a pas pu être détectée pour ce quartier')
       return false
     }
@@ -294,17 +298,34 @@ export function CheckoutPage() {
   }
 
   const handleShippingSubmit = () => {
+    const resolvedQuartier = !shippingAddress.quartier && quartierQuery.trim()
+      ? resolveQuartierOption(quartierQuery)
+      : undefined
+
+    const shippingSnapshot = resolvedQuartier
+      ? {
+          ...shippingAddress,
+          quartier: resolvedQuartier.quartier,
+          commune: resolvedQuartier.commune,
+        }
+      : shippingAddress
+
+    if (resolvedQuartier) {
+      setShippingAddress(shippingSnapshot)
+      setQuartierQuery(resolvedQuartier.label)
+    }
+
     if (validateShipping()) {
       // Sauvegarder l'adresse pour les prochaines commandes si l'utilisateur le souhaite
       if (saveAddressForLater) {
         saveAddress({
-          full_name: shippingAddress.full_name,
-          phone: shippingAddress.phone,
-          email: shippingAddress.email,
-          commune: shippingAddress.commune,
-          quartier: shippingAddress.quartier,
-          address_details: shippingAddress.address_details,
-          country: shippingAddress.country
+          full_name: shippingSnapshot.full_name,
+          phone: shippingSnapshot.phone,
+          email: shippingSnapshot.email,
+          commune: shippingSnapshot.commune,
+          quartier: shippingSnapshot.quartier,
+          address_details: shippingSnapshot.address_details,
+          country: shippingSnapshot.country
         })
       }
       setCurrentStep('payment')
@@ -730,22 +751,87 @@ export function CheckoutPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Quartier *
                         </label>
-                        <select
-                          value={
-                            shippingAddress.quartier && shippingAddress.commune
-                              ? `${shippingAddress.quartier} · ${shippingAddress.commune}`
-                              : ''
-                          }
-                          onChange={(e) => handleQuartierSelect(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent bg-white"
-                        >
-                          <option value="">Sélectionnez votre quartier</option>
-                          {BAMAKO_QUARTIER_OPTIONS.map((option) => (
-                            <option key={option.label} value={option.label}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                          <input
+                            ref={quartierInputRef}
+                            type="text"
+                            value={quartierQuery}
+                            onChange={(e) => {
+                              const nextQuery = e.target.value
+                              setQuartierQuery(nextQuery)
+                              setShowQuartierSuggestions(true)
+
+                              const resolved = resolveQuartierOption(nextQuery)
+                              if (resolved) {
+                                setShippingAddress((current) => ({
+                                  ...current,
+                                  quartier: resolved.quartier,
+                                  commune: resolved.commune,
+                                }))
+                              } else {
+                                setShippingAddress((current) => ({
+                                  ...current,
+                                  quartier: '',
+                                  commune: '',
+                                }))
+                              }
+                            }}
+                            onFocus={() => setShowQuartierSuggestions(true)}
+                            onBlur={() => {
+                              window.setTimeout(() => {
+                                const resolved = resolveQuartierOption(quartierQuery)
+                                if (resolved) {
+                                  handleQuartierSelect(resolved.label)
+                                }
+                                setShowQuartierSuggestions(false)
+                              }, 150)
+                            }}
+                            placeholder="Tapez votre quartier ou votre commune"
+                            className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f4c2b] focus:border-transparent bg-white"
+                            autoComplete="off"
+                          />
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                          {showQuartierSuggestions && (
+                            <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                              {quartierSuggestions.length > 0 ? (
+                                <div className="max-h-72 overflow-y-auto py-2">
+                                  {quartierSuggestions.map((option) => (
+                                    <button
+                                      key={option.label}
+                                      type="button"
+                                      onMouseDown={(event) => event.preventDefault()}
+                                      onClick={() => {
+                                        handleQuartierSelect(option.label)
+                                        setShowQuartierSuggestions(false)
+                                      }}
+                                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-green-50"
+                                    >
+                                      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-green-50 text-[#0f4c2b]">
+                                        <MapPin className="h-4 w-4" />
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-gray-900">
+                                          {option.quartier}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          {option.commune}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="px-4 py-4 text-sm text-gray-500">
+                                  Aucun quartier trouvé. Essayez un autre nom ou la commune.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500">
+                          Recherchez par quartier ou directement par commune.
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -296,6 +296,7 @@ export function HomePage() {
   const [popularScrollRef, setPopularScrollRef] = useState<HTMLDivElement | null>(null)
   const [menScrollRef, setMenScrollRef] = useState<HTMLDivElement | null>(null)
   const [womenScrollRef, setWomenScrollRef] = useState<HTMLDivElement | null>(null)
+  const [electronicsScrollRef, setElectronicsScrollRef] = useState<HTMLDivElement | null>(null)
   const [featuredShopsScrollRef, setFeaturedShopsScrollRef] = useState<HTMLDivElement | null>(null)
   const [kidsScrollRef, setKidsScrollRef] = useState<HTMLDivElement | null>(null)
   const [foodScrollRef, setFoodScrollRef] = useState<HTMLDivElement | null>(null)
@@ -757,6 +758,60 @@ export function HomePage() {
 
   const beautyProducts = useMemo(
     () => getProductsByCategoryIds(SECTION_CATEGORIES.beaute),
+    [allProducts]
+  );
+
+  const electronicsProducts = useMemo(
+    () => {
+      const electronicsKeywords = [
+        'électron', 'electron', 'smartphone', 'telephone', 'téléphone',
+        'iphone', 'samsung', 'android', 'infinix', 'tecno', 'xiaomi',
+        'ordinateur', 'computer', 'pc', 'laptop', 'macbook',
+        'tablette', 'tablet', 'ipad',
+        'tv', 'télévision', 'television', 'écran', 'ecran', 'monitor', 'moniteur',
+        'audio', 'casque', 'écouteur', 'ecouteur', 'speaker', 'haut-parleur', 'haut parleur',
+        'bluetooth', 'chargeur', 'charger', 'power bank', 'batterie externe',
+        'camera', 'caméra', 'appareil photo',
+        'console', 'playstation', 'xbox', 'nintendo', 'manette', 'gamepad',
+        'imprimante', 'printer', 'wifi', 'routeur', 'router',
+        'drone', 'smartwatch', 'montre connectée', 'montre connectee',
+      ];
+
+      const excludedKeywords = [
+        'casserole', 'poêle', 'poele', 'marmite', 'cocotte', 'ustensile', 'spatule', 'fouet', 'couteau',
+        'assiette', 'bol', 'saladier', 'service de table', 'tasse', 'mug', 'verre',
+        'cafetière', 'cafetiere', 'bouilloire', 'friteuse', 'mixeur', 'blender', 'four', 'plaque de cuisson',
+        'cuisine', 'alimentaire', 'épicerie', 'epicerie', 'lait', 'yaourt', 'fromage', 'biscuit', 'boisson',
+        'robe', 'jupe', 'pantalon', 'chemise', 'chaussure', 'parfum', 'maquillage', 'savon', 'lotion',
+        'bébé', 'bebe', 'couche', 'biberon', 'jouet', 'peluche',
+      ];
+
+      const isElectronicMatch = (product: any) => {
+        const text = `${product.name || ''} ${product.meta_title || ''} ${product.meta_description || ''} ${product.category?.name || ''} ${product.shop?.name || ''}`.toLowerCase();
+        if (excludedKeywords.some((keyword) => text.includes(keyword))) return false;
+        return electronicsKeywords.some((keyword) => text.includes(keyword));
+      };
+
+      const specificElectronicsCategoryIds = [
+        CATEGORY_IDS.ELECTROMENAGER,
+        CATEGORY_IDS.PETIT_ELECTROMENAGER,
+        CATEGORY_IDS.GROS_ELECTROMENAGER,
+      ];
+
+      const fromCategories = allProducts.filter((product: any) =>
+        product.category_id &&
+        specificElectronicsCategoryIds.includes(product.category_id) &&
+        isElectronicMatch(product)
+      );
+
+      const fromKeywords = allProducts.filter(isElectronicMatch);
+
+      const combined = [...fromCategories, ...fromKeywords].filter(
+        (product, index, array) => array.findIndex((candidate) => candidate.id === product.id) === index
+      );
+
+      return shuffleArray(combined);
+    },
     [allProducts]
   );
 
@@ -1934,6 +1989,75 @@ export function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
+
+      {/* Section Électronique */}
+      <LazySection>
+      {(() => {
+        if (!productsLoading && electronicsProducts.length === 0) return null;
+
+        return (
+          <section className="py-10 bg-gradient-to-br from-blue-50 via-sky-50 to-slate-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-72 h-72 bg-blue-200 rounded-full blur-3xl opacity-30"></div>
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-cyan-200 rounded-full blur-3xl opacity-25"></div>
+
+            <div className="container mx-auto px-4 relative z-10">
+              <div className="relative h-56 md:h-72 rounded-2xl overflow-hidden mb-8 shadow-xl">
+                <img
+                  src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=400&fit=crop"
+                  alt="Électronique"
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 to-slate-900/60 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <h2 className="text-4xl md:text-5xl font-bold mb-3">Électronique</h2>
+                    <p className="text-xl md:text-2xl font-light">Smartphones, audio, TV et accessoires</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Univers Tech</h2>
+                  <p className="text-gray-600 text-sm mt-1">Les essentiels high-tech à découvrir maintenant</p>
+                </div>
+                <Link to="/products?category=electronique" className="text-blue-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                  Voir tout <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              <div className="relative group">
+                <button
+                  onClick={() => electronicsScrollRef?.scrollBy({ left: -300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <button
+                  onClick={() => electronicsScrollRef?.scrollBy({ left: 300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full items-center justify-center shadow-lg hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
+                <div ref={setElectronicsScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+                  {productsLoading ? (
+                    <SectionSkeleton count={6} />
+                  ) : (
+                    electronicsProducts.map((product: any, index: number) => (
+                      <div key={product.id} className="min-w-[160px] md:min-w-[240px] snap-start">
+                        <ProductCard product={product} index={index} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
       </LazySection>
 
 

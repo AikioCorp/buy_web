@@ -1,22 +1,19 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { MapPin, Plus, Edit2, Trash2, Check } from 'lucide-react'
 import { useAddresses } from '../../../hooks/useAddresses'
 import type { CreateAddressData } from '../../../lib/api/addressesService'
-
-// Données des communes et quartiers de Bamako
-const BAMAKO_ZONES: Record<string, string[]> = {
-  'Commune I': ['Korofina Nord', 'Korofina Sud', 'Banconi', 'Boulkassoumbougou', 'Djelibougou', 'Sotuba', 'Fadjiguila', 'Sikoroni', 'Doumanzana'],
-  'Commune II': ['Hippodrome', 'Médina Coura', 'Bozola', 'Niarela', 'Quinzambougou', 'Bagadadji', 'TSF', 'Missira', 'Zone Industrielle', 'Bougouba'],
-  'Commune III': ['Bamako Coura', 'Darsalam', 'Ouolofobougou', 'ACI 2000', 'Point G', 'Koulouba', 'N\'Tomikorobougou', 'Samé', 'Badialan I', 'Badialan II', 'Badialan III'],
-  'Commune IV': ['Lafiabougou', 'Hamdallaye', 'Djicoroni Para', 'Sébenikoro', 'Taliko', 'Lassa', 'Sébénikoro', 'Djélibougou'],
-  'Commune V': ['Badalabougou', 'Quartier du Fleuve', 'Torokorobougou', 'Daoudabougou', 'Sabalibougou', 'Kalaban Coura', 'Baco Djicoroni ACI', 'Baco Djicoroni Golf', 'Garantiguibougou'],
-  'Commune VI': ['Sogoniko', 'Faladié', 'Magnambougou', 'Niamakoro', 'Banankabougou', 'Missabougou', 'Sokorodji', 'Yirimadio', 'Dianéguéla', 'Senou']
-}
+import {
+  getQuartierSuggestions,
+  resolveQuartierOption,
+} from '../../../lib/locations/bamako'
 
 const AddressesPage: React.FC = () => {
   const { addresses, isLoading, createAddress, updateAddress, deleteAddress, setDefaultAddress } = useAddresses()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [quartierQuery, setQuartierQuery] = useState('')
+  const [showQuartierSuggestions, setShowQuartierSuggestions] = useState(false)
+  const quartierInputRef = useRef<HTMLInputElement | null>(null)
   const [formData, setFormData] = useState<CreateAddressData>({
     label: 'Domicile',
     full_name: '',
@@ -31,13 +28,59 @@ const AddressesPage: React.FC = () => {
     is_default: false,
   })
 
+  const quartierSuggestions = useMemo(
+    () => getQuartierSuggestions(quartierQuery, 10),
+    [quartierQuery],
+  )
+
+  const selectedQuartierLabel = formData.quartier && formData.commune
+    ? `${formData.quartier} · ${formData.commune}`
+    : ''
+
+  useEffect(() => {
+    if (document.activeElement !== quartierInputRef.current && quartierQuery !== selectedQuartierLabel) {
+      setQuartierQuery(selectedQuartierLabel)
+    }
+  }, [quartierQuery, selectedQuartierLabel])
+
+  const handleQuartierSelect = (quartierLabel: string) => {
+    const selectedQuartier = resolveQuartierOption(quartierLabel)
+    if (!selectedQuartier) return
+
+    setQuartierQuery(selectedQuartier.label)
+    setFormData((current) => ({
+      ...current,
+      commune: selectedQuartier.commune,
+      city: selectedQuartier.commune,
+      quartier: selectedQuartier.quartier,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const resolvedQuartier = !formData.quartier && quartierQuery.trim()
+      ? resolveQuartierOption(quartierQuery)
+      : undefined
+
+    const payload = resolvedQuartier
+      ? {
+          ...formData,
+          commune: resolvedQuartier.commune,
+          city: resolvedQuartier.commune,
+          quartier: resolvedQuartier.quartier,
+        }
+      : formData
+
+    if (!payload.quartier || !payload.commune) {
+      window.alert('Veuillez choisir un quartier dans les suggestions pour renseigner automatiquement la commune.')
+      return
+    }
     
     if (editingId) {
-      await updateAddress(editingId, formData)
+      await updateAddress(editingId, payload)
     } else {
-      await createAddress(formData)
+      await createAddress(payload)
     }
     
     setShowForm(false)
@@ -87,6 +130,7 @@ const AddressesPage: React.FC = () => {
       country: 'Mali',
       is_default: false,
     })
+    setQuartierQuery('')
   }
 
   if (isLoading) {
@@ -187,42 +231,100 @@ const AddressesPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Commune *
+                  Quartier *
                 </label>
-                <select
-                  required
-                  value={formData.commune}
-                  onChange={(e) => {
-                    setFormData({ ...formData, commune: e.target.value, quartier: '' })
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Sélectionnez une commune</option>
-                  {Object.keys(BAMAKO_ZONES).map((commune) => (
-                    <option key={commune} value={commune}>
-                      {commune}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    ref={quartierInputRef}
+                    required
+                    type="text"
+                    value={quartierQuery}
+                    onChange={(e) => {
+                      const nextQuery = e.target.value
+                      setQuartierQuery(nextQuery)
+                      setShowQuartierSuggestions(true)
+
+                      const resolved = resolveQuartierOption(nextQuery)
+                      if (resolved) {
+                        setFormData((current) => ({
+                          ...current,
+                          commune: resolved.commune,
+                          city: resolved.commune,
+                          quartier: resolved.quartier,
+                        }))
+                      } else {
+                        setFormData((current) => ({
+                          ...current,
+                          commune: '',
+                          city: 'Bamako',
+                          quartier: '',
+                        }))
+                      }
+                    }}
+                    onFocus={() => setShowQuartierSuggestions(true)}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        const resolved = resolveQuartierOption(quartierQuery)
+                        if (resolved) {
+                          handleQuartierSelect(resolved.label)
+                        }
+                        setShowQuartierSuggestions(false)
+                      }, 150)
+                    }}
+                    className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4"
+                    placeholder="Tapez votre quartier ou votre commune"
+                    autoComplete="off"
+                  />
+
+                  {showQuartierSuggestions && (
+                    <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                      {quartierSuggestions.length > 0 ? (
+                        <div className="max-h-72 overflow-y-auto py-2">
+                          {quartierSuggestions.map((option) => (
+                            <button
+                              key={option.label}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                handleQuartierSelect(option.label)
+                                setShowQuartierSuggestions(false)
+                              }}
+                              className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-green-50"
+                            >
+                              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-green-50 text-green-700">
+                                <MapPin className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-gray-900">
+                                  {option.quartier}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {option.commune}
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-4 text-sm text-gray-500">
+                          Aucun quartier trouvé. Essayez le nom du quartier ou de la commune.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Commencez à taper et choisissez la bonne suggestion.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quartier *
+                  Commune détectée
                 </label>
-                <select
-                  required
-                  value={formData.quartier}
-                  onChange={(e) => setFormData({ ...formData, quartier: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  disabled={!formData.commune}
-                >
-                  <option value="">Sélectionnez un quartier</option>
-                  {formData.commune && BAMAKO_ZONES[formData.commune]?.map((quartier) => (
-                    <option key={quartier} value={quartier}>
-                      {quartier}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex min-h-[42px] items-center rounded-md border border-green-200 bg-green-50 px-3 py-2 text-gray-800">
+                  {formData.commune || 'La commune apparaîtra automatiquement'}
+                </div>
               </div>
             </div>
 

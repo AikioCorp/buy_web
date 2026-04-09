@@ -15,6 +15,83 @@ interface CategoryItem {
   slug: string
 }
 
+const VIRTUAL_HOME_CATEGORIES: CategoryItem[] = [
+  { id: -101, name: 'Électronique', slug: 'electronique' },
+  { id: -102, name: 'Mode Homme', slug: 'mode-homme' },
+  { id: -103, name: 'Mode Femme', slug: 'mode-femme' },
+  { id: -104, name: 'Produits Alimentaires', slug: 'alimentation' },
+  { id: -105, name: 'Beauté & Parfumerie', slug: 'beaute' },
+  { id: -106, name: 'Art Culinaire', slug: 'cuisine' },
+]
+
+const SYNTHETIC_CATEGORY_SLUGS = new Set(VIRTUAL_HOME_CATEGORIES.map((category) => category.slug))
+
+const matchesSyntheticCategory = (slug: string, product: Product): boolean => {
+  const text = `${product.name || ''} ${product.description || ''} ${(product as any).meta_title || ''} ${(product as any).meta_description || ''} ${(product as any).category?.name || ''} ${(product as any).category_name || ''} ${(product as any).shop?.name || ''}`.toLowerCase()
+
+  const hasAny = (keywords: string[]) => keywords.some((keyword) => text.includes(keyword))
+
+  if (slug === 'electronique') {
+    const include = [
+      'électroménager', 'electromenager',
+      'électron', 'electron', 'smartphone', 'telephone', 'téléphone',
+      'iphone', 'samsung', 'android', 'infinix', 'tecno', 'xiaomi',
+      'ordinateur', 'computer', 'pc', 'laptop', 'macbook',
+      'tablette', 'tablet', 'ipad',
+      'tv', 'télévision', 'television', 'écran', 'ecran', 'monitor', 'moniteur',
+      'audio', 'casque', 'écouteur', 'ecouteur', 'speaker', 'haut-parleur', 'haut parleur',
+      'bluetooth', 'chargeur', 'charger', 'power bank', 'batterie externe',
+      'camera', 'caméra', 'appareil photo',
+      'console', 'playstation', 'xbox', 'nintendo', 'manette', 'gamepad',
+      'imprimante', 'printer', 'wifi', 'routeur', 'router',
+      'drone', 'smartwatch', 'montre connectée', 'montre connectee',
+      'réfrigérateur', 'refrigerateur', 'frigo', 'congélateur', 'congelateur',
+      'machine à laver', 'machine a laver', 'lave-linge', 'lave linge',
+      'micro-ondes', 'micro ondes', 'bouilloire', 'friteuse', 'mixeur', 'blender',
+      'cafetière', 'cafetiere', 'four électrique', 'four electrique', 'plaque de cuisson',
+      'aspirateur',
+    ]
+    const exclude = [
+      'casserole', 'poêle', 'poele', 'marmite', 'cocotte', 'ustensile', 'spatule', 'fouet', 'couteau',
+      'assiette', 'bol', 'saladier', 'service de table', 'tasse', 'mug', 'verre',
+      'cuisine', 'alimentaire', 'épicerie', 'epicerie', 'lait', 'yaourt', 'fromage', 'biscuit', 'boisson',
+      'robe', 'jupe', 'pantalon', 'chemise', 'chaussure', 'parfum', 'maquillage', 'savon', 'lotion',
+      'bébé', 'bebe', 'couche', 'biberon', 'jouet', 'peluche',
+    ]
+    return hasAny(include) && !hasAny(exclude)
+  }
+
+  if (slug === 'mode-homme') {
+    const include = ['homme', 'masculin', 'men', 'monsieur', 'male', 'for men', 'mens', 'au masculin', 'gentlemen', 'barbier', 'barbe']
+    const exclude = ['femme', 'féminin', 'feminine', 'women', 'lady', 'robe', 'jupe', 'lingerie', 'soutien-gorge']
+    return hasAny(include) && !hasAny(exclude)
+  }
+
+  if (slug === 'mode-femme') {
+    const include = ['femme', 'féminin', 'feminine', 'women', 'lady', 'robe', 'jupe', 'escarpin', 'sac à main', 'mademoiselle', 'lingerie']
+    const exclude = ['homme', 'masculin', 'mens', 'barbier', 'cravate', 'aftershave']
+    return hasAny(include) && !hasAny(exclude)
+  }
+
+  if (slug === 'alimentation') {
+    const include = ['alimentaire', 'nourriture', 'épicerie', 'epicerie', 'riz', 'huile', 'sucre', 'lait', 'fromage', 'yaourt', 'viande', 'poisson', 'jus', 'boisson', 'café', 'cafe', 'thé', 'the', 'biscuit', 'sauce', 'pain', 'maggi', 'bouillon']
+    const exclude = ['parfum', 'maquillage', 'savon', 'lotion', 'téléphone', 'telephone', 'ordinateur', 'robe', 'jouet', 'biberon', 'ustensile', 'casserole', 'tasse', 'mug']
+    return hasAny(include) && !hasAny(exclude)
+  }
+
+  if (slug === 'beaute') {
+    return hasAny(['beauté', 'beaute', 'parfum', 'maquillage', 'crème', 'creme', 'lotion', 'savon', 'shampooing', 'shampoing', 'déodorant', 'deodorant', 'soin peau', 'soin corps'])
+  }
+
+  if (slug === 'cuisine') {
+    const include = ['ustensile', 'casserole', 'poêle', 'poele', 'couteau', 'spatule', 'mixeur', 'blender', 'bouilloire', 'cafetière', 'cafetiere', 'marmite', 'cocotte', 'assiette', 'bol', 'saladier', 'tasse', 'mug', 'verre']
+    const exclude = ['telephone', 'téléphone', 'ordinateur', 'robe', 'parfum', 'maquillage']
+    return hasAny(include) && !hasAny(exclude)
+  }
+
+  return false
+}
+
 
 // Helper to get price as number
 const getPrice = (product: Product): number => {
@@ -102,19 +179,22 @@ export function ProductsPage() {
       // Utiliser le service de cache avec pagination
       const filters: any = {}
       if (search) filters.search = search
-      if (category) {
+      if (category && !SYNTHETIC_CATEGORY_SLUGS.has(category)) {
         // Utiliser directement le slug de la catégorie
         filters.category_slug = category
       }
 
       const response = await productCacheService.getProductsPage(page, filters)
+      const pageResults = SYNTHETIC_CATEGORY_SLUGS.has(category)
+        ? response.results.filter((product: any) => matchesSyntheticCategory(category, product))
+        : response.results
 
       if (page === 0) {
-        setProducts(response.results as any)
-        setTotalCount(response.count)
+        setProducts(pageResults as any)
+        setTotalCount(SYNTHETIC_CATEGORY_SLUGS.has(category) ? pageResults.length : response.count)
       } else {
-        setProducts(prev => [...prev, ...response.results] as any)
-        setTotalCount(prev => prev + response.results.length)
+        setProducts(prev => [...prev, ...pageResults] as any)
+        setTotalCount(prev => prev + pageResults.length)
       }
 
       // L'API renvoie count = nombre de résultats par page, pas le total global
@@ -144,16 +224,22 @@ export function ProductsPage() {
     try {
       const response = await categoriesService.getCategories()
       if (response.data && Array.isArray(response.data)) {
-        setCategories(response.data)
-        setCategoriesWithProducts(response.data)
+        const mergedCategories = [
+          ...VIRTUAL_HOME_CATEGORIES,
+          ...response.data.filter(
+            (category) => !VIRTUAL_HOME_CATEGORIES.some((virtualCategory) => virtualCategory.slug === category.slug)
+          ),
+        ]
+        setCategories(mergedCategories)
+        setCategoriesWithProducts(mergedCategories)
       } else {
-        setCategories([])
-        setCategoriesWithProducts([])
+        setCategories(VIRTUAL_HOME_CATEGORIES)
+        setCategoriesWithProducts(VIRTUAL_HOME_CATEGORIES)
       }
     } catch (error) {
       console.error('Error loading categories:', error)
-      setCategories([])
-      setCategoriesWithProducts([])
+      setCategories(VIRTUAL_HOME_CATEGORIES)
+      setCategoriesWithProducts(VIRTUAL_HOME_CATEGORIES)
     }
   }
 
