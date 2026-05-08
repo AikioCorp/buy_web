@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText, Phone, Shield, RefreshCw, ArrowLeft } from 'lucide-react'
 import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
 import { authService } from '@/lib/api/authService'
+import { PhoneRegisterForm } from '../components/auth/PhoneRegisterForm'
 
 export function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -181,7 +182,7 @@ export function RegisterPage() {
 
     try {
       const formattedPhoneForApi = otpPhone.length === 8 && !otpPhone.startsWith('+') ? `+223${otpPhone}` : otpPhone;
-      const response = await authService.verifyPhoneOtp({
+      const response = await authService.verifyLoginPhoneOtp({
         phone: formattedPhoneForApi,
         otp: otpCode,
       })
@@ -227,7 +228,7 @@ export function RegisterPage() {
     setOtpError('')
     try {
       const formattedPhoneForApi = otpPhone.length === 8 && !otpPhone.startsWith('+') ? `+223${otpPhone}` : otpPhone;
-      const response = await authService.sendPhoneOtp(formattedPhoneForApi)
+      const response = await authService.sendLoginPhoneOtp(formattedPhoneForApi)
       if (response.error) {
         const errMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error)
         setOtpError(errMsg)
@@ -427,8 +428,13 @@ export function RegisterPage() {
                   </button>
                 </div>
 
-                {/* Formulaire d'inscription */}
-                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+                {/* Formulaire téléphone : flux OTP complet sans mot de passe */}
+                {registerMethod === 'phone' && (
+                  <PhoneRegisterForm />
+                )}
+
+                {/* Formulaire email */}
+                <form onSubmit={handleSubmit} className={`space-y-4 sm:space-y-5 ${registerMethod === 'phone' ? 'hidden' : ''}`}>
                   {/* Nom complet */}
                   <div className="group">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">

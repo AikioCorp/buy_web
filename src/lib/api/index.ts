@@ -16,6 +16,7 @@ export * from './shopsService';
 export * from './favoritesService';
 export * from './addressesService';
 export * from './paymentsService';
+export * from './mobileMoneyService';
 export * from './messagesService';
 export * from './notificationsService';
 export * from './usersService';

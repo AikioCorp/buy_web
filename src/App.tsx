@@ -36,6 +36,9 @@ import { AuthCallback } from './pages/AuthCallback'
 import { AuthSuccess } from './pages/AuthSuccess'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { PaymentStatusPage } from './pages/PaymentStatusPage'
+import { PaymentSuccessPage } from './pages/PaymentSuccessPage'
+import { PaymentCancelPage } from './pages/PaymentCancelPage'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -131,6 +134,11 @@ function App() {
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/auth/success" element={<AuthSuccess />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+              {/* Payment Routes */}
+              <Route path="/payment/status" element={<PaymentStatusPage />} />
+              <Route path="/payment/success" element={<PaymentSuccessPage />} />
+              <Route path="/payment/cancel" element={<PaymentCancelPage />} />
 
               {/* Routes principales avec navbar */}
               <Route path="/" element={<Layout />}>

@@ -273,30 +273,44 @@ export const authService = {
     });
   },
 
-  /**
-   * Envoyer un code OTP par SMS
-   */
-  async sendPhoneOtp(phone: string) {
-    return await apiClient.post<PhoneOtpSendResponse>('/api/auth/phone/send-otp/', { phone });
+  // ── CONNEXION par téléphone (OTP) ──────────────────────────────────────────
+
+  async sendLoginPhoneOtp(phone: string) {
+    return await apiClient.post<PhoneOtpSendResponse>('/api/auth/phone/login/send-otp', { phone });
   },
 
-  /**
-   * Vérifier le code OTP et obtenir le token d'authentification
-   */
-  async verifyPhoneOtp(params: PhoneOtpVerifyParams) {
-    const response = await apiClient.post<any>('/api/auth/phone/verify-otp/', params);
-
-    // Normaliser la réponse pour compatibilité avec le store
+  async verifyLoginPhoneOtp(params: { phone: string; otp: string }) {
+    const response = await apiClient.post<any>('/api/auth/phone/login/verify-otp', params);
     const token = response.data?.token;
-    if (token) {
-      apiClient.setToken(token);
-    }
+    if (token) apiClient.setToken(token);
+    if (response.data?.refresh_token) localStorage.setItem('refresh_token', response.data.refresh_token);
+    return response;
+  },
 
-    // Stocker aussi le refresh_token
-    if (response.data?.refresh_token) {
-      localStorage.setItem('refresh_token', response.data.refresh_token);
-    }
+  // ── INSCRIPTION par téléphone (OTP) ─────────────────────────────────────────
 
+  async sendRegisterPhoneOtp(phone: string) {
+    return await apiClient.post<PhoneOtpSendResponse>('/api/auth/phone/register/send-otp', { phone });
+  },
+
+  async verifyRegisterPhoneOtp(params: { phone: string; otp: string; first_name?: string; last_name?: string; username?: string }) {
+    const response = await apiClient.post<any>('/api/auth/phone/register/verify-otp', params);
+    const token = response.data?.token;
+    if (token) apiClient.setToken(token);
+    if (response.data?.refresh_token) localStorage.setItem('refresh_token', response.data.refresh_token);
+    return response;
+  },
+
+  // ── Alias legacy (connexion uniquement) ─────────────────────────────────────
+  async sendPhoneOtp(phone: string) {
+    return await apiClient.post<PhoneOtpSendResponse>('/api/auth/phone/login/send-otp', { phone });
+  },
+
+  async verifyPhoneOtp(params: PhoneOtpVerifyParams) {
+    const response = await apiClient.post<any>('/api/auth/phone/login/verify-otp', params);
+    const token = response.data?.token;
+    if (token) apiClient.setToken(token);
+    if (response.data?.refresh_token) localStorage.setItem('refresh_token', response.data.refresh_token);
     return response;
   },
 };

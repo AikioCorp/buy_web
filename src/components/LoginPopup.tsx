@@ -5,6 +5,7 @@ import { useToast } from '@/components/Toast'
 import { PhoneInput } from '@/components/PhoneInput'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
 import { PhoneLoginForm } from '@/components/auth/PhoneLoginForm'
+import { PhoneRegisterForm } from '@/components/auth/PhoneRegisterForm'
 
 interface LoginPopupProps {
   isOpen: boolean
@@ -229,9 +230,21 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
             </div>
           </div>
 
-          {/* Connexion par téléphone avec OTP (hors formulaire) */}
+          {/* Connexion par téléphone avec OTP */}
           {loginMethod === 'phone' && !isRegister ? (
             <PhoneLoginForm />
+          ) : loginMethod === 'phone' && isRegister ? (
+            /* Inscription par téléphone : flux OTP sans mot de passe */
+            <>
+              <PhoneRegisterForm />
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
+              >
+                Continuer sans compte
+              </button>
+            </>
           ) : (
             /* Formulaire email/password ou inscription */
             <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">

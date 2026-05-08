@@ -41,7 +41,7 @@ export function PhoneRegisterForm() {
 
     try {
       const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
-      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
+      const response = await authService.sendRegisterPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         setError(response.error);
         return;
@@ -101,7 +101,7 @@ export function PhoneRegisterForm() {
 
     try {
       const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
-      const response = await authService.verifyPhoneOtp({
+      const response = await authService.verifyRegisterPhoneOtp({
         phone: formattedPhoneForApi,
         otp: otpCode,
         first_name: firstName,
@@ -159,7 +159,7 @@ export function PhoneRegisterForm() {
     setError('');
     try {
       const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
-      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
+      const response = await authService.sendRegisterPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         setError(response.error);
         return;

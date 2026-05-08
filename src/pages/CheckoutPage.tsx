@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useShippingStore } from '@/store/shippingStore'
 import { ordersService } from '@/lib/api/ordersService'
 import { apiClient } from '@/lib/api/apiClient'
+import { mobileMoneyService, type MobileMoneyProvider } from '@/lib/api/mobileMoneyService'
 import { formatPrice } from '@/lib/utils'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
@@ -114,7 +115,7 @@ export function CheckoutPage() {
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_money'>('cash_on_delivery')
-  const [mobileMoneyProvider, setMobileMoneyProvider] = useState<'wave' | 'orange_money' | 'sama' | 'moov'>('wave')
+  const [mobileMoneyProvider, setMobileMoneyProvider] = useState<MobileMoneyProvider>('orange_money')
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('')
 
   // Multi-coupon support
@@ -469,16 +470,48 @@ export function CheckoutPage() {
 
         if (response.data) {
           console.log('✅ Order created successfully:', response.data)
-          setOrderId(response.data.id)
+          const orderId = response.data.id
+          setOrderId(orderId)
 
           // Track order created
           const orderTotal = getTotal() + getDeliveryFee()
           const itemsCount = items.reduce((acc, item) => acc + item.quantity, 0)
-          analytics.orderCreated(response.data.id, orderTotal, itemsCount, 'website')
+          analytics.orderCreated(orderId, orderTotal, itemsCount, 'website')
 
-          setOrderSuccess(true)
           clearCart()
-          console.log('✅ Order success state set, should show success page')
+
+          // Si paiement mobile money : initier TouchPay et rediriger vers la page de statut
+          if (paymentMethod === 'mobile_money') {
+            const payRes = await mobileMoneyService.initiatePayment({
+              order_id: orderId,
+              provider: mobileMoneyProvider,
+              phone_number: mobileMoneyNumber.trim(),
+            })
+
+            if (payRes.error || !payRes.data) {
+              // Commande créée mais paiement échoué : aller sur la page d'erreur de paiement
+              navigate(`/payment/status?transaction_id=error&order_id=${orderId}&error=${encodeURIComponent(payRes.error || 'Erreur paiement')}`)
+              return
+            }
+
+            const tx = payRes.data
+
+            // Wave : rediriger vers l'URL Wave, puis revenir sur la page de statut
+            if (mobileMoneyProvider === 'wave' && tx.payment_url) {
+              // Stocker l'ID de transaction pour retrouver le statut au retour
+              sessionStorage.setItem('pending_payment_tx', String(tx.transaction_id))
+              sessionStorage.setItem('pending_payment_order', String(orderId))
+              window.location.href = tx.payment_url
+              return
+            }
+
+            // Orange Money / Moov Money : rediriger vers la page de polling
+            navigate(`/payment/status?transaction_id=${tx.transaction_id}&order_id=${orderId}&provider=${mobileMoneyProvider}`)
+            return
+          }
+
+          // Paiement à la livraison : succès direct
+          setOrderSuccess(true)
         } else {
           console.error('❌ No data returned from server')
           setError('Aucune donnée retournée par le serveur')
@@ -954,32 +987,71 @@ export function CheckoutPage() {
                       </div>
                     </label>
 
-                    {/* Mobile Money - Coming Soon */}
-                    <div className="relative group">
-                      <div className={`flex items-start p-4 border rounded-lg cursor-not-allowed transition-colors border-gray-200 bg-gray-50 opacity-60`}>
-                        <input
-                          type="radio"
-                          name="payment"
-                          value="mobile_money"
-                          disabled
-                          className="h-4 w-4 text-gray-400 mt-1 cursor-not-allowed"
-                        />
-                        <div className="ml-3 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-500">Mobile Money</span>
-                            <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">
-                              Bientôt disponible
-                            </span>
+                    {/* Mobile Money */}
+                    <label className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'mobile_money' ? 'border-[#0f4c2b] bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="mobile_money"
+                        checked={paymentMethod === 'mobile_money'}
+                        onChange={() => setPaymentMethod('mobile_money')}
+                        className="h-4 w-4 text-[#0f4c2b] focus:ring-[#0f4c2b] mt-1"
+                      />
+                      <div className="ml-3 flex-1">
+                        <span className="font-medium">Mobile Money</span>
+                        <p className="text-sm text-gray-500">Orange Money, Moov Money, Wave</p>
+                      </div>
+                    </label>
+
+                    {/* Sélection opérateur + numéro */}
+                    {paymentMethod === 'mobile_money' && (
+                      <div className="border border-green-200 bg-green-50 rounded-lg p-4 space-y-4">
+                        {/* Choix de l'opérateur */}
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-3">Choisissez votre opérateur</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            {([
+                              { value: 'orange_money', label: 'Orange Money', color: '#FF6600', logo: '🟠' },
+                              { value: 'moov_money',   label: 'Moov Money',   color: '#0055A5', logo: '🔵' },
+                              { value: 'wave',         label: 'Wave',         color: '#1CCAD8', logo: '🌊' },
+                            ] as const).map(op => (
+                              <button
+                                key={op.value}
+                                type="button"
+                                onClick={() => setMobileMoneyProvider(op.value)}
+                                className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${mobileMoneyProvider === op.value ? 'border-[#0f4c2b] bg-white shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                              >
+                                <span className="text-2xl">{op.logo}</span>
+                                <span className="text-xs font-medium text-center leading-tight">{op.label}</span>
+                              </button>
+                            ))}
                           </div>
-                          <p className="text-sm text-gray-400">Wave, Orange Money, Sama, Moov Africa</p>
+                        </div>
+
+                        {/* Numéro de téléphone */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Numéro {mobileMoneyProvider === 'orange_money' ? 'Orange Money' : mobileMoneyProvider === 'moov_money' ? 'Moov Money' : 'Wave'}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-600 font-medium">+223</span>
+                            <input
+                              type="tel"
+                              value={mobileMoneyNumber}
+                              onChange={e => setMobileMoneyNumber(e.target.value.replace(/\D/g, ''))}
+                              placeholder="7X XX XX XX"
+                              maxLength={8}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f4c2b]"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {mobileMoneyProvider === 'wave'
+                              ? 'Vous serez redirigé vers Wave pour valider le paiement'
+                              : 'Vous recevrez une demande de validation sur ce numéro'}
+                          </p>
                         </div>
                       </div>
-                      {/* Tooltip on hover */}
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-4 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                        🚀 Le paiement Mobile Money arrive très prochainement !
-                        <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
-                      </div>
-                    </div>
+                    )}
 
                   </div>
 
@@ -1025,9 +1097,8 @@ export function CheckoutPage() {
                         <>
                           {mobileMoneyProvider === 'wave' && 'Wave'}
                           {mobileMoneyProvider === 'orange_money' && 'Orange Money'}
-                          {mobileMoneyProvider === 'sama' && 'Sama'}
-                          {mobileMoneyProvider === 'moov' && 'Moov Africa'}
-                          {' - '}{mobileMoneyNumber}
+                          {mobileMoneyProvider === 'moov_money' && 'Moov Money'}
+                          {' — +223 '}{mobileMoneyNumber}
                         </>
                       )}
                     </p>
