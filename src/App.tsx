@@ -39,6 +39,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { PaymentStatusPage } from './pages/PaymentStatusPage'
 import { PaymentSuccessPage } from './pages/PaymentSuccessPage'
 import { PaymentCancelPage } from './pages/PaymentCancelPage'
+import { PaymentIntouchPage } from './pages/PaymentIntouchPage'
 
 // Import du Layout Dashboard Vendeur
 import DashboardLayout from './components/dashboard/DashboardLayout'
@@ -139,6 +140,7 @@ function App() {
               <Route path="/payment/status" element={<PaymentStatusPage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/payment/cancel" element={<PaymentCancelPage />} />
+              <Route path="/payment/intouch" element={<PaymentIntouchPage />} />
 
               {/* Routes principales avec navbar */}
               <Route path="/" element={<Layout />}>
