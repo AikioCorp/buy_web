@@ -3,59 +3,52 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Loader2, AlertCircle, Smartphone } from 'lucide-react'
 
 /**
- * Page de paiement InTouch / TouchPay SDK
+ * Page de paiement InTouch — configuration chargée depuis le backend.
+ * Aucune variable d'environnement nécessaire côté frontend.
  *
- * Charge le SDK JavaScript TouchPay et appelle sendPaymentInfos() automatiquement.
- *
- * Signature réelle du SDK (confirmée par la doc BuyMore) :
- *   sendPaymentInfos(
- *     timestamp,    // new Date().getTime()
- *     codeAgence,   // 'BMORE8055'
- *     secureCode,   // 'sWO3jRTSoXdkKB2sd...'
- *     domain,       // 'buymore.ml'
- *     returnUrl,    // URL de succès
- *     cancelUrl,    // URL d'annulation
- *     amount,       // montant en FCFA (number)
- *     city,         // ville du client
- *     firstName,    // prénom
- *     lastName,     // nom
- *     email,        // email
- *     phone         // numéro de téléphone
- *   )
- *
- * Query params reçus depuis le backend :
- *   reference, amount, phone, email, order, firstname?, lastname?, city?
+ * Signature SDK InTouch (sendPaymentInfos) :
+ *   (timestamp, agencyCode, secureCode, domain,
+ *    returnUrl, cancelUrl, amount, city,
+ *    firstName, lastName, email, phone)
  */
 
 declare global {
   interface Window {
     sendPaymentInfos?: (
-      timestamp:   number,
-      codeAgence:  string,
-      secureCode:  string,
-      domain:      string,
-      returnUrl:   string,
-      cancelUrl:   string,
-      amount:      number,
-      city:        string,
-      firstName:   string,
-      lastName:    string,
-      email:       string,
-      phone:       string
+      timestamp:  number,
+      agencyCode: string,
+      secureCode: string,
+      domain:     string,
+      returnUrl:  string,
+      cancelUrl:  string,
+      amount:     number,
+      city:       string,
+      firstName:  string,
+      lastName:   string,
+      email:      string,
+      phone:      string
     ) => void
   }
 }
 
-// ── Config (injectée via variables d'environnement Vite) ──────────────────
 const INTOUCH_SDK_URL = 'https://touchpay.gutouch.net/touchpayv2/script/touchpaynr/prod_touchpay-0.0.1.js'
-const AGENCY_CODE     = import.meta.env.VITE_INTOUCH_CODE_AGENCE  || 'BMORE8055'
-const SECURE_CODE     = import.meta.env.VITE_INTOUCH_SECURE_CODE  || ''
-// Domaine enregistré chez InTouch — doit correspondre exactement au domaine configuré chez GUTouch
-const DOMAIN          = import.meta.env.VITE_INTOUCH_DOMAIN       || 'buymore.ml'
-// URL webhook : doit être publique (pas localhost) — InTouch appelle cette URL depuis ses serveurs
-const NOTIF_URL       = import.meta.env.VITE_INTOUCH_WEBHOOK_URL  || 'https://buymore-api-production.up.railway.app/api/payments/intouch/callback'
-// En développement depuis localhost, InTouch rejette les appels car le domaine ne correspond pas
-const IS_DEV_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
+// URL de l'API BuyMore — déduite de window.location ou hardcodée en fallback
+const getApiBase = () => {
+  // En production sur buymore.ml, l'API est sur buymore-api-production.up.railway.app
+  // En développement sur localhost, l'API est sur localhost:3000
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3000'
+  }
+  return 'https://buymore-api-production.up.railway.app'
+}
+
+interface IntouchSdkConfig {
+  agency_code: string
+  secure_code: string
+  domain:      string
+  webhook_url: string
+}
 
 export function PaymentIntouchPage() {
   const [searchParams] = useSearchParams()
@@ -70,57 +63,81 @@ export function PaymentIntouchPage() {
   const lastName   = searchParams.get('lastname')  || 'BuyMore'
   const city       = searchParams.get('city')      || 'Bamako'
 
-  const [sdkReady,  setSdkReady]  = useState(false)
-  const [sdkError,  setSdkError]  = useState<string | null>(null)
-  const [launched,  setLaunched]  = useState(false)
+  const [sdkConfig,  setSdkConfig]  = useState<IntouchSdkConfig | null>(null)
+  const [sdkReady,   setSdkReady]   = useState(false)
+  const [sdkError,   setSdkError]   = useState<string | null>(null)
+  const [launched,   setLaunched]   = useState(false)
+  const [loadingCfg, setLoadingCfg] = useState(true)
 
-  // ── Charger le SDK ────────────────────────────────────────────────────────
+  const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
+  // ── Étape 1 : charger la config depuis le backend ─────────────────────────
   useEffect(() => {
     if (!reference || !amount) {
       setSdkError('Paramètres de paiement manquants.')
-      return
-    }
-    if (!SECURE_CODE) {
-      setSdkError('Configuration InTouch incomplète (VITE_INTOUCH_SECURE_CODE manquant).')
+      setLoadingCfg(false)
       return
     }
 
-    // Si déjà chargé
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch(`${getApiBase()}/api/payments/intouch/sdk-config`)
+        if (!res.ok) throw new Error(`Erreur serveur ${res.status}`)
+        const data: IntouchSdkConfig = await res.json()
+        if (!data.agency_code || !data.secure_code) {
+          throw new Error('Configuration InTouch incomplète sur le serveur')
+        }
+        console.log('[InTouch] Config chargée :', { agencyCode: data.agency_code, domain: data.domain })
+        setSdkConfig(data)
+      } catch (err: any) {
+        setSdkError(`Impossible de charger la configuration de paiement : ${err.message}`)
+      } finally {
+        setLoadingCfg(false)
+      }
+    }
+
+    fetchConfig()
+  }, [reference, amount])
+
+  // ── Étape 2 : charger le SDK InTouch ─────────────────────────────────────
+  useEffect(() => {
+    if (!sdkConfig) return
+
     if (document.getElementById('intouch-sdk')) {
       setSdkReady(true)
       return
     }
 
-    const script    = document.createElement('script')
-    script.id       = 'intouch-sdk'
-    script.src      = INTOUCH_SDK_URL
-    script.async    = true
-    script.onload   = () => { console.log('[InTouch] SDK chargé ✅'); setSdkReady(true) }
-    script.onerror  = () => setSdkError('Impossible de charger le SDK InTouch. Vérifiez votre connexion.')
+    const script   = document.createElement('script')
+    script.id      = 'intouch-sdk'
+    script.src     = INTOUCH_SDK_URL
+    script.async   = true
+    script.onload  = () => { console.log('[InTouch] SDK chargé ✅'); setSdkReady(true) }
+    script.onerror = () => setSdkError('Impossible de charger le SDK InTouch. Vérifiez votre connexion.')
     document.body.appendChild(script)
-  }, [reference, amount])
+  }, [sdkConfig])
 
-  // ── Lancer le paiement dès que le SDK est prêt ────────────────────────────
+  // ── Étape 3 : lancer le paiement dès que le SDK est prêt ─────────────────
   useEffect(() => {
-    if (sdkReady && !launched) launchPayment()
-  }, [sdkReady])
+    if (sdkReady && sdkConfig && !launched) launchPayment()
+  }, [sdkReady, sdkConfig])
 
   const launchPayment = () => {
     if (!window.sendPaymentInfos) {
-      setSdkError('La fonction sendPaymentInfos n\'est pas disponible. Rechargez la page.')
+      setSdkError('Le SDK InTouch n\'est pas disponible. Rechargez la page.')
       return
     }
+    if (!sdkConfig) return
 
     const origin    = window.location.origin
     const returnUrl = `${origin}/payment/success?reference=${encodeURIComponent(reference)}&order=${encodeURIComponent(orderNum)}&payment_method=intouch`
     const cancelUrl = `${origin}/payment/cancel?reference=${encodeURIComponent(reference)}&order=${encodeURIComponent(orderNum)}&payment_method=intouch`
-    // notifUrl DOIT être public — InTouch appelle cette URL depuis ses serveurs
-    const notifUrl  = NOTIF_URL
+    const notifUrl  = sdkConfig.webhook_url
 
-    console.log('[InTouch] Appel sendPaymentInfos :', {
-      agencyCode: AGENCY_CODE,
-      secureCode: SECURE_CODE ? `${SECURE_CODE.slice(0, 8)}...` : '⚠️ VIDE',
-      domain:     DOMAIN,
+    console.log('[InTouch] sendPaymentInfos :', {
+      agencyCode: sdkConfig.agency_code,
+      secureCode: `${sdkConfig.secure_code.slice(0, 8)}...`,
+      domain:     sdkConfig.domain,
       amount,
       reference,
       notifUrl,
@@ -133,22 +150,22 @@ export function PaymentIntouchPage() {
     try {
       setLaunched(true)
       window.sendPaymentInfos(
-        new Date().getTime(),  // timestamp unique
-        AGENCY_CODE,           // codeAgence  ex: BMORE8055
-        SECURE_CODE,           // secureCode  (fourni par GUTouch)
-        DOMAIN,                // domaine marchand ex: businessbuymore.com
-        returnUrl,             // URL retour succès
-        cancelUrl,             // URL retour annulation
-        amount,                // montant en FCFA (number)
-        city,                  // ville ex: Bamako
-        firstName,             // prénom client
-        lastName,              // nom client
-        email,                 // email client (peut être vide)
-        phone                  // téléphone client
+        new Date().getTime(),
+        sdkConfig.agency_code,
+        sdkConfig.secure_code,
+        sdkConfig.domain,
+        returnUrl,
+        cancelUrl,
+        amount,
+        city,
+        firstName,
+        lastName,
+        email,
+        phone
       )
     } catch (err: any) {
       console.error('[InTouch] Erreur sendPaymentInfos :', err)
-      setSdkError('Erreur lors du lancement du paiement. Cliquez sur "Réessayer".')
+      setSdkError('Erreur lors du lancement du paiement InTouch. Cliquez sur "Réessayer".')
       setLaunched(false)
     }
   }
@@ -163,7 +180,7 @@ export function PaymentIntouchPage() {
           <p className="text-gray-500 mb-6">{sdkError}</p>
           <div className="space-y-3">
             <button
-              onClick={() => { setSdkError(null); setLaunched(false); launchPayment() }}
+              onClick={() => { setSdkError(null); setLaunched(false); if (sdkConfig) launchPayment() }}
               className="w-full py-3 bg-[#0f4c2b] text-white rounded-xl font-semibold hover:bg-[#0a3a20]"
             >
               Réessayer
@@ -180,25 +197,29 @@ export function PaymentIntouchPage() {
     )
   }
 
-  // ── Chargement / attente ──────────────────────────────────────────────────
+  // ── Chargement ────────────────────────────────────────────────────────────
+  const isLoading = loadingCfg || (!sdkReady && !sdkError)
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
 
         <div className="flex justify-center mb-6">
-          {sdkReady
-            ? <Smartphone className="h-12 w-12 text-[#0f4c2b]" />
-            : <Loader2 className="h-12 w-12 animate-spin text-[#0f4c2b]" />
+          {isLoading
+            ? <Loader2 className="h-12 w-12 animate-spin text-[#0f4c2b]" />
+            : <Smartphone className="h-12 w-12 text-[#0f4c2b]" />
           }
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Paiement Mobile Money</h1>
         <p className="text-gray-500 mb-6">
-          {!sdkReady
-            ? 'Chargement du système de paiement…'
-            : launched
-              ? 'La fenêtre de paiement est ouverte. Suivez les instructions.'
-              : 'Initialisation du paiement…'
+          {loadingCfg
+            ? 'Chargement de la configuration…'
+            : !sdkReady
+              ? 'Chargement du système de paiement…'
+              : launched
+                ? 'La fenêtre de paiement est ouverte. Suivez les instructions.'
+                : 'Initialisation…'
           }
         </p>
 
@@ -231,17 +252,16 @@ export function PaymentIntouchPage() {
         </div>
 
         {/* Avertissement localhost */}
-        {IS_DEV_LOCALHOST && (
+        {IS_DEV && sdkReady && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-left">
-            <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ Mode développement (localhost)</p>
+            <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ Mode développement</p>
             <p className="text-xs text-amber-700">
-              InTouch rejette les appels depuis localhost. Le SDK fonctionnera correctement sur <strong>buymore.ml</strong>.
-              Pour tester en local, utilise <strong>ngrok</strong> ou déploie directement.
+              InTouch peut rejeter les appels depuis localhost. Le SDK fonctionnera sur <strong>buymore.ml</strong>.
             </p>
           </div>
         )}
 
-        {/* Bouton de relancement manuel */}
+        {/* Bouton relancement */}
         {sdkReady && (
           <button
             onClick={() => { setLaunched(false); launchPayment() }}
@@ -261,7 +281,7 @@ export function PaymentIntouchPage() {
 
         {launched && (
           <p className="text-xs text-gray-400 mt-4">
-            Si la fenêtre de paiement s'est fermée sans confirmation, cliquez sur "Relancer le paiement".
+            Si la fenêtre s'est fermée sans confirmation, cliquez sur "Relancer le paiement".
           </p>
         )}
       </div>
