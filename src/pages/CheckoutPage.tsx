@@ -5,7 +5,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useShippingStore } from '@/store/shippingStore'
 import { ordersService } from '@/lib/api/ordersService'
 import { apiClient } from '@/lib/api/apiClient'
-import { mobileMoneyService } from '@/lib/api/mobileMoneyService'
+import { mobileMoneyService, type MobileMoneyProvider, PROVIDER_LABELS } from '@/lib/api/mobileMoneyService'
+import { toLocalMsisdn, hasValidMsisdn } from '@/lib/phone'
 import { formatPrice } from '@/lib/utils'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
@@ -118,6 +119,8 @@ export function CheckoutPage() {
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_money'>('cash_on_delivery')
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('')
+  // Opérateur mobile money choisi par l'utilisateur (transmis tel quel à l'API)
+  const [mobileMoneyProvider, setMobileMoneyProvider] = useState<MobileMoneyProvider>('orange_money')
 
   // Multi-coupon support
   const [couponInput, setCouponInput] = useState('')
@@ -335,9 +338,14 @@ export function CheckoutPage() {
   }
 
   const handlePaymentSubmit = () => {
-    if (paymentMethod === 'mobile_money' && !mobileMoneyNumber.trim()) {
-      setError('Le numéro Mobile Money est requis')
-      return
+    if (paymentMethod === 'mobile_money') {
+      // Le champ Mobile Money peut rester vide : on utilise alors le téléphone
+      // de livraison. On bloque uniquement si AUCUN numéro n'est disponible.
+      const effectivePhone = mobileMoneyNumber.trim() || shippingAddress.phone.trim()
+      if (!effectivePhone) {
+        setError('Aucun numéro disponible. Renseignez un numéro Mobile Money ou un téléphone de livraison.')
+        return
+      }
     }
     setError(null)
     setCurrentStep('confirmation')
@@ -452,6 +460,8 @@ export function CheckoutPage() {
         payment_method: paymentMethod,
         delivery_fee: freeShipping ? 0 : getDeliveryFee(),
         coupon_code: appliedCoupons.length > 0 ? appliedCoupons.map(c => c.code).join(',') : undefined,
+        // N'enregistrer l'adresse en base que si l'utilisateur l'a demandé
+        save_address: saveAddressForLater,
       }
 
       try {
@@ -486,35 +496,38 @@ export function CheckoutPage() {
           const itemsCount = items.reduce((acc, item) => acc + item.quantity, 0)
           analytics.orderCreated(orderId, orderTotal, itemsCount, 'website')
 
-          // Paiement Mobile Money via InTouch SDK
+          // Paiement Mobile Money via l'API directe TouchPay/InTouch.
+          // L'opérateur, le téléphone, l'email et le nom sont transmis à l'API ;
+          // le backend les relaie à InTouch côté serveur (pas de re-saisie).
           if (paymentMethod === 'mobile_money') {
             // Bloquer la redirection vers /cart pendant le traitement
             setIsProcessingPayment(true)
-
-            // Récupérer le téléphone : champ mobile money > téléphone de livraison
-            const rawPhone = mobileMoneyNumber.trim() || shippingAddress.phone || ''
-            const digits   = rawPhone.replace(/\D/g, '')
-            const phone    = digits.startsWith('223') ? `+${digits}` : digits ? `+223${digits}` : ''
-
-            console.log('💳 InTouch initiate payload:', { order_id: orderId, phone_number: phone })
 
             if (!orderId) {
               setIsProcessingPayment(false)
               setError('Erreur : ID de commande manquant')
               return
             }
-            if (!phone) {
+
+            // Numéro effectif : champ Mobile Money sinon téléphone de livraison.
+            // Normalisé au format local 8 chiffres attendu par InTouch.
+            const effectiveRaw = mobileMoneyNumber.trim() || shippingAddress.phone || ''
+            const phone = toLocalMsisdn(effectiveRaw)
+
+            if (!hasValidMsisdn(phone)) {
               setIsProcessingPayment(false)
-              setError('Veuillez renseigner un numéro de téléphone Mobile Money')
+              setError('Numéro mobile money invalide. Entrez un numéro malien à 8 chiffres.')
               return
             }
 
-            const payRes = await mobileMoneyService.initiateIntouchPayment({
-              order_id:     orderId,
+            // Log non sensible (pas de numéro complet)
+            console.log('💳 Paiement mobile money:', { order_id: orderId, provider: mobileMoneyProvider })
+
+            const payRes = await mobileMoneyService.initiatePayment({
+              order_id: orderId,
+              provider: mobileMoneyProvider,
               phone_number: phone,
             })
-
-            console.log('💳 InTouch response:', payRes)
 
             if (payRes.error || !payRes.data) {
               setIsProcessingPayment(false)
@@ -522,13 +535,19 @@ export function CheckoutPage() {
               return
             }
 
-            sessionStorage.setItem('pending_payment_tx',    String(payRes.data.transaction_id))
+            const tx = payRes.data
+            sessionStorage.setItem('pending_payment_tx', String(tx.transaction_id))
             sessionStorage.setItem('pending_payment_order', String(orderId))
 
-            // Vider le panier PUIS rediriger (order dans cet ordre pour éviter le redirect /cart)
             clearCart()
-            console.log('🔗 Redirecting to InTouch page:', payRes.data.payment_url)
-            window.location.href = payRes.data.payment_url
+
+            // Wave : redirection vers la page de paiement Wave hébergée.
+            // Orange/Moov : validation USSD sur le téléphone → page de suivi (polling).
+            if (mobileMoneyProvider === 'wave' && tx.payment_url) {
+              window.location.href = tx.payment_url
+            } else {
+              navigate(`/payment/status?transaction_id=${tx.transaction_id}&order_id=${orderId}&provider=${mobileMoneyProvider}`)
+            }
             return
           }
 
@@ -1026,16 +1045,42 @@ export function CheckoutPage() {
                       </div>
                     </label>
 
-                    {/* Numéro Mobile Money */}
+                    {/* Mobile Money : choix opérateur + numéro */}
                     {paymentMethod === 'mobile_money' && (
-                      <div className="border border-green-200 bg-green-50 rounded-lg p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>🟠</span><span>🔵</span><span>🌊</span>
-                          <span className="font-medium">Orange Money · Moov Money · Wave</span>
+                      <div className="border border-green-200 bg-green-50 rounded-lg p-4 space-y-4">
+                        {/* Choix de l'opérateur */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Choisissez votre opérateur
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {([
+                              { id: 'orange_money', label: 'Orange Money', emoji: '🟠' },
+                              { id: 'moov_money',   label: 'Moov Money',   emoji: '🔵' },
+                              { id: 'wave',         label: 'Wave',         emoji: '🌊' },
+                            ] as const).map((op) => (
+                              <button
+                                key={op.id}
+                                type="button"
+                                onClick={() => setMobileMoneyProvider(op.id)}
+                                className={`flex flex-col items-center gap-1 p-3 border rounded-lg text-xs font-medium transition-colors ${
+                                  mobileMoneyProvider === op.id
+                                    ? 'border-[#0f4c2b] bg-white ring-2 ring-[#0f4c2b]'
+                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                }`}
+                                aria-pressed={mobileMoneyProvider === op.id}
+                              >
+                                <span className="text-xl">{op.emoji}</span>
+                                <span>{op.label}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
+
+                        {/* Numéro Mobile Money */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Numéro de téléphone Mobile Money
+                            Numéro {PROVIDER_LABELS[mobileMoneyProvider]}
                           </label>
                           <div className="flex items-center gap-2">
                             <span className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-600 font-medium">+223</span>
@@ -1043,13 +1088,13 @@ export function CheckoutPage() {
                               type="tel"
                               value={mobileMoneyNumber}
                               onChange={e => setMobileMoneyNumber(e.target.value.replace(/\D/g, ''))}
-                              placeholder={shippingAddress.phone?.replace('+223', '').replace(/\s/g, '') || '7X XX XX XX'}
+                              placeholder={toLocalMsisdn(shippingAddress.phone) || '7X XX XX XX'}
                               maxLength={8}
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f4c2b]"
                             />
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Laissez vide pour utiliser le numéro de livraison ({shippingAddress.phone || 'non renseigné'})
+                            Laissez vide pour utiliser le numéro de livraison ({toLocalMsisdn(shippingAddress.phone) || 'non renseigné'})
                           </p>
                         </div>
                       </div>
@@ -1097,7 +1142,7 @@ export function CheckoutPage() {
                       {paymentMethod === 'cash_on_delivery' && 'Paiement à la livraison'}
                       {paymentMethod === 'mobile_money' && (
                         <>
-                          Mobile Money — +223 {mobileMoneyNumber || shippingAddress.phone?.replace('+223', '').replace(/\s/g, '')}
+                          {PROVIDER_LABELS[mobileMoneyProvider]} — +223 {toLocalMsisdn(mobileMoneyNumber || shippingAddress.phone)}
                         </>
                       )}
                     </p>

@@ -5,6 +5,7 @@ import { Mail, Lock, User, ArrowRight, ShoppingBag, Eye, EyeOff, Store, FileText
 import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
 import { authService } from '@/lib/api/authService'
 import { PhoneRegisterForm } from '../components/auth/PhoneRegisterForm'
+import { setAuthReturnTo, resolvePostAuthRedirect } from '@/lib/authRedirect'
 
 export function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -30,26 +31,24 @@ export function RegisterPage() {
   const [otpCountdown, setOtpCountdown] = useState(0)
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  const { register, error, isLoading, clearError, isAuthenticated, user, role: userRole } = useAuthStore()
+  const { register, error, isLoading, clearError, isAuthenticated, user } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Rediriger si déjà connecté
+  // Mémoriser la destination de retour si on vient d'un parcours protégé
+  useEffect(() => {
+    const from = (location.state as any)?.from?.pathname as string | undefined
+    if (from && from !== '/login' && from !== '/register') {
+      setAuthReturnTo(from)
+    }
+  }, [location.state])
+
+  // Rediriger si déjà connecté : returnTo prioritaire, sinon rôle
   useEffect(() => {
     if (isAuthenticated && user) {
-      let redirectPath = '/'
-      if (user.is_superuser || userRole === 'super_admin') {
-        redirectPath = '/superadmin'
-      } else if (user.is_staff || userRole === 'admin') {
-        redirectPath = '/admin'
-      } else if (user.is_seller || userRole === 'vendor') {
-        redirectPath = '/dashboard'
-      } else {
-        redirectPath = '/client'
-      }
-      navigate(redirectPath, { replace: true })
+      navigate(resolvePostAuthRedirect(user), { replace: true })
     }
-  }, [isAuthenticated, user, userRole, navigate])
+  }, [isAuthenticated, user, navigate])
 
   // Countdown OTP
   useEffect(() => {
@@ -203,16 +202,13 @@ export function RegisterPage() {
       const { loadUser } = useAuthStore.getState()
       await loadUser()
 
-      const verifiedUser = data.user
-      let redirectPath = '/client'
-      if (verifiedUser?.is_superuser) redirectPath = '/superadmin'
-      else if (verifiedUser?.is_staff) redirectPath = '/admin'
-      else if (verifiedUser?.is_seller) redirectPath = '/dashboard'
+      // Vendeur qui vient de créer sa boutique → page boutique (priorité métier).
+      // Sinon : returnTo (parcours d'achat) prioritaire, sinon redirection par rôle.
+      const redirectPath = role === 'vendor'
+        ? '/dashboard/store'
+        : resolvePostAuthRedirect(data.user)
 
-      if (role === 'vendor') redirectPath = '/dashboard/store'
-
-      navigate(redirectPath, { replace: true })
-      window.location.reload()
+      window.location.href = redirectPath
     } catch (err: any) {
       const msg = err?.message || err?.toString?.() || 'Code OTP invalide ou expiré'
       setOtpError(typeof msg === 'string' ? msg : JSON.stringify(msg))

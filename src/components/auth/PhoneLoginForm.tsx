@@ -3,9 +3,14 @@ import { Phone, ArrowRight, ArrowLeft, RefreshCw, Shield, Smartphone } from 'luc
 import { authService } from '@/lib/api/authService';
 import { apiClient } from '@/lib/api/apiClient';
 import { useAuthStore } from '@/store/authStore';
-import { useNavigate } from 'react-router-dom';
+import { resolvePostAuthRedirect } from '@/lib/authRedirect';
 
-export function PhoneLoginForm() {
+interface PhoneLoginFormProps {
+  /** Si fourni, appelé après login réussi au lieu de la redirection par défaut. */
+  onSuccess?: () => void;
+}
+
+export function PhoneLoginForm({ onSuccess }: PhoneLoginFormProps = {}) {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -14,7 +19,6 @@ export function PhoneLoginForm() {
   const [countdown, setCountdown] = useState(0);
   const [formattedPhone, setFormattedPhone] = useState('');
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const navigate = useNavigate();
 
   // Traduire les erreurs techniques en messages clairs pour l'utilisateur
   const friendlyError = (raw: string): string => {
@@ -65,7 +69,7 @@ export function PhoneLoginForm() {
 
     try {
       const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
-      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
+      const response = await authService.sendLoginPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         const rawMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error);
         setError(friendlyError(rawMsg));
@@ -125,7 +129,7 @@ export function PhoneLoginForm() {
 
     try {
       const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
-      const response = await authService.verifyPhoneOtp({
+      const response = await authService.verifyLoginPhoneOtp({
         phone: formattedPhoneForApi,
         otp: otpCode,
       });
@@ -146,21 +150,16 @@ export function PhoneLoginForm() {
       const { loadUser } = useAuthStore.getState();
       await loadUser();
 
-      // Rediriger selon le rôle
-      const user = data.user;
-      let redirectPath = '/';
-      if (user?.is_superuser) {
-        redirectPath = '/superadmin';
-      } else if (user?.is_staff) {
-        redirectPath = '/admin';
-      } else if (user?.is_seller) {
-        redirectPath = '/dashboard';
-      } else {
-        redirectPath = '/client';
+      // Si un callback est fourni (popup depuis checkout), le laisser gérer la suite
+      if (onSuccess) {
+        onSuccess();
+        return;
       }
 
-      navigate(redirectPath, { replace: true });
-      window.location.reload();
+      // Sinon : returnTo (parcours d'achat) prioritaire, sinon redirection par rôle.
+      // window.location.href fait navigation + reload de façon atomique (pas de race).
+      const redirectPath = resolvePostAuthRedirect(data.user);
+      window.location.href = redirectPath;
     } catch (err: any) {
       const msg = err?.message || err?.toString?.() || 'Code OTP invalide ou expiré';
       setError(friendlyError(typeof msg === 'string' ? msg : JSON.stringify(msg)));
@@ -175,7 +174,7 @@ export function PhoneLoginForm() {
     setError('');
     try {
       const formattedPhoneForApi = phone.length === 8 && !phone.startsWith('+') ? `+223${phone}` : phone;
-      const response = await authService.sendPhoneOtp(formattedPhoneForApi);
+      const response = await authService.sendLoginPhoneOtp(formattedPhoneForApi);
       if (response.error) {
         const rawMsg = typeof response.error === 'string' ? response.error : (response.error as any)?.message || JSON.stringify(response.error);
         setError(friendlyError(rawMsg));

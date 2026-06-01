@@ -73,6 +73,8 @@ export interface CreateOrderData {
   delivery_fee?: number;
   notes?: string;
   coupon_code?: string;
+  /** Si true, persiste l'adresse dans le carnet (dédupliquée côté backend). */
+  save_address?: boolean;
 }
 
 export interface OrdersListResponse {
@@ -123,14 +125,18 @@ export const ordersService = {
   },
 
   /**
-   * Créer une nouvelle commande (checkout)
-   * Si shipping_address est fourni, on crée d'abord l'adresse puis la commande
+   * Créer une nouvelle commande (checkout).
+   *
+   * La commande contient toujours un SNAPSHOT de l'adresse (le backend copie
+   * les champs shipping_* dans la commande). On n'enregistre donc l'adresse
+   * dans le carnet QUE si l'utilisateur l'a explicitement demandé
+   * (save_address). La déduplication est garantie côté backend.
    */
   async createOrder(data: CreateOrderData) {
     let shippingAddressId = data.shipping_address_id;
 
-    // Si on a des données d'adresse, créer d'abord l'adresse
-    if (data.shipping_address && !shippingAddressId) {
+    // Persister l'adresse uniquement si demandé (et pas déjà un id fourni).
+    if (data.save_address && data.shipping_address && !shippingAddressId) {
       const addressResponse = await apiClient.post<{ id: number }>('/api/customers/addresses', {
         full_name: data.shipping_address.full_name,
         phone: data.shipping_address.phone,
@@ -139,33 +145,32 @@ export const ordersService = {
         quartier: data.shipping_address.quartier,
         address_details: data.shipping_address.address_details || '',
         country: data.shipping_address.country || 'Mali',
-        // Champs de compatibilité pour l'ancien backend
         line1: `${data.shipping_address.quartier}, ${data.shipping_address.commune}`,
         city: 'Bamako',
         postal_code: '00000',
         is_default: true,
       });
-
-      if (addressResponse.error) {
-        return { data: null, error: addressResponse.error, status: addressResponse.status };
+      // Échec non bloquant : la commande peut utiliser l'adresse brute en snapshot.
+      if (!addressResponse.error) {
+        shippingAddressId = addressResponse.data?.id;
       }
-
-      shippingAddressId = addressResponse.data?.id;
     }
 
-    if (!shippingAddressId) {
-      return { data: null, error: 'Adresse de livraison requise', status: 400 };
-    }
-
-    // Créer la commande avec l'ID de l'adresse
+    // La commande accepte soit l'id (carnet) soit l'adresse brute (snapshot).
     const orderData: any = {
       items: data.items,
-      shipping_address_id: shippingAddressId,
       payment_method: data.payment_method || 'cash_on_delivery',
-      delivery_fee: data.delivery_fee || 1000,
+      delivery_fee: data.delivery_fee ?? 1000,
       notes: data.notes,
       coupon_code: data.coupon_code,
     };
+    if (shippingAddressId) {
+      orderData.shipping_address_id = shippingAddressId;
+    } else if (data.shipping_address) {
+      orderData.shipping_address = data.shipping_address;
+    } else {
+      return { data: null, error: 'Adresse de livraison requise', status: 400 };
+    }
 
     return apiClient.post<Order>('/api/orders', orderData);
   },

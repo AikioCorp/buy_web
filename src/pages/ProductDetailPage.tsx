@@ -16,6 +16,7 @@ import { useProductTracking } from '@/hooks/useAnalytics'
 import analytics from '@/lib/analytics/tracker'
 import { PromoCountdown } from '@/components/PromoCountdown'
 import { formatPrice } from '@/lib/utils'
+import { setAuthReturnTo } from '@/lib/authRedirect'
 
 // Cache système pour les produits
 const productCache = new Map<string, { data: Product; timestamp: number }>()
@@ -249,6 +250,8 @@ export function ProductDetailPage() {
       analytics.addToCart(product.id, product.name, quantity, getPrice())
       addItem(product, quantity)
       if (!user) {
+        // Mémoriser le retour checkout (filet de sécurité si reload pendant l'OTP)
+        setAuthReturnTo('/checkout')
         setShowLoginPopup(true)
         return
       }

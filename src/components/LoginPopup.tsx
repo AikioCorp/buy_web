@@ -31,18 +31,26 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
   const { showToast } = useToast()
   const wasAuthenticatedRef = useRef(false)
 
-  // Détecter la connexion réussie et fermer le popup
+  // Handler unifié de fin d'authentification (dédupliqué via le ref).
+  // Utilisé par : login email/password, register, et les formulaires OTP.
+  const finishAuth = () => {
+    if (wasAuthenticatedRef.current) return
+    wasAuthenticatedRef.current = true
+    showToast('Connexion réussie !', 'success')
+    onClose()
+    if (onSuccess) onSuccess()
+  }
+
+  // Détecter la connexion réussie et fermer le popup (filet de sécurité)
   useEffect(() => {
     if (isAuthenticated && !wasAuthenticatedRef.current && isOpen) {
-      wasAuthenticatedRef.current = true
-      showToast('Connexion réussie !', 'success')
-      onClose()
-      if (onSuccess) onSuccess()
+      finishAuth()
     }
     if (!isAuthenticated) {
       wasAuthenticatedRef.current = false
     }
-  }, [isAuthenticated, isOpen, onClose, onSuccess, showToast])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isOpen])
 
   if (!isOpen) return null
 
@@ -71,9 +79,7 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
       const success = await login(loginIdentifier, password, loginMethod)
       
       if (success) {
-        showToast('Connexion réussie !', 'success')
-        onClose()
-        if (onSuccess) onSuccess()
+        finishAuth()
       } else {
         setError('Email/téléphone ou mot de passe incorrect')
       }
@@ -122,9 +128,7 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
       })
       
       if (success) {
-        showToast('Compte créé avec succès !', 'success')
-        onClose()
-        if (onSuccess) onSuccess()
+        finishAuth()
       } else {
         setError('Erreur lors de la création du compte')
       }
@@ -232,11 +236,11 @@ export function LoginPopup({ isOpen, onClose, onSuccess, message }: LoginPopupPr
 
           {/* Connexion par téléphone avec OTP */}
           {loginMethod === 'phone' && !isRegister ? (
-            <PhoneLoginForm />
+            <PhoneLoginForm onSuccess={finishAuth} />
           ) : loginMethod === 'phone' && isRegister ? (
             /* Inscription par téléphone : flux OTP sans mot de passe */
             <>
-              <PhoneRegisterForm />
+              <PhoneRegisterForm onSuccess={finishAuth} />
               <button
                 type="button"
                 onClick={onClose}

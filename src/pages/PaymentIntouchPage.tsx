@@ -100,21 +100,57 @@ export function PaymentIntouchPage() {
   }, [reference, amount])
 
   // ── Étape 2 : charger le SDK InTouch ─────────────────────────────────────
-  useEffect(() => {
-    if (!sdkConfig) return
+  // On ne marque "ready" QUE lorsque window.sendPaymentInfos est réellement
+  // disponible (le onload du script peut précéder l'attachement du global →
+  // d'où l'ancien bug "SDK indisponible, rechargez la page").
+  const loadSdk = () => {
+    setSdkError(null)
+    setSdkReady(false)
 
-    if (document.getElementById('intouch-sdk')) {
+    // Si la fonction est déjà là (script déjà chargé une fois), on est prêt.
+    if (typeof window.sendPaymentInfos === 'function') {
       setSdkReady(true)
       return
     }
 
-    const script   = document.createElement('script')
-    script.id      = 'intouch-sdk'
-    script.src     = INTOUCH_SDK_URL
-    script.async   = true
-    script.onload  = () => { console.log('[InTouch] SDK chargé ✅'); setSdkReady(true) }
-    script.onerror = () => setSdkError('Impossible de charger le SDK InTouch. Vérifiez votre connexion.')
+    // Attendre la disponibilité du global avec un polling borné.
+    const waitForGlobal = () => {
+      let waited = 0
+      const interval = window.setInterval(() => {
+        if (typeof window.sendPaymentInfos === 'function') {
+          window.clearInterval(interval)
+          console.log('[InTouch] SDK prêt ✅')
+          setSdkReady(true)
+        } else if ((waited += 100) >= 8000) {
+          window.clearInterval(interval)
+          setSdkError('Le système de paiement met trop de temps à répondre. Réessayez.')
+        }
+      }, 100)
+    }
+
+    const existing = document.getElementById('intouch-sdk') as HTMLScriptElement | null
+    if (existing) {
+      waitForGlobal()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = 'intouch-sdk'
+    script.src = INTOUCH_SDK_URL
+    script.async = true
+    script.onload = () => waitForGlobal()
+    script.onerror = () => {
+      // Retirer le script échoué pour permettre un vrai retry
+      script.remove()
+      setSdkError('Impossible de charger le système de paiement. Vérifiez votre connexion.')
+    }
     document.body.appendChild(script)
+  }
+
+  useEffect(() => {
+    if (!sdkConfig) return
+    loadSdk()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sdkConfig])
 
   // ── Étape 3 : lancer le paiement dès que le SDK est prêt ─────────────────
@@ -123,8 +159,11 @@ export function PaymentIntouchPage() {
   }, [sdkReady, sdkConfig])
 
   const launchPayment = () => {
-    if (!window.sendPaymentInfos) {
-      setSdkError('Le SDK InTouch n\'est pas disponible. Rechargez la page.')
+    if (typeof window.sendPaymentInfos !== 'function') {
+      // Ne devrait plus arriver (on n'appelle qu'une fois prêt), mais on recharge
+      // le SDK au lieu de demander un refresh complet de la page.
+      setLaunched(false)
+      loadSdk()
       return
     }
     if (!sdkConfig) return
@@ -134,17 +173,12 @@ export function PaymentIntouchPage() {
     const cancelUrl = `${origin}/payment/cancel?reference=${encodeURIComponent(reference)}&order=${encodeURIComponent(orderNum)}&payment_method=intouch`
     const notifUrl  = sdkConfig.webhook_url
 
-    console.log('[InTouch] sendPaymentInfos :', {
+    // Log non sensible : pas de secureCode, ni téléphone/email en clair
+    console.log('[InTouch] sendPaymentInfos:', {
       agencyCode: sdkConfig.agency_code,
-      secureCode: `${sdkConfig.secure_code.slice(0, 8)}...`,
-      domain:     sdkConfig.domain,
+      domain: sdkConfig.domain,
       amount,
       reference,
-      notifUrl,
-      returnUrl,
-      cancelUrl,
-      phone,
-      email,
     })
 
     try {
@@ -180,7 +214,7 @@ export function PaymentIntouchPage() {
           <p className="text-gray-500 mb-6">{sdkError}</p>
           <div className="space-y-3">
             <button
-              onClick={() => { setSdkError(null); setLaunched(false); if (sdkConfig) launchPayment() }}
+              onClick={() => { setLaunched(false); loadSdk() }}
               className="w-full py-3 bg-[#0f4c2b] text-white rounded-xl font-semibold hover:bg-[#0a3a20]"
             >
               Réessayer

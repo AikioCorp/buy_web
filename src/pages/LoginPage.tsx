@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Mail, Lock, ArrowRight, ShoppingBag, Eye, EyeOff, Phone } from 'lucide-react'
 import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
 import { PhoneLoginForm } from '../components/auth/PhoneLoginForm'
+import { setAuthReturnTo, resolvePostAuthRedirect } from '@/lib/authRedirect'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,26 +12,25 @@ export function LoginPage() {
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('phone')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const { login, error, isLoading, clearError, isAuthenticated, user, role } = useAuthStore()
+  const { login, error, isLoading, clearError, isAuthenticated, user } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Rediriger si déjà connecté
+  // Si on arrive ici depuis un parcours protégé (ex: checkout via state.from),
+  // mémoriser la destination pour y revenir après login (y compris flux OTP).
+  useEffect(() => {
+    const from = (location.state as any)?.from?.pathname as string | undefined
+    if (from && from !== '/login' && from !== '/register') {
+      setAuthReturnTo(from)
+    }
+  }, [location.state])
+
+  // Rediriger si déjà connecté : returnTo prioritaire, sinon rôle
   useEffect(() => {
     if (isAuthenticated && user) {
-      let redirectPath = '/'
-      if (user.is_superuser || role === 'super_admin') {
-        redirectPath = '/superadmin'
-      } else if (user.is_staff || role === 'admin') {
-        redirectPath = '/admin'
-      } else if (user.is_seller || role === 'vendor') {
-        redirectPath = '/dashboard'
-      } else {
-        redirectPath = '/client'
-      }
-      navigate(redirectPath, { replace: true })
+      navigate(resolvePostAuthRedirect(user), { replace: true })
     }
-  }, [isAuthenticated, user, role, navigate])
+  }, [isAuthenticated, user, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,27 +39,9 @@ export function LoginPage() {
     // Only handle email login here, phone is handled by PhoneLoginForm
     if (loginMethod !== 'email') return
 
-    const success = await login(email, password, loginMethod)
-
-    if (success) {
-      // Get the role from the store after login
-      const { role, user } = useAuthStore.getState()
-
-      // Determine redirect based on role
-      let defaultRedirect = '/'
-      if (user?.is_superuser || role === 'super_admin') {
-        defaultRedirect = '/superadmin'
-      } else if (user?.is_staff || role === 'admin') {
-        defaultRedirect = '/admin'
-      } else if (user?.is_seller || role === 'vendor') {
-        defaultRedirect = '/dashboard'
-      } else {
-        defaultRedirect = '/client'
-      }
-
-      const from = (location.state as any)?.from?.pathname || defaultRedirect
-      navigate(from, { replace: true })
-    }
+    // La redirection est gérée par le useEffect (source unique) dès que
+    // isAuthenticated passe à true → évite la double consommation de returnTo.
+    await login(email, password, loginMethod)
   }
 
   return (
