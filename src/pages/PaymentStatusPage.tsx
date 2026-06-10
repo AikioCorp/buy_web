@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle, XCircle, Clock, Loader2, Phone, RefreshCw } from 'lucide-react'
 import { mobileMoneyService, PROVIDER_LABELS, type TransactionStatus, type MobileMoneyProvider } from '@/lib/api/mobileMoneyService'
+import { useCartStore } from '@/store/cartStore'
 
 const POLL_INTERVAL_MS = 5000
 const MAX_POLLS = 36 // 3 minutes max
@@ -42,6 +43,7 @@ const STATUS_CONFIG: Record<TransactionStatus, { icon: React.ReactNode; title: s
 export function PaymentStatusPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { clearCart } = useCartStore()
 
   const transactionId = searchParams.get('transaction_id')
   const orderId = searchParams.get('order_id')
@@ -101,10 +103,11 @@ export function PaymentStatusPage() {
   // Redirection auto vers les commandes après succès
   useEffect(() => {
     if (status === 'completed') {
+      clearCart()
       const timer = setTimeout(() => navigate('/client/orders'), 3000)
       return () => clearTimeout(timer)
     }
-  }, [status, navigate])
+  }, [status, navigate, clearCart])
 
   const cfg = STATUS_CONFIG[status]
   const isLoading = (status === 'initiated' || status === 'pending') && !isStopped

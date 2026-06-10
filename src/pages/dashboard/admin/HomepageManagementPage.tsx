@@ -25,6 +25,15 @@ const PRESET_COLORS = [
   '#7c3aed', '#9333ea', '#c026d3', '#db2777', '#e11d48', '#1f2937',
 ]
 
+const isInlineBackground = (value?: string | null) =>
+  !!value && value.trim().startsWith('linear-gradient(')
+
+const getBackgroundStyle = (value?: string | null) =>
+  isInlineBackground(value) ? { background: value || undefined } : undefined
+
+const getGradientClass = (value?: string | null) =>
+  isInlineBackground(value) ? '' : value || ''
+
 export default function HomepageManagementPage() {
   const { showToast } = useToast()
   const [tab, setTab] = useState<'sliders' | 'banners' | 'featured'>('sliders')
@@ -245,7 +254,12 @@ export default function HomepageManagementPage() {
               <div className="flex-1">
                 <h3 className="font-semibold">{s.title}</h3>
                 <p className="text-gray-600 text-sm">{s.subtitle}</p>
-                <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs text-white bg-gradient-to-r ${s.bg_color}`}>{s.cta_text}</span>
+                <span
+                  className={`inline-block mt-2 px-3 py-1 rounded-full text-xs text-white bg-gradient-to-r ${getGradientClass(s.bg_color)}`}
+                  style={getBackgroundStyle(s.bg_color)}
+                >
+                  {s.cta_text}
+                </span>
               </div>
               <div className="flex gap-2">
                 <button onClick={async () => {
@@ -560,7 +574,7 @@ export default function HomepageManagementPage() {
                       <div className="flex flex-wrap gap-1.5">
                         {PRESET_COLORS.map(color => (
                           <button key={color} type="button"
-                            onClick={() => setEditItem({ ...editItem, bg_color: `from-[${color}] to-[${color}]` })}
+                            onClick={() => setEditItem({ ...editItem, bg_color: `linear-gradient(to right, ${color}, ${color})` })}
                             className="w-7 h-7 rounded-lg border-2 border-white shadow-sm hover:scale-110 transition-transform"
                             style={{ backgroundColor: color }}
                             title={color}
@@ -603,7 +617,10 @@ export default function HomepageManagementPage() {
                   {/* Current color preview */}
                   <div className="mt-3 p-2 bg-gray-50 rounded-lg">
                     <span className="text-xs text-gray-500">Couleur actuelle :</span>
-                    <div className={`h-6 rounded mt-1 bg-gradient-to-r ${editItem.bg_color}`}></div>
+                    <div
+                      className={`h-6 rounded mt-1 bg-gradient-to-r ${getGradientClass(editItem.bg_color)}`}
+                      style={getBackgroundStyle(editItem.bg_color)}
+                    ></div>
                     <span className="text-xs text-gray-400 font-mono">{editItem.bg_color}</span>
                   </div>
                 </div>

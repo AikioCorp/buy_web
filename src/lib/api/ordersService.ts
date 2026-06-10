@@ -9,6 +9,7 @@ export interface Order {
   customer: number;
   user: number;
   status: OrderStatus;
+  payment_status?: PaymentStatus;
   shipping_address: number;
   total_amount: string;
   items: OrderItem[];
@@ -51,6 +52,12 @@ export type OrderStatus =
   | 'shipped'
   | 'delivered'
   | 'cancelled';
+
+export type PaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'refunded';
 
 export interface ShippingAddressData {
   full_name: string;

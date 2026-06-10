@@ -555,8 +555,6 @@ export function CheckoutPage() {
             sessionStorage.setItem('pending_payment_tx',    String(tx.transaction_id))
             sessionStorage.setItem('pending_payment_order', String(orderId))
 
-            // Vider le panier PUIS rediriger (évite la redirection vers /cart)
-            clearCart()
             console.log('🔗 Redirecting to InTouch SDK page:', tx.payment_url)
             window.location.href = tx.payment_url
             return

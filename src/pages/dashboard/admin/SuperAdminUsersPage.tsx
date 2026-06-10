@@ -75,6 +75,15 @@ const SuperAdminUsersPage: React.FC = () => {
   const [msgContent, setMsgContent] = useState('')
   const [msgSending, setMsgSending] = useState(false)
 
+  const isGeneratedEmail = (email?: string | null) =>
+    !!email && (email.endsWith('@phone.buymore.ml') || email.endsWith('@buymore-user.local'))
+
+  const displayEmail = (user?: Partial<UserData> | null) => {
+    if (!user) return ''
+    if (!user.email || isGeneratedEmail(user.email)) return user.phone || 'Aucun email'
+    return user.email
+  }
+
   // User info modal state
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
   const [userToView, setUserToView] = useState<UserData | null>(null)
@@ -783,7 +792,7 @@ const SuperAdminUsersPage: React.FC = () => {
                   </div>
 
                   <h3 className="text-2xl font-black text-gray-900 text-center tracking-tight truncate w-full">{user.username}</h3>
-                  <p className="text-sm font-bold text-gray-400 text-center mb-6 truncate w-full">{user.email}</p>
+                  <p className="text-sm font-bold text-gray-400 text-center mb-6 truncate w-full">{displayEmail(user)}</p>
 
                   <div className="w-full grid grid-cols-2 gap-3 text-center text-xs font-semibold py-4 bg-gray-50/50 rounded-2xl border border-gray-100/50 mb-2">
                     <div className="flex flex-col items-center justify-center border-r border-gray-200/50">
@@ -848,7 +857,7 @@ const SuperAdminUsersPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-black text-gray-900 group-hover:text-indigo-600 transition-colors text-base">{user.username}</div>
-                      <div className="text-xs font-bold text-gray-400">{user.email}</div>
+                      <div className="text-xs font-bold text-gray-400">{displayEmail(user)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${roleInfo.bg} ring-1 ring-black/5`}>
@@ -1248,7 +1257,7 @@ const SuperAdminUsersPage: React.FC = () => {
                 </div>
 
                 <p className="text-gray-700 mb-6">
-                  Êtes-vous sûr de vouloir supprimer l'utilisateur <strong>{userToDelete.username}</strong> ({userToDelete.email}) ?
+                  Êtes-vous sûr de vouloir supprimer l'utilisateur <strong>{userToDelete.username}</strong> ({displayEmail(userToDelete)}) ?
                 </p>
 
                 <div className="flex items-center justify-end gap-3">
@@ -1292,7 +1301,7 @@ const SuperAdminUsersPage: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Réinitialiser le mot de passe</h2>
-                    <p className="text-sm text-gray-600">{userToResetPassword.username} ({userToResetPassword.email})</p>
+                    <p className="text-sm text-gray-600">{userToResetPassword.username} ({displayEmail(userToResetPassword)})</p>
                   </div>
                 </div>
 
@@ -1400,7 +1409,7 @@ const SuperAdminUsersPage: React.FC = () => {
                 <Bell size={24} />
                 <div>
                   <h2 className="text-xl font-bold">Envoyer une notification</h2>
-                  <p className="text-white/80 text-sm">À {userToNotify.username || userToNotify.email}</p>
+                  <p className="text-white/80 text-sm">À {userToNotify.username || displayEmail(userToNotify)}</p>
                 </div>
               </div>
             </div>
@@ -1491,7 +1500,7 @@ const SuperAdminUsersPage: React.FC = () => {
                 <MessageSquare size={24} />
                 <div>
                   <h2 className="text-xl font-bold">Envoyer un message</h2>
-                  <p className="text-white/80 text-sm">À {userToMessage.username || userToMessage.email}</p>
+                  <p className="text-white/80 text-sm">À {userToMessage.username || displayEmail(userToMessage)}</p>
                 </div>
               </div>
             </div>

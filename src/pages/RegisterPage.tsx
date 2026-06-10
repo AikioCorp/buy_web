@@ -125,9 +125,9 @@ export function RegisterPage() {
       finalShopPhone = formatMaliPhone(shopPhone)
     }
 
-    // Pour l'onglet téléphone : générer email et mot de passe automatiquement
+    // Pour l'onglet téléphone : le backend génère l'email auth interne.
     const finalEmail = registerMethod === 'phone'
-      ? `${username}@buymore-user.local`
+      ? ''
       : email
     const finalPassword = registerMethod === 'phone'
       ? `BM_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
