@@ -13,7 +13,8 @@ export function PaymentSuccessPage() {
   const navigate = useNavigate()
 
   const orderNumber = searchParams.get('order')
-  const storedTxId = sessionStorage.getItem('pending_payment_tx')
+  const provider    = searchParams.get('provider') || 'orange_money'  // opérateur réel, pas wave hardcodé
+  const storedTxId    = sessionStorage.getItem('pending_payment_tx')
   const storedOrderId = sessionStorage.getItem('pending_payment_order')
 
   useEffect(() => {
@@ -22,13 +23,14 @@ export function PaymentSuccessPage() {
 
     const timer = setTimeout(() => {
       if (storedTxId && storedOrderId) {
-        navigate(`/payment/status?transaction_id=${storedTxId}&order_id=${storedOrderId}&provider=wave`, { replace: true })
+        navigate(`/payment/status?transaction_id=${storedTxId}&order_id=${storedOrderId}&provider=${provider}`, { replace: true })
       } else {
         navigate('/client/orders', { replace: true })
       }
     }, 1500)
 
     return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

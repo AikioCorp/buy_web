@@ -87,6 +87,12 @@ export function CheckoutPage() {
   const { savedAddress, saveAddress } = useShippingStore()
 
   const [currentStep, setCurrentStep] = useState<Step>('shipping')
+
+  // Scroll en haut à chaque changement d'étape
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentStep])
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [orderSuccess, setOrderSuccess] = useState(false)
@@ -248,12 +254,19 @@ export function CheckoutPage() {
     loadCustomerData()
   }, [isAuthenticated, user])
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated.
+  // On attend 400ms avant de rediriger pour laisser le temps au store de
+  // se peupler après un window.location.href (rechargement complet de page).
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: location } })
-    }
-  }, [isAuthenticated, navigate, location])
+    if (isAuthenticated) return
+    const t = setTimeout(() => {
+      if (!useAuthStore.getState().isAuthenticated) {
+        navigate('/login', { state: { from: location } })
+      }
+    }, 400)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated])
 
   // Redirect to cart if empty — sauf pendant le traitement d'un paiement
   useEffect(() => {
@@ -496,11 +509,10 @@ export function CheckoutPage() {
           const itemsCount = items.reduce((acc, item) => acc + item.quantity, 0)
           analytics.orderCreated(orderId, orderTotal, itemsCount, 'website')
 
-          // Paiement Mobile Money via l'API directe TouchPay/InTouch.
-          // L'opérateur, le téléphone, l'email et le nom sont transmis à l'API ;
-          // le backend les relaie à InTouch côté serveur (pas de re-saisie).
+          // Paiement Mobile Money via InTouch SDK.
+          // Le backend génère une URL /payment/intouch?... avec tous les paramètres
+          // (montant, référence, email, nom) récupérés depuis la commande.
           if (paymentMethod === 'mobile_money') {
-            // Bloquer la redirection vers /cart pendant le traitement
             setIsProcessingPayment(true)
 
             if (!orderId) {
@@ -510,7 +522,6 @@ export function CheckoutPage() {
             }
 
             // Numéro effectif : champ Mobile Money sinon téléphone de livraison.
-            // Normalisé au format local 8 chiffres attendu par InTouch.
             const effectiveRaw = mobileMoneyNumber.trim() || shippingAddress.phone || ''
             const phone = toLocalMsisdn(effectiveRaw)
 
@@ -520,34 +531,34 @@ export function CheckoutPage() {
               return
             }
 
-            // Log non sensible (pas de numéro complet)
-            console.log('💳 Paiement mobile money:', { order_id: orderId, provider: mobileMoneyProvider })
+            console.log('💳 InTouch paiement:', { order_id: orderId, provider: mobileMoneyProvider })
 
-            const payRes = await mobileMoneyService.initiatePayment({
-              order_id: orderId,
-              provider: mobileMoneyProvider,
-              phone_number: phone,
+            // Email du client depuis le formulaire de livraison (pas les faux @phone.buymore.ml)
+            const clientEmail = (shippingAddress.email || '').includes('@phone.buymore.ml')
+              ? ''
+              : (shippingAddress.email || '')
+
+            const payRes = await mobileMoneyService.initiateIntouchPayment({
+              order_id:      orderId,
+              phone_number:  `+223${phone}`,
+              provider:      mobileMoneyProvider,
+              customer_email: clientEmail,
             })
 
             if (payRes.error || !payRes.data) {
               setIsProcessingPayment(false)
-              setError(payRes.error || 'Erreur lors de l\'initiation du paiement')
+              setError(typeof payRes.error === 'string' ? payRes.error : 'Erreur lors de l\'initiation du paiement InTouch')
               return
             }
 
             const tx = payRes.data
-            sessionStorage.setItem('pending_payment_tx', String(tx.transaction_id))
+            sessionStorage.setItem('pending_payment_tx',    String(tx.transaction_id))
             sessionStorage.setItem('pending_payment_order', String(orderId))
 
+            // Vider le panier PUIS rediriger (évite la redirection vers /cart)
             clearCart()
-
-            // Wave : redirection vers la page de paiement Wave hébergée.
-            // Orange/Moov : validation USSD sur le téléphone → page de suivi (polling).
-            if (mobileMoneyProvider === 'wave' && tx.payment_url) {
-              window.location.href = tx.payment_url
-            } else {
-              navigate(`/payment/status?transaction_id=${tx.transaction_id}&order_id=${orderId}&provider=${mobileMoneyProvider}`)
-            }
+            console.log('🔗 Redirecting to InTouch SDK page:', tx.payment_url)
+            window.location.href = tx.payment_url
             return
           }
 
@@ -1045,42 +1056,13 @@ export function CheckoutPage() {
                       </div>
                     </label>
 
-                    {/* Mobile Money : choix opérateur + numéro */}
+                    {/* Mobile Money : numéro uniquement — l'opérateur est choisi sur la page InTouch */}
                     {paymentMethod === 'mobile_money' && (
-                      <div className="border border-green-200 bg-green-50 rounded-lg p-4 space-y-4">
-                        {/* Choix de l'opérateur */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Choisissez votre opérateur
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {([
-                              { id: 'orange_money', label: 'Orange Money', emoji: '🟠' },
-                              { id: 'moov_money',   label: 'Moov Money',   emoji: '🔵' },
-                              { id: 'wave',         label: 'Wave',         emoji: '🌊' },
-                            ] as const).map((op) => (
-                              <button
-                                key={op.id}
-                                type="button"
-                                onClick={() => setMobileMoneyProvider(op.id)}
-                                className={`flex flex-col items-center gap-1 p-3 border rounded-lg text-xs font-medium transition-colors ${
-                                  mobileMoneyProvider === op.id
-                                    ? 'border-[#0f4c2b] bg-white ring-2 ring-[#0f4c2b]'
-                                    : 'border-gray-200 bg-white hover:border-gray-300'
-                                }`}
-                                aria-pressed={mobileMoneyProvider === op.id}
-                              >
-                                <span className="text-xl">{op.emoji}</span>
-                                <span>{op.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Numéro Mobile Money */}
+                      <div className="border border-green-200 bg-green-50 rounded-lg p-4 space-y-3">
+                        <p className="text-sm font-medium text-gray-700">Orange Money · Moov Money · Wave</p>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Numéro {PROVIDER_LABELS[mobileMoneyProvider]}
+                            Numéro Mobile Money
                           </label>
                           <div className="flex items-center gap-2">
                             <span className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-600 font-medium">+223</span>
@@ -1116,92 +1098,160 @@ export function CheckoutPage() {
 
             {/* Confirmation Step */}
             {currentStep === 'confirmation' && (
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-6 flex items-center">
-                    <CheckCircle className="h-5 w-5 mr-2 text-[#0f4c2b]" />
-                    Récapitulatif de la commande
-                  </h2>
+              <div className="space-y-4">
+                {/* En-tête */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="h-9 w-9 rounded-full bg-green-50 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-[#0f4c2b]" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">Récapitulatif de la commande</h2>
+                  </div>
+                  <p className="text-sm text-gray-500 ml-12">Vérifiez vos informations avant de confirmer</p>
+                </div>
 
-                  {/* Shipping Address Summary */}
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium text-gray-900 mb-2">Adresse de livraison</h3>
-                    <p className="text-gray-600">{shippingAddress.full_name}</p>
-                    <p className="text-gray-600">{shippingAddress.quartier}, {shippingAddress.commune}</p>
+                {/* Adresse de livraison */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-7 w-7 rounded-full bg-blue-50 flex items-center justify-center">
+                      <MapPin className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Adresse de livraison</h3>
+                    <button
+                      onClick={() => setCurrentStep('shipping')}
+                      className="ml-auto text-xs text-[#0f4c2b] hover:underline font-medium"
+                    >
+                      Modifier
+                    </button>
+                  </div>
+                  <div className="space-y-1 pl-9">
+                    <p className="font-medium text-gray-900">{shippingAddress.full_name}</p>
+                    <p className="text-sm text-gray-600">{shippingAddress.quartier}, {shippingAddress.commune}</p>
                     {shippingAddress.address_details && (
-                      <p className="text-gray-600">{shippingAddress.address_details}</p>
+                      <p className="text-sm text-gray-600">{shippingAddress.address_details}</p>
                     )}
-                    <p className="text-gray-600">Bamako, {shippingAddress.country}</p>
-                    <p className="text-gray-600">{shippingAddress.phone}</p>
-                  </div>
-
-                  {/* Payment Method Summary */}
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium text-gray-900 mb-2">Mode de paiement</h3>
-                    <p className="text-gray-600">
-                      {paymentMethod === 'cash_on_delivery' && 'Paiement à la livraison'}
-                      {paymentMethod === 'mobile_money' && (
-                        <>
-                          {PROVIDER_LABELS[mobileMoneyProvider]} — +223 {toLocalMsisdn(mobileMoneyNumber || shippingAddress.phone)}
-                        </>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Items */}
-                  <div className="mb-6">
-                    <h3 className="font-medium text-gray-900 mb-4">Articles ({items.length})</h3>
-                    <div className="space-y-3">
-                      {items.map((item) => (
-                        <div key={item.product.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                          <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                            {getProductImageUrl(item.product) ? (
-                              <img
-                                src={getProductImageUrl(item.product)!}
-                                alt={item.product.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                <ShoppingBag className="h-6 w-6" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{item.product.name}</p>
-                            <p className="text-sm text-gray-500">Quantité: {item.quantity}</p>
-                          </div>
-                          <p className="font-semibold">
-                            {formatPrice(getEffectivePrice(item.product) * item.quantity, 'XOF')}
-                          </p>
-                        </div>
-                      ))}
+                    <p className="text-sm text-gray-600">Bamako, {shippingAddress.country}</p>
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600 pt-1">
+                      <Phone className="h-3.5 w-3.5" />
+                      {shippingAddress.phone}
                     </div>
                   </div>
+                </div>
 
-                  <div className="mt-6 flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep('payment')}>
-                      Retour
-                    </Button>
-                    <Button
-                      onClick={handlePlaceOrder}
-                      size="lg"
-                      disabled={isLoading}
+                {/* Mode de paiement */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-7 w-7 rounded-full bg-purple-50 flex items-center justify-center">
+                      <CreditCard className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Mode de paiement</h3>
+                    <button
+                      onClick={() => setCurrentStep('payment')}
+                      className="ml-auto text-xs text-[#0f4c2b] hover:underline font-medium"
                     >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                          Traitement...
-                        </>
-                      ) : (
-                        <>
-                          Confirmer la commande
-                        </>
-                      )}
-                    </Button>
+                      Modifier
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="pl-9">
+                    {paymentMethod === 'cash_on_delivery' ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-yellow-50 flex items-center justify-center text-lg">💵</div>
+                        <div>
+                          <p className="font-medium text-gray-900">Paiement à la livraison</p>
+                          <p className="text-xs text-gray-500">Payez en espèces à la réception</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center text-lg">📱</div>
+                        <div>
+                          <p className="font-medium text-gray-900">Mobile Money</p>
+                          <p className="text-xs text-gray-500">+223 {toLocalMsisdn(mobileMoneyNumber || shippingAddress.phone)}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Articles */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-7 w-7 rounded-full bg-orange-50 flex items-center justify-center">
+                      <ShoppingBag className="h-4 w-4 text-orange-500" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Articles <span className="text-gray-400 font-normal">({items.length})</span></h3>
+                  </div>
+                  <div className="space-y-2">
+                    {items.map((item) => (
+                      <div key={item.product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          {getProductImageUrl(item.product) ? (
+                            <img
+                              src={getProductImageUrl(item.product)!}
+                              alt={item.product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-300">
+                              <ShoppingBag className="h-5 w-5" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate text-sm">{item.product.name}</p>
+                          <p className="text-xs text-gray-500">Qté : {item.quantity}</p>
+                        </div>
+                        <p className="font-bold text-gray-900 text-sm whitespace-nowrap">
+                          {formatPrice(getEffectivePrice(item.product) * item.quantity, 'XOF')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Total */}
+                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Sous-total</span>
+                      <span>{formatPrice(getTotal(), 'XOF')}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> Livraison</span>
+                      <span className={freeShipping ? 'text-green-600 font-medium' : ''}>
+                        {freeShipping ? 'Gratuite' : formatPrice(getDeliveryFee(), 'XOF')}
+                      </span>
+                    </div>
+                    {totalCouponDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Réduction</span>
+                        <span>-{formatPrice(totalCouponDiscount, 'XOF')}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-base pt-1 border-t border-gray-100">
+                      <span>Total</span>
+                      <span className="text-[#0f4c2b] text-lg">{formatPrice(getTotal() + (freeShipping ? 0 : getDeliveryFee()) - totalCouponDiscount, 'XOF')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-between gap-3">
+                  <Button variant="outline" onClick={() => setCurrentStep('payment')} className="flex items-center gap-2">
+                    <ArrowLeft className="h-4 w-4" /> Retour
+                  </Button>
+                  <Button
+                    onClick={handlePlaceOrder}
+                    size="lg"
+                    disabled={isLoading}
+                    className="flex-1 max-w-xs"
+                  >
+                    {isLoading ? (
+                      <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Traitement...</>
+                    ) : (
+                      'Confirmer la commande'
+                    )}
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 

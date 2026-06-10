@@ -53,9 +53,10 @@ export interface PaymentStatusResult {
 
 // ── InTouch ───────────────────────────────────────────────────────────────
 export interface IntouchInitiateParams {
-  order_id:     number;
-  phone_number: string;
-  provider?:    IntouchProvider;
+  order_id:        number;
+  phone_number:    string;
+  provider?:       IntouchProvider;
+  customer_email?: string;
 }
 
 export interface IntouchInitiateResult {

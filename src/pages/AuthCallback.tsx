@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { apiClient } from '../lib/api';
+import { consumeAuthReturnTo, roleBasedRedirect } from '@/lib/authRedirect';
 
 export function AuthCallback() {
   const navigate = useNavigate();
@@ -58,12 +59,17 @@ export function AuthCallback() {
             error: null,
           });
 
-          const redirectPath = userData.is_superuser ? '/superadmin'
-            : userData.is_staff ? '/admin'
-            : userData.is_seller ? '/dashboard'
-            : '/client';
+          // Priorité : returnTo depuis le parcours d'achat (sessionStorage),
+          // sinon redirection par rôle.
+          const returnTo = consumeAuthReturnTo();
+          const redirectPath = returnTo || roleBasedRedirect(userData);
 
-          navigate(redirectPath, { replace: true });
+          console.log('[AuthCallback] returnTo:', returnTo, '→ redirect:', redirectPath);
+
+          // window.location.href au lieu de navigate() : évite la race condition
+          // où CheckoutPage se monte avant que le store React soit synchronisé.
+          // Le rechargement complet garantit que le store est hydraté proprement.
+          window.location.href = redirectPath;
         } else if (meResult.status === 404 || meResult.status === 401) {
           // Utilisateur n'existe pas, créer le profil
           const payload = JSON.parse(atob(token.split('.')[1]));

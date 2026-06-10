@@ -260,7 +260,12 @@ export function ProductDetailPage() {
   }
 
   const handleLoginSuccess = () => {
-    navigate('/checkout')
+    // window.location.href au lieu de navigate() :
+    // évite la race condition où CheckoutPage se monte alors qu'isAuthenticated
+    // n'est pas encore propagé dans React, ce qui le redirige vers /login puis
+    // vers le dashboard (/superadmin pour super_admin).
+    // Le rechargement complet garantit que le store est synchronisé.
+    window.location.href = '/checkout'
   }
 
   const [whatsappLoading, setWhatsappLoading] = useState(false)
