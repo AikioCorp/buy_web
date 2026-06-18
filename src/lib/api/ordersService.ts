@@ -115,6 +115,13 @@ export const ordersService = {
   },
 
   /**
+   * Récupérer le reçu de paiement d'une commande
+   */
+  async getOrderReceipt(id: number) {
+    return apiClient.get<any>(`/api/orders/${id}/receipt`);
+  },
+
+  /**
    * Récupérer les commandes du vendeur (pour sa boutique)
    */
   async getVendorOrders(params?: {

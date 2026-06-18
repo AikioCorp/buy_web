@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Package, CheckCircle, Clock, XCircle, Calendar, Loader2, Truck, Eye, X, AlertTriangle, Phone, MapPin, CreditCard } from 'lucide-react'
+import { Search, Package, CheckCircle, Clock, XCircle, Calendar, Loader2, Truck, Eye, X, AlertTriangle, Phone, MapPin, CreditCard, FileText } from 'lucide-react'
 import { ordersService, Order, OrderStatus } from '../../../lib/api/ordersService'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://buymore-api-production.up.railway.app'
@@ -46,6 +46,7 @@ const OrdersPage: React.FC = () => {
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false)
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [receiptLoading, setReceiptLoading] = useState(false)
 
   useEffect(() => {
     loadOrders()
@@ -94,6 +95,96 @@ const OrdersPage: React.FC = () => {
       setError(err.message || 'Erreur lors du chargement des commandes')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePrintReceipt = async (orderId: number) => {
+    try {
+      setReceiptLoading(true)
+      const res = await ordersService.getOrderReceipt(orderId)
+      setReceiptLoading(false)
+
+      if (res.error || !res.data) {
+        alert("Impossible de charger le reçu de paiement.")
+        return
+      }
+
+      // Handle envelope structure
+      const payload: any = res.data
+      const receipt = payload.data
+      const order = payload.order
+      
+      if (!receipt || !order) {
+        alert("Les données du reçu de paiement sont incomplètes.")
+        return
+      }
+
+      const receiptNumber = receipt.receipt_number || order.order_number
+      const amount = Math.round(parseFloat(receipt.amount))
+      const paymentMethod = receipt.payment_method
+      const paymentRef = receipt.payment_ref || ''
+      const createdAt = new Date(receipt.created_at).toLocaleString('fr-FR')
+      const clientName = order.shipping_full_name
+      const clientPhone = order.shipping_phone
+      const clientAddress = `${order.shipping_commune}, ${order.shipping_quartier}`
+
+      const isPaid = order.payment_status === 'paid'
+      const statusText = isPaid ? 'PAYÉ' : order.payment_status === 'failed' ? 'ÉCHEC' : 'EN ATTENTE DE PAIEMENT'
+      const statusColor = isPaid ? '#16a34a' : order.payment_status === 'failed' ? '#dc2626' : '#d97706'
+      const docTitle = isPaid ? 'Reçu de paiement' : 'Facture'
+      const totalLabel = isPaid ? 'TOTAL PAYÉ' : 'TOTAL À PAYER'
+
+      const itemsHtml = (order.order_items || []).map((item: any) => 
+        '<tr>' +
+          '<td style="padding: 8px; border-bottom: 1px solid #ddd;">' + item.product_name + '</td>' +
+          '<td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">' + item.quantity + '</td>' +
+          '<td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">' + formatPrice(item.unit_price) + '</td>' +
+          '<td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">' + formatPrice(item.total_price) + '</td>' +
+        '</tr>'
+      ).join('')
+
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        let html = '<html><head><title>' + docTitle + ' ' + receiptNumber + '</title>'
+        html += '<style>'
+        html += 'body { font-family: Arial, sans-serif; color: #333; margin: 20px; line-height: 1.5; }'
+        html += '.header { text-align: center; margin-bottom: 30px; }'
+        html += '.logo { font-size: 24px; font-weight: bold; color: #16a34a; }'
+        html += '.title { font-size: 20px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }'
+        html += '.info-table, .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }'
+        html += '.info-table td { padding: 5px 0; }'
+        html += '.items-table th { background: #f4f4f5; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; }'
+        html += '.totals { text-align: right; margin-top: 20px; font-size: 16px; }'
+        html += '.footer { text-align: center; margin-top: 50px; font-size: 12px; color: #71717a; border-top: 1px solid #ddd; padding-top: 20px; }'
+        html += '@media print { .print-btn { display: none; } }'
+        html += '</style></head><body>'
+        html += '<div style="text-align: right;"><button class="print-btn" onclick="window.print()" style="padding: 10px 20px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">Imprimer / Enregistrer en PDF</button></div>'
+        html += '<div class="header"><div class="logo">BuyMore</div><div class="title">' + docTitle + '</div><div style="margin-top: 5px; color: #71717a;">Numéro : ' + receiptNumber + '</div></div>'
+        html += '<table class="info-table"><tr><td style="width: 50%;"><strong>Date :</strong> ' + createdAt + '</td><td style="width: 50%; text-align: right;"><strong>Statut :</strong> <span style="color: ' + statusColor + '; font-weight: bold;">' + statusText + '</span></td></tr>'
+        html += '<tr><td><strong>Client :</strong> ' + clientName + '</td><td style="text-align: right;"><strong>Téléphone :</strong> ' + clientPhone + '</td></tr>'
+        html += '<tr><td colspan="2"><strong>Adresse :</strong> ' + clientAddress + '</td></tr></table>'
+        html += '<h3 style="margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Articles commandés</h3>'
+        html += '<table class="items-table"><thead><tr><th>Description</th><th style="text-align: center;">Qté</th><th style="text-align: right;">Prix unitaire</th><th style="text-align: right;">Total</th></tr></thead><tbody>'
+        html += itemsHtml
+        html += '</tbody></table>'
+        html += '<div class="totals"><p>Sous-total : ' + formatPrice(order.subtotal || order.total_amount) + '</p><p>Frais de livraison : ' + formatPrice(order.delivery_fee || 0) + '</p>'
+        html += '<p style="font-size: 20px; font-weight: bold; margin-top: 10px;">' + totalLabel + ' : <span style="color: #16a34a;">' + formatPrice(amount) + '</span></p></div>'
+        html += '<div style="margin-top: 30px; background: #f4f4f5; padding: 15px; border-radius: 8px; font-size: 14px;"><strong>Détails du paiement :</strong><br/>'
+        html += 'Moyen de paiement : ' + (paymentMethod === 'orange_money' ? 'Orange Money' : paymentMethod === 'moov_money' ? 'Moov Money' : paymentMethod === 'wave' ? 'Wave' : paymentMethod === 'cash_on_delivery' ? 'Paiement à la livraison' : paymentMethod) + '<br/>'
+        if (paymentRef) {
+          html += 'Référence de transaction : ' + paymentRef + '<br/>'
+        }
+        html += '</div>'
+        html += '<div class="footer">Merci pour votre confiance sur BuyMore !<br/>www.buymore.ml</div>'
+        html += '</body></html>'
+        
+        printWindow.document.write(html)
+        printWindow.document.close()
+      }
+    } catch (err) {
+      setReceiptLoading(false)
+      console.error(err)
+      alert("Erreur lors de la récupération du reçu.")
     }
   }
 
@@ -377,13 +468,22 @@ const OrdersPage: React.FC = () => {
                       <div className="text-2xl font-bold text-green-600">
                         {formatPrice(order.total_amount)}
                       </div>
-                      <button
-                        onClick={() => handleViewOrder(order)}
-                        className="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 font-medium"
-                      >
-                        <Eye size={18} />
-                        Voir détails
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleViewOrder(order)}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5 font-medium text-sm"
+                        >
+                          <Eye size={16} />
+                          Détails
+                        </button>
+                        <button
+                          onClick={() => handlePrintReceipt(order.id)}
+                          className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors flex items-center gap-1.5 font-medium text-sm"
+                        >
+                          <FileText size={16} />
+                          {order.payment_status === 'paid' ? 'Reçu' : 'Facture'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -630,6 +730,30 @@ const OrdersPage: React.FC = () => {
                   >
                     <XCircle size={18} />
                     Annuler cette commande
+                  </button>
+                </div>
+              )}
+
+              {viewingOrder && (
+                <div className="pt-4 border-t">
+                  <button
+                    onClick={() => handlePrintReceipt(viewingOrder.id)}
+                    disabled={receiptLoading}
+                    className="w-full py-3 bg-green-50 text-green-700 rounded-xl font-semibold hover:bg-green-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {receiptLoading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Chargement...
+                      </>
+                    ) : (
+                      <>
+                        <Package size={18} />
+                        {viewingOrder.payment_status === 'paid' 
+                          ? 'Voir / Imprimer le reçu de paiement' 
+                          : 'Voir / Imprimer la facture'}
+                      </>
+                    )}
                   </button>
                 </div>
               )}
